@@ -137,5 +137,9 @@ void userial_close(void);
 *******************************************************************************/
 void userial_ioctl(userial_ioctl_op_t op, void *p_data);
 
+#ifdef QCOM_WCN_SSR
+uint8_t userial_dev_inreset();
+#endif
+
 #endif /* USERIAL_H */
 
