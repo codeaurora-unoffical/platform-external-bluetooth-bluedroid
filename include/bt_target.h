@@ -1082,7 +1082,7 @@ and USER_HW_DISABLE_API macros */
 
 /* Fixed Default String (Ignored if BTM_USE_DEF_LOCAL_NAME is FALSE) */
 #ifndef BTM_DEF_LOCAL_NAME
-#define BTM_DEF_LOCAL_NAME      ""
+#define BTM_DEF_LOCAL_NAME      "QCOM-BTD"
 #endif
 
 /* Maximum service name stored with security authorization (0 if not needed) */
