@@ -391,6 +391,8 @@ static void *bt_hc_worker_thread(void *arg)
 
         if (events & HC_EVENT_RX && ( p_hci_if->rcv != NULL))
         {
+            /*Reset the lpm timer if it is already started*/
+            lpm_allow_bt_device_sleep();
             p_hci_if->rcv();
 
             if ((tx_cmd_pkts_pending == TRUE) && (num_hci_cmd_pkts > 0))
