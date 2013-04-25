@@ -382,8 +382,7 @@ void lpm_wake_assert(void)
 *******************************************************************************/
 void lpm_allow_bt_device_sleep(void)
 {
-    if ((bt_lpm_cb.state == LPM_ENABLED) && \
-        (bt_lpm_cb.wake_state == LPM_WAKE_ASSERTED))
+    if (bt_lpm_cb.state == LPM_ENABLED)
     {
         if(bt_lpm_cb.no_tx_data == TRUE)
         {
