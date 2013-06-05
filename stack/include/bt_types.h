@@ -330,7 +330,7 @@ typedef UINT8 EXT_INQ_RESP[EXT_INQ_RESP_LEN];/* Extended Inquiry Response */
 typedef UINT8 *EXT_INQ_RESP_PTR;             /* Pointer to Extended Inquiry Response */
 
 #define BD_NAME_LEN     248
-typedef UINT8 BD_NAME[BD_NAME_LEN];         /* Device name */
+typedef UINT8 BD_NAME[BD_NAME_LEN+1];         /* Device name */
 typedef UINT8 *BD_NAME_PTR;                 /* Pointer to Device name */
 
 #define BD_FEATURES_LEN 8
