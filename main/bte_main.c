@@ -198,7 +198,6 @@ void bte_main_enable(uint8_t *local_addr)
 #endif
         bt_hc_if->set_power(BT_HC_CHIP_PWR_ON);
 
-        bt_hc_if->preload(NULL);
     }
 
     GKI_create_task((TASKPTR)btu_task, BTU_TASK, BTE_BTU_TASK_STR,
@@ -206,6 +205,16 @@ void bte_main_enable(uint8_t *local_addr)
                     sizeof(bte_btu_stack));
 
     GKI_run(0);
+
+    /* Since btu_task waits to recieve event for preload result(Success or failure) while
+     starting. So btu_task must be started before the firmware & transport is intialized.
+     Otherwise btu_task might miss the event for preload result(success or failure). which
+     could lead a failure while turning on bluetooth. */
+    if (bt_hc_if)
+    {
+       bt_hc_if->preload(NULL);
+    }
+
 }
 
 /******************************************************************************
