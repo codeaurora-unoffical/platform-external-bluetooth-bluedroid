@@ -41,6 +41,7 @@
 #include "btif_common.h"
 #include "btif_util.h"
 #include "btif_hh.h"
+#include "btif_api.h"
 #include "gki.h"
 #include "l2c_api.h"
 
@@ -629,6 +630,7 @@ bt_status_t btif_hh_connect(bt_bdaddr_t *bd_addr)
     char bda_str[20];
     int i;
     BD_ADDR *bda = (BD_ADDR*)bd_addr;
+    tBTA_SEC sec_mask;
     tBTA_HH_CONN conn;
     CHECK_BTHH_INIT();
     dev = btif_hh_find_dev_by_bda(bd_addr);
@@ -660,23 +662,18 @@ bt_status_t btif_hh_connect(bt_bdaddr_t *bd_addr)
         }
     }
 
-    if (added_dev == NULL ||
-        (added_dev->attr_mask & HID_NORMALLY_CONNECTABLE) != 0 ||
-        (added_dev->attr_mask & HID_RECONN_INIT) == 0)
-    {
-        tBTA_SEC sec_mask = BTUI_HH_SECURITY;
-        btif_hh_cb.status = BTIF_HH_DEV_CONNECTING;
-        BD_ADDR *bda = (BD_ADDR*)bd_addr;
-        BTA_HhOpen(*bda, BTA_HH_PROTO_RPT_MODE, sec_mask);
-    }
-    else
-    {
-        // This device shall be connected from the host side.
-        BTIF_TRACE_ERROR2("%s: Error, device %s can only be reconnected from device side",
-             __FUNCTION__, bda_str);
-        return BT_STATUS_FAIL;
-    }
+    /* Not checking the NORMALLY_Connectible flags from sdp record, and anyways sending this
+    request from host, for subsequent user initiated connection. If the remote is not in
+    pagescan mode, we will do 2 retries to connect before giving up */
 
+    // Don't request security if peer device is HID pointing device
+    if (check_cod(bd_addr, COD_HID_POINTING))
+        sec_mask = BTUI_HH_MOUSE_SECURITY;
+    else
+        sec_mask = BTUI_HH_SECURITY;
+
+    btif_hh_cb.status = BTIF_HH_DEV_CONNECTING;
+    BTA_HhOpen(*bda, BTA_HH_PROTO_RPT_MODE, sec_mask);
     HAL_CBACK(bt_hh_callbacks, connection_state_cb, bd_addr, BTHH_CONN_STATE_CONNECTING);
     return BT_STATUS_SUCCESS;
 }
@@ -840,6 +837,9 @@ static void btif_hh_upstreams_evt(UINT16 event, char* p_param)
             else {
                 bt_bdaddr_t *bdaddr = (bt_bdaddr_t*)p_data->conn.bda;
                 HAL_CBACK(bt_hh_callbacks, connection_state_cb, (bt_bdaddr_t*) &p_data->conn.bda,BTHH_CONN_STATE_DISCONNECTED);
+                if (p_data->conn.status == BTA_HH_ERR_SDP)
+                    /* In case we are in pairing state and connection failed, update bond state cahnge as well */
+                    btif_dm_cancel_hid_bond((bt_bdaddr_t*) &p_data->conn.bda);
                 btif_hh_cb.status = BTIF_HH_DEV_DISCONNECTED;
             }
             break;
