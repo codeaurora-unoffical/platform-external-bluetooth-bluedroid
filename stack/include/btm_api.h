@@ -63,9 +63,26 @@ enum
     BTM_SCO_BAD_LENGTH,                 /* 16 Bad SCO over HCI data length */
     BTM_SUCCESS_NO_SECURITY,            /* 17 security passed, no security set  */
     BTM_FAILED_ON_SECURITY ,             /* 18 security failed                   */
-    BTM_REPEATED_ATTEMPTS               /* 19 repeated attempts for LE security requests */
+    BTM_REPEATED_ATTEMPTS,               /* 19 repeated attempts for LE security requests */
+    BTM_REM_NAME_CANCELLED_INCMNG_CONN,  /* 20 Remote name is cancelled to handle incoming connection */
+    BTM_RNR_DONE_NO_FURTHER_RNR_REQ      /* 21 Remote name is done but no further RNR Requests */
 };
+
 typedef UINT8 tBTM_STATUS;
+
+#ifdef BLUETOOTH_QCOM_LE_INTL_SCAN
+typedef enum
+{
+    BTM_BR_ONE,                         /*0 First state or BR/EDR scan 1*/
+    BTM_BLE_ONE,                        /*1BLE scan 1*/
+    BTM_BR_TWO,                         /*2 BR/EDR scan 2*/
+    BTM_BLE_TWO,                        /*3 BLE scan 2*/
+    BTM_FINISH,                         /*4 End of Interleave Scan, or normal scan*/
+    BTM_NO_INTERLEAVING                 /*5 No Interleaving*/
+}btm_inq_state;
+#endif
+
+
 
 /*************************
 **  Device Control Types
@@ -581,6 +598,9 @@ typedef struct              /* contains the parameters passed to the inquiry fun
     BOOLEAN report_dup;                 /* report duplicated inquiry response with higher RSSI value */
     UINT8   filter_cond_type;           /* new devices, BD ADDR, COD, or No filtering */
     tBTM_INQ_FILT_COND  filter_cond;    /* filter value based on filter cond type */
+#ifdef BLUETOOTH_QCOM_LE_INTL_SCAN
+    UINT8   intl_duration[4];              /*duration array storing the interleave scan's time portions*/
+#endif
 } tBTM_INQ_PARMS;
 
 #define BTM_INQ_RESULT_BR       0x01
@@ -657,6 +677,7 @@ typedef struct
     UINT16      status;
     UINT16      length;
     BD_NAME     remote_bd_name;
+    tBTM_STATUS rnr_inc_conn_status;
 } tBTM_REMOTE_DEV_NAME;
 
 typedef struct
@@ -1120,6 +1141,7 @@ typedef void (tBTM_ESCO_CBACK) (tBTM_ESCO_EVT event, tBTM_ESCO_EVT_DATA *p_data)
 #define BTM_SEC_ATTEMPT_SLAVE      0x0800 /* Try to switch connection to be slave */
 #define BTM_SEC_IN_MITM            0x1000 /* inbound Do man in the middle protection */
 #define BTM_SEC_OUT_MITM           0x2000 /* outbound Do man in the middle protection */
+#define BTM_SEC_IN_AUTH_HIGH       0x4000 /* Inbound call requires high authentication 16 digits */
 
 /* Security Flags [bit mask] (BTM_GetSecurityFlags)
 */
@@ -1327,9 +1349,10 @@ typedef UINT8 (tBTM_AUTHORIZE_CALLBACK) (BD_ADDR bd_addr, DEV_CLASS dev_class,
 **              BD Address of remote
 **              Device Class of remote
 **              BD Name of remote
+**              Secure PIN code
 */
 typedef UINT8 (tBTM_PIN_CALLBACK) (BD_ADDR bd_addr, DEV_CLASS dev_class,
-                                   tBTM_BD_NAME bd_name);
+                                   tBTM_BD_NAME bd_name, BOOLEAN secure);
 
 
 /* Get Link Key for the connection.  Parameters are
@@ -2501,6 +2524,19 @@ BTM_API extern BOOLEAN BTM_TryAllocateSCN(UINT8 scn);
     BTM_API extern tBTM_STATUS  BTM_StartInquiry (tBTM_INQ_PARMS *p_inqparms,
                                                   tBTM_INQ_RESULTS_CB *p_results_cb,
                                                   tBTM_CMPL_CB *p_cmpl_cb);
+
+/*******************************************************************************
+**
+** Function         BTM_ResetRnrIncFlag
+**
+** Description      This function is called to reset the RNR cancellation flag on
+**                  incoming connection.
+**
+** Returns          BTM_SUCCESS if successful
+**                  BTM_NO_RESOURCES if could not allocate a message buffer
+**
+*******************************************************************************/
+    BTM_API extern tBTM_STATUS  BTM_ResetRnrIncFlag (void);
 
 
 /*******************************************************************************
@@ -3849,7 +3885,8 @@ BTM_API extern tBTM_STATUS BTM_SetWBSCodec (tBTM_SCO_CODEC_TYPE codec_type);
 ** Description      Add/modify device.  This function will be normally called
 **                  during host startup to restore all required information
 **                  stored in the NVRAM.
-**                  dev_class, bd_name, link_key, and features are NULL if unknown
+**                  dev_class, bd_name, link_key, pin_len and features are NULL
+**                  if unknown
 **
 ** Returns          TRUE if added OK, else FALSE
 **
@@ -3857,7 +3894,8 @@ BTM_API extern tBTM_STATUS BTM_SetWBSCodec (tBTM_SCO_CODEC_TYPE codec_type);
     BTM_API extern BOOLEAN BTM_SecAddDevice (BD_ADDR bd_addr, DEV_CLASS dev_class,
                                              BD_NAME bd_name, UINT8 *features,
                                              UINT32 trusted_mask[], LINK_KEY link_key,
-                                             UINT8 key_type, tBTM_IO_CAP io_cap);
+                                             UINT8 key_type, tBTM_IO_CAP io_cap,
+                                             UINT8 pin_len);
 
 
 /*******************************************************************************

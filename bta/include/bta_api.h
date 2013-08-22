@@ -171,7 +171,7 @@ typedef struct
 #define BTA_SEC_AUTHENTICATE    (BTM_SEC_IN_AUTHENTICATE | BTM_SEC_OUT_AUTHENTICATE) /* Authentication required. */
 #define BTA_SEC_ENCRYPT         (BTM_SEC_IN_ENCRYPT | BTM_SEC_OUT_ENCRYPT)           /* Encryption required. */
 
-typedef UINT8 tBTA_SEC;
+typedef UINT16 tBTA_SEC;
 
 /* Ignore for Discoverable, Connectable, Pairable and Connectable Paired only device modes */
 
@@ -282,6 +282,9 @@ typedef struct
     BOOLEAN             report_dup;     /* report duplicated inquiry response with higher RSSI value */
     tBTA_DM_INQ_FILT    filter_type;    /* Filter condition type. */
     tBTA_DM_INQ_COND    filter_cond;    /* Filter condition data. */
+#ifdef BLUETOOTH_QCOM_LE_INTL_SCAN
+    UINT8               intl_duration[4];/*duration array storing the interleave scan's time portions*/
+#endif
 } tBTA_DM_INQ;
 
 typedef struct
@@ -521,6 +524,7 @@ typedef struct
     BD_ADDR         bd_addr;            /* BD address peer device. */
     DEV_CLASS       dev_class;          /* Class of Device */
     BD_NAME         bd_name;            /* Name of peer device. */
+    BOOLEAN         secure;             /* Secured PIN key or not */
 } tBTA_DM_PIN_REQ;
 
 /* BLE related definition */
@@ -1362,7 +1366,7 @@ BTA_API extern void BTA_DmPasskeyCancel(BD_ADDR bd_addr);
 BTA_API extern void BTA_DmAddDevice(BD_ADDR bd_addr, DEV_CLASS dev_class,
                                     LINK_KEY link_key, tBTA_SERVICE_MASK trusted_mask,
                                     BOOLEAN is_trusted, UINT8 key_type,
-                                    tBTA_IO_CAP io_cap);
+                                    tBTA_IO_CAP io_cap, UINT8 pin_len);
 
 /*******************************************************************************
 **

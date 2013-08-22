@@ -59,6 +59,11 @@
 #define BLUETOOTH_QCOM_SW TRUE
 #endif
 
+/* This feature is used to eanble QCOM interleaved scan*/
+#ifndef BLUETOOTH_QCOM_LE_INTL_SCAN
+#define BLUETOOTH_QCOM_LE_INTL_SCAN TRUE
+#endif
+
 #ifndef UNV_INCLUDED
 #define UNV_INCLUDED FALSE
 #endif
@@ -843,14 +848,6 @@ and USER_HW_DISABLE_API macros */
 /* Includes SCO if TRUE */
 #ifndef BTM_SCO_INCLUDED
 #define BTM_SCO_INCLUDED            TRUE       /* TRUE includes SCO code */
-#endif
-
-/*  As per the specification we need not send this commands to controller during connection
-**  as it is decided in controller itself based on local and remote supported features.
-**  QCOM and Atheros controllers are behaving as per BT spec.
-*/
-#ifndef BTM_BYPASS_EXTRA_ACL_SETUP
-#define BTM_BYPASS_EXTRA_ACL_SETUP TRUE
 #endif
 
 /* Includes SCO if TRUE */
@@ -2174,6 +2171,11 @@ Range: Minimum 12000 (12 secs) on BR/EDR when supporting PBF.
 #define PAN_NAP_SECURITY_LEVEL           0
 #endif
 
+/*This ensures that PANU Service record will not be advertised on SDP */
+#ifndef PAN_ALWAYS_NAP_NO_PANU_ON_SDP
+#define PAN_ALWAYS_NAP_NO_PANU_ON_SDP TRUE
+#endif
+
 
 
 
@@ -2854,7 +2856,7 @@ Range: Minimum 12000 (12 secs) on BR/EDR when supporting PBF.
 #endif
 
 #ifndef HID_HOST_MAX_CONN_RETRY
-#define HID_HOST_MAX_CONN_RETRY     (3)
+#define HID_HOST_MAX_CONN_RETRY     (1)
 #endif
 
 #ifndef HID_HOST_REPAGE_WIN

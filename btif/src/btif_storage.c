@@ -484,8 +484,8 @@ static bt_status_t btif_in_fetch_bonded_devices(btif_bonded_devices_t *p_bonded_
             int linkkey_type;
             if(btif_config_get_int("Remote", kname, "LinkKeyType", &linkkey_type))
             {
-                //int pin_len;
-                //btif_config_get_int("Remote", kname, "PinLength", &pin_len))
+                int pin_len;
+                btif_config_get_int("Remote", kname, "PinLength", &pin_len);
                 bt_bdaddr_t bd_addr;
                 str2bd(kname, &bd_addr);
                 if(add)
@@ -494,7 +494,7 @@ static bt_status_t btif_in_fetch_bonded_devices(btif_bonded_devices_t *p_bonded_
                     int cod;
                     if(btif_config_get_int("Remote", kname, "DevClass", &cod))
                         uint2devclass((UINT32)cod, dev_class);
-                    BTA_DmAddDevice(bd_addr.address, dev_class, link_key, 0, 0, (UINT8)linkkey_type, 0);
+                    BTA_DmAddDevice(bd_addr.address, dev_class, link_key, 0, 0, (UINT8)linkkey_type, 0, pin_len);
 
 #if BLE_INCLUDED == TRUE
                     if (btif_config_get_int("Remote", kname, "DevType", &device_type) &&
@@ -1170,10 +1170,6 @@ bt_status_t btif_in_fetch_bonded_ble_device(char *remote_bd_addr,int add, btif_b
             BTIF_TRACE_DEBUG2("%s %s found a BLE device", __FUNCTION__,remote_bd_addr);
             str2bd(remote_bd_addr, &bd_addr);
             bdcpy(bta_bd_addr, bd_addr.address);
-            if (btif_storage_get_remote_addr_type(&bd_addr, &addr_type) != BT_STATUS_SUCCESS)
-            {
-                return BT_STATUS_FAIL;
-            }
 
             memset(buf, 0, sizeof(buf));
             if (btif_storage_get_ble_bonding_key(&bd_addr,
@@ -1424,6 +1420,12 @@ bt_status_t btif_storage_load_bonded_hid_info(void)
 
             btif_config_get_int("Remote", kname, "HidCountryCode", &value);
             dscp_info.ctry_code = (uint8_t) value;
+
+            btif_config_get_int("Remote", kname, "ssrmaxlat", &value);
+            dscp_info.ssr_max_latency = (uint8_t) value;
+
+            btif_config_get_int("Remote", kname, "ssrmintout", &value);
+            dscp_info.ssr_min_tout = (uint8_t) value;
 
             btif_config_get_int("Remote", kname, "ssrmaxlat", &value);
             dscp_info.ssr_max_latency = (uint8_t) value;
