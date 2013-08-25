@@ -64,6 +64,12 @@
 #define BTIF_DM_DEFAULT_INQ_MAX_DURATION    10
 #define BTIF_DM_MAX_SDP_ATTEMPTS_AFTER_PAIRING 2
 
+#ifdef BLUETOOTH_QCOM_LE_INTL_SCAN
+#define BTIF_DM_INTERLEAVE_DURATION_BR_ONE    4
+#define BTIF_DM_INTERLEAVE_DURATION_LE_ONE    4
+#define BTIF_DM_INTERLEAVE_DURATION_BR_TWO    2
+#define BTIF_DM_INTERLEAVE_DURATION_LE_TWO    2
+#endif
 
 typedef struct
 {
@@ -139,6 +145,8 @@ extern bt_status_t btif_hf_execute_service(BOOLEAN b_enable);
 extern bt_status_t btif_av_execute_service(BOOLEAN b_enable);
 extern bt_status_t btif_hh_execute_service(BOOLEAN b_enable);
 extern int btif_hh_connect(bt_bdaddr_t *bd_addr);
+extern BOOLEAN btif_av_is_connected();
+extern void btif_av_close_update();
 
 
 /******************************************************************************
@@ -443,6 +451,23 @@ static void btif_dm_cb_hid_remote_name(tBTM_REMOTE_DEV_NAME *p_remote_name)
     }
 }
 
+/*******************************************************************************
+**
+** Function         btif_dm_cb_cancel_hid_bond
+**
+** Description      Cancels pending Bonding with HID Device. Called in btif context
+**                  Special handling for HID devices
+**
+** Returns          void
+**
+*******************************************************************************/
+static void btif_dm_cb_cancel_hid_bond(bt_bdaddr_t *p_bdaddr)
+{
+    BTIF_TRACE_DEBUG2("%s: pairing_cb.state=%d", __FUNCTION__, pairing_cb.state);
+    if (pairing_cb.state == BT_BOND_STATE_BONDING)
+        bond_state_changed(BT_STATUS_RMT_DEV_DOWN, p_bdaddr, BT_BOND_STATE_NONE);
+}
+
 int remove_hid_bond(bt_bdaddr_t *bd_addr)
 {
     /* For HID device, inorder to avoid the HID device from re-connecting again after unpairing,
@@ -476,6 +501,14 @@ static void btif_dm_cb_create_bond(bt_bdaddr_t *bd_addr)
             status = btif_hh_connect(bd_addr);
             if(status != BT_STATUS_SUCCESS)
                 bond_state_changed(status, bd_addr, BT_BOND_STATE_NONE);
+            else
+            {
+                /* Trigger SDP on the device */
+                pairing_cb.sdp_attempts = 1;
+                btif_dm_get_remote_services(bd_addr);
+                /* Store Device as bonded in nvram */
+                btif_storage_add_bonded_device(bd_addr, NULL, 0, 0);
+            }
     }
     else
     {
@@ -627,6 +660,7 @@ static void btif_dm_pin_req_evt(tBTA_DM_PIN_REQ *p_pin_req)
     bt_bdname_t bd_name;
     UINT32 cod;
     bt_pin_code_t pin_code;
+    BOOLEAN secure;
 
     /* Remote properties update */
     btif_update_remote_properties(p_pin_req->bd_addr, p_pin_req->bd_name,
@@ -638,6 +672,8 @@ static void btif_dm_pin_req_evt(tBTA_DM_PIN_REQ *p_pin_req)
     bond_state_changed(BT_STATUS_SUCCESS, &bd_addr, BT_BOND_STATE_BONDING);
 
     cod = devclass2uint(p_pin_req->dev_class);
+
+    secure = p_pin_req->secure;
 
     if ( cod == 0) {
         BTIF_TRACE_DEBUG1("%s():cod is 0, set as unclassified", __FUNCTION__);
@@ -689,7 +725,7 @@ static void btif_dm_pin_req_evt(tBTA_DM_PIN_REQ *p_pin_req)
         }
     }
     HAL_CBACK(bt_hal_cbacks, pin_request_cb,
-                     &bd_addr, &bd_name, cod);
+                     &bd_addr, &bd_name, cod, secure);
 }
 
 /*******************************************************************************
@@ -853,6 +889,10 @@ static void btif_dm_auth_cmpl_evt (tBTA_DM_AUTH_CMPL *p_auth_cmpl)
                 status =  BT_STATUS_RMT_DEV_DOWN;
                 break;
 
+            case HCI_ERR_PAIRING_NOT_ALLOWED:
+                status = BT_STATUS_AUTH_REJECTED;
+                break;
+
             /* map the auth failure codes, so we can retry pairing if necessary */
             case HCI_ERR_AUTH_FAILURE:
             case HCI_ERR_HOST_REJECT_SECURITY:
@@ -860,6 +900,8 @@ static void btif_dm_auth_cmpl_evt (tBTA_DM_AUTH_CMPL *p_auth_cmpl)
             case HCI_ERR_UNIT_KEY_USED:
             case HCI_ERR_PAIRING_WITH_UNIT_KEY_NOT_SUPPORTED:
             case HCI_ERR_INSUFFCIENT_SECURITY:
+            case HCI_ERR_PEER_USER:
+            case HCI_ERR_UNSPECIFIED:
                 BTIF_TRACE_DEBUG1(" %s() Authentication fail ", __FUNCTION__);
                 if (pairing_cb.autopair_attempts  == 1)
                 {
@@ -1312,6 +1354,8 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
             }
             #endif
             btif_storage_remove_bonded_device(&bd_addr);
+            BTIF_TRACE_DEBUG0("Removing keys of BLE device");
+            btif_storage_remove_ble_bonding_keys(&bd_addr);
             bond_state_changed(BT_STATUS_SUCCESS, &bd_addr, BT_BOND_STATE_NONE);
             break;
 
@@ -1360,7 +1404,15 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
             BTIF_TRACE_ERROR0("Received H/W Error. ");
             /* Flush storage data */
             btif_config_flush();
+            //checking weather music is palyed or not
+            if (btif_av_is_connected())
+            {
+                BTIF_TRACE_DEBUG0("Stream is Active disconnect before kill");
+                btif_av_close_update();
+            }
+            BTIF_TRACE_DEBUG0("going to sleep ");
             usleep(100000); /* 100milliseconds */
+            BTIF_TRACE_DEBUG0("sleep over !! ");
             /* Killing the process to force a restart as part of fault tolerance */
             kill(getpid(), SIGKILL);
             break;
@@ -1562,6 +1614,12 @@ static void btif_dm_generic_evt(UINT16 event, char* p_param)
         }
         break;
 
+        case BTIF_DM_CB_CANCEL_HID_BOND:
+        {
+            btif_dm_cb_cancel_hid_bond((bt_bdaddr_t *)p_param);
+        }
+        break;
+
         case BTIF_DM_CB_BOND_STATE_BONDING:
             {
                 bond_state_changed(BT_STATUS_SUCCESS, (bt_bdaddr_t *)p_param, BT_BOND_STATE_BONDING);
@@ -1730,6 +1788,12 @@ bt_status_t btif_dm_start_discovery(void)
     /* Set inquiry params and call API */
 #if (defined(BLE_INCLUDED) && (BLE_INCLUDED == TRUE))
     inq_params.mode = BTA_DM_GENERAL_INQUIRY|BTA_BLE_GENERAL_INQUIRY;
+#ifdef BLUETOOTH_QCOM_LE_INTL_SCAN
+    inq_params.intl_duration[0]= BTIF_DM_INTERLEAVE_DURATION_BR_ONE;
+    inq_params.intl_duration[1]= BTIF_DM_INTERLEAVE_DURATION_LE_ONE;
+    inq_params.intl_duration[2]= BTIF_DM_INTERLEAVE_DURATION_BR_TWO;
+    inq_params.intl_duration[3]= BTIF_DM_INTERLEAVE_DURATION_LE_TWO;
+#endif
 #else
     inq_params.mode = BTA_DM_GENERAL_INQUIRY;
 #endif
@@ -1870,6 +1934,29 @@ bt_status_t btif_dm_remove_bond(const bt_bdaddr_t *bd_addr)
 
     BTIF_TRACE_EVENT2("%s: bd_addr=%s", __FUNCTION__, bd2str((bt_bdaddr_t *)bd_addr, &bdstr));
     btif_transfer_context(btif_dm_generic_evt, BTIF_DM_CB_REMOVE_BOND,
+                          (char *)bd_addr, sizeof(bt_bdaddr_t), NULL);
+
+    return BT_STATUS_SUCCESS;
+}
+
+/*******************************************************************************
+**
+** Function         btif_dm_cancel_hid_bond
+**
+** Description      Cancels bonding to HID device if in progress
+**
+** Returns          bt_status_t
+**
+*******************************************************************************/
+bt_status_t btif_dm_cancel_hid_bond(const bt_bdaddr_t *bd_addr)
+{
+    bdstr_t bdstr;
+
+    BTIF_TRACE_EVENT2("%s: bd_addr=%s", __FUNCTION__, bd2str((bt_bdaddr_t *) bd_addr, &bdstr));
+    if (pairing_cb.state != BT_BOND_STATE_BONDING)
+        return BT_STATUS_DONE;
+
+    btif_transfer_context(btif_dm_generic_evt, BTIF_DM_CB_CANCEL_HID_BOND,
                           (char *)bd_addr, sizeof(bt_bdaddr_t), NULL);
 
     return BT_STATUS_SUCCESS;
@@ -2459,7 +2546,7 @@ static void btif_dm_ble_passkey_req_evt(tBTA_DM_PIN_REQ *p_pin_req)
     cod = COD_UNCLASSIFIED;
 
     HAL_CBACK(bt_hal_cbacks, pin_request_cb,
-              &bd_addr, &bd_name, cod);
+              &bd_addr, &bd_name, cod, FALSE);
 }
 
 
