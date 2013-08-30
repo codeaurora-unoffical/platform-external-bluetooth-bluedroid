@@ -326,6 +326,10 @@ typedef struct
     UINT8            state;             /* Current state that the inquiry process is in */
     UINT8            inq_active;        /* Bit Mask indicating type of inquiry is active */
     BOOLEAN          no_inc_ssp;        /* TRUE, to stop inquiry on incoming SSP */
+#ifdef BLUETOOTH_QCOM_LE_INTL_SCAN
+    btm_inq_state    next_state;        /*interleaving state to determine next mode to be inquired*/
+#endif
+    BOOLEAN          no_rname_req_in_conn;  /* to stop remote name request on incoming conneciton */
 } tBTM_INQUIRY_VAR_ST;
 
 /* The MSB of the clock offset field indicates that the offset is valid if TRUE */
@@ -547,7 +551,7 @@ typedef struct
     BOOLEAN     link_key_not_sent;      /* link key notification has not been sent waiting for name */
     UINT8       link_key_type;          /* Type of key used in pairing   */
     BOOLEAN     link_key_changed;       /* Changed link key during current connection */
-
+    UINT8       pin_key_len;            /* PIN key length of current pairing for Legacy devices */
 #define BTM_MAX_PRE_SM4_LKEY_TYPE   BTM_LKEY_TYPE_REMOTE_UNIT /* the link key type used by legacy pairing */
 
 #define BTM_SM4_UNKNOWN     0x00
@@ -1114,9 +1118,9 @@ extern void  btm_sec_dev_rec_cback_event (tBTM_SEC_DEV_REC *p_dev_rec, UINT8 res
 #if BLE_INCLUDED == TRUE
 extern void  btm_sec_clear_ble_keys (tBTM_SEC_DEV_REC  *p_dev_rec);
 extern  BOOLEAN btm_sec_find_bonded_dev (UINT8 start_idx, UINT8 *p_found_idx, tBTM_SEC_DEV_REC *p_rec);
-extern BOOLEAN btm_sec_is_a_bonded_dev (BD_ADDR bda);
 extern BOOLEAN btm_sec_is_le_capable_dev (BD_ADDR bda);
 #endif /* BLE_INCLUDED */
+extern BOOLEAN btm_sec_is_a_bonded_dev (BD_ADDR bda);
 
 extern tINQ_DB_ENT *btm_inq_db_new (BD_ADDR p_bda);
 

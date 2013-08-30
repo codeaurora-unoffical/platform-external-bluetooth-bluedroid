@@ -27,6 +27,7 @@
 #include "hcimsgs.h"
 #include "btu.h"
 #include "btm_int.h"
+#include "btm_api.h"
 #include "l2c_int.h"
 
 #if (BT_USE_TRACES == TRUE && BT_TRACE_VERBOSE == FALSE)
@@ -887,6 +888,8 @@ void BTM_PINCodeReply (BD_ADDR bd_addr, UINT8 res, UINT8 pin_len, UINT8 *p_pin, 
 
     if ( (pin_len > PIN_CODE_LEN) || (pin_len == 0) || (p_pin == NULL) )
         res = BTM_ILLEGAL_VALUE;
+
+    p_dev_rec->pin_key_len = pin_len;
 
     if (res != BTM_SUCCESS)
     {
@@ -1993,9 +1996,16 @@ static BOOLEAN btm_sec_is_upgrade_possible(tBTM_SEC_DEV_REC  *p_dev_rec, BOOLEAN
     if (p_dev_rec->sec_flags & BTM_SEC_LINK_KEY_KNOWN)
     {
         is_possible = FALSE;
-        BTM_TRACE_DEBUG5 ("btm_sec_is_upgrade_possible id:%d, link_key_typet:%d, rmt_io_caps:%d, chk flags:x%x, flags:x%x",
-                          p_dev_rec->p_cur_service->service_id, p_dev_rec->link_key_type, p_dev_rec->rmt_io_caps,
-                          mtm_check, p_dev_rec->p_cur_service->security_flags);
+        BTM_TRACE_DEBUG3 ("btm_sec_is_upgrade_possible link_key_type:%d, rmt_io_caps:%d, chk flags:x%x",
+                          p_dev_rec->link_key_type, p_dev_rec->rmt_io_caps, mtm_check);
+
+        BTM_TRACE_DEBUG1 ("btm_sec_is_upgrade_possible p_cur_service:%p", p_dev_rec->p_cur_service);
+
+        if(p_dev_rec->p_cur_service)
+        {
+            BTM_TRACE_DEBUG2 ("btm_sec_is_upgrade_possible id:%d, flags:x%x",
+                          p_dev_rec->p_cur_service->service_id, p_dev_rec->p_cur_service->security_flags);
+        }
         /* Already have a link key to the connected peer. Is the link key secure enough?
         ** Is a link key upgrade even possible?
         */
@@ -2524,6 +2534,9 @@ tBTM_STATUS btm_sec_mx_access_request (BD_ADDR bd_addr, UINT16 psm, BOOLEAN is_o
 void btm_sec_conn_req (UINT8 *bda, UINT8 *dc)
 {
     tBTM_SEC_DEV_REC  *p_dev_rec = btm_find_dev (bda);
+    tBTM_CMPL_CB *p_inq_cb;
+    tBTM_INQUIRY_VAR_ST *p_inq = &btm_cb.btm_inq_vars;
+
 
     /* Some device may request a connection before we are done with the HCI_Reset sequence */
     if (btm_cb.devcb.state != BTM_DEV_STATE_READY)
@@ -2583,6 +2596,28 @@ void btm_sec_conn_req (UINT8 *bda, UINT8 *dc)
         btsnd_hcic_reject_conn (bda, HCI_ERR_HOST_REJECT_DEVICE);
         return;
     }
+    /* Host is about to accept the Incoming ACL Connection, cancel */
+    /* any ongoing name requests to avoid connection being disconnected */
+    /* because of delays in firmware. */
+    if (p_inq->remname_active)
+    {
+        BTM_TRACE_EVENT0 ("Accepting Incoming Connection, cancelling name request");
+        tBTM_REMOTE_DEV_NAME     rem_name;
+
+        BTM_CancelRemoteDeviceName();
+        /* Notify the caller (if waiting) */
+        btu_stop_timer (&p_inq->rmt_name_timer_ent);
+        p_inq->remname_active = FALSE;
+        memset(p_inq->remname_bda, 0, BD_ADDR_LEN);
+        if (p_inq->p_remname_cmpl_cb)
+        {
+            rem_name.status = BTM_REM_NAME_CANCELLED_INCMNG_CONN;
+            (*p_inq->p_remname_cmpl_cb)(&rem_name);
+            p_inq->p_remname_cmpl_cb = NULL;
+        }
+    }
+    BTM_TRACE_EVENT0 ("btm_sec_conn_req no_rname_req_in_conn is set\n");
+    p_inq->no_rname_req_in_conn = TRUE;
 
     /* Host is not interested or approved connection.  Save BDA and DC and */
     /* pass request to L2CAP */
@@ -3013,7 +3048,7 @@ void btm_sec_rmt_name_request_complete (UINT8 *p_bd_addr, UINT8 *p_bd_name, UINT
         {
             BTM_TRACE_EVENT0 ("btm_sec_rmt_name_request_complete() calling pin_callback");
             btm_cb.pairing_flags |= BTM_PAIR_FLAGS_PIN_REQD;
-            (*btm_cb.api.p_pin_callback) (p_dev_rec->bd_addr, p_dev_rec->dev_class, p_bd_name);
+            (*btm_cb.api.p_pin_callback) (p_dev_rec->bd_addr, p_dev_rec->dev_class, p_bd_name, FALSE);
         }
 
         /* Set the same state again to force the timer to be restarted */
@@ -3919,6 +3954,10 @@ void btm_sec_auth_complete (UINT16 handle, UINT8 status)
         {
             btm_sec_send_hci_disconnect (p_dev_rec, HCI_ERR_AUTH_FAILURE);
         }
+        if ( (BTM_SEC_IS_SM4_LEGACY(p_dev_rec->sm4)) && (p_dev_rec->security_required & BTM_SEC_IN_AUTH_HIGH ))
+        {
+            p_dev_rec->pin_key_len = 0;
+        }
         return;
     }
 
@@ -4657,6 +4696,13 @@ void btm_sec_link_key_request (UINT8 *p_bda)
     BTM_TRACE_EVENT6 ("btm_sec_link_key_request()  BDA: %02x:%02x:%02x:%02x:%02x:%02x",
                       p_bda[0], p_bda[1], p_bda[2], p_bda[3], p_bda[4], p_bda[5]);
 
+    if ( (BTM_SEC_IS_SM4_LEGACY(p_dev_rec->sm4)) && (p_dev_rec->security_required & BTM_SEC_IN_AUTH_HIGH)
+         && ((p_dev_rec->sec_flags & BTM_SEC_AUTHENTICATED) && (p_dev_rec->pin_key_len < 16)) )
+    {
+        btsnd_hcic_link_key_neg_reply (p_bda);
+        return;
+    }
+
     if (p_dev_rec->sec_flags & BTM_SEC_LINK_KEY_KNOWN)
     {
         btsnd_hcic_link_key_req_reply (p_bda, p_dev_rec->link_key);
@@ -4955,7 +5001,16 @@ void btm_sec_pin_code_request (UINT8 *p_bda)
 
             btm_cb.pairing_flags |= BTM_PAIR_FLAGS_PIN_REQD;
             if (p_cb->api.p_pin_callback)
-                (*p_cb->api.p_pin_callback) (p_bda, p_dev_rec->dev_class, p_dev_rec->sec_bd_name);
+            {
+                if(p_dev_rec->security_required & BTM_SEC_IN_AUTH_HIGH)
+                {
+                    (*p_cb->api.p_pin_callback) (p_bda, p_dev_rec->dev_class, p_dev_rec->sec_bd_name, TRUE);
+                }
+                else
+                {
+                    (*p_cb->api.p_pin_callback) (p_bda, p_dev_rec->dev_class, p_dev_rec->sec_bd_name, FALSE);
+                }
+            }
         }
         else
         {
@@ -4975,7 +5030,16 @@ void btm_sec_pin_code_request (UINT8 *p_bda)
 
                 btm_cb.pairing_flags |= BTM_PAIR_FLAGS_PIN_REQD;
                 if (p_cb->api.p_pin_callback)
-                    (*p_cb->api.p_pin_callback) (p_bda, p_dev_rec->dev_class, p_dev_rec->sec_bd_name);
+                {
+                    if(p_dev_rec->security_required & BTM_SEC_IN_AUTH_HIGH)
+                    {
+                        (*p_cb->api.p_pin_callback) (p_bda, p_dev_rec->dev_class, p_dev_rec->sec_bd_name, TRUE);
+                    }
+                    else
+                    {
+                        (*p_cb->api.p_pin_callback) (p_bda, p_dev_rec->dev_class, p_dev_rec->sec_bd_name, FALSE);
+                    }
+                }
             }
         }
     }
@@ -5043,6 +5107,28 @@ static tBTM_STATUS btm_sec_execute_procedure (tBTM_SEC_DEV_REC *p_dev_rec)
     {
         BTM_TRACE_EVENT0 ("Security Manager: Start get name");
         if (!btm_sec_start_get_name (p_dev_rec))
+        {
+            return(BTM_NO_RESOURCES);
+        }
+        return(BTM_CMD_STARTED);
+    }
+
+    /* If connection is not high authenticated and high authentication is required for legacy devices */
+    /* start authentication and return PENDING to the caller */
+    if ((BTM_SEC_IS_SM4_LEGACY(p_dev_rec->sm4))
+         && (!p_dev_rec->is_originator && (p_dev_rec->security_required & BTM_SEC_IN_AUTH_HIGH))
+         && ((!(p_dev_rec->sec_flags & BTM_SEC_AUTHENTICATED)) ||
+              ((p_dev_rec->sec_flags & BTM_SEC_AUTHENTICATED) && (p_dev_rec->pin_key_len < 16)))
+         && (p_dev_rec->hci_handle != BTM_SEC_INVALID_HANDLE))
+    {
+#if (L2CAP_UCD_INCLUDED == TRUE)
+        /* if incoming UCD packet, discard it */
+        if ( !p_dev_rec->is_originator && (p_dev_rec->is_ucd == TRUE ))
+            return(BTM_FAILED_ON_SECURITY);
+#endif
+        BTM_TRACE_EVENT0 ("Security Manager: Start High security authentication");
+
+        if (!btm_sec_start_authentication (p_dev_rec))
         {
             return(BTM_NO_RESOURCES);
         }
@@ -5731,7 +5817,7 @@ static BOOLEAN btm_sec_check_prefetch_pin (tBTM_SEC_DEV_REC  *p_dev_rec)
                 BTM_TRACE_DEBUG0("btm_sec_check_prefetch_pin: PIN code callback called");
                 if (btm_bda_to_acl(p_dev_rec->bd_addr) == NULL)
                 btm_cb.pairing_flags |= BTM_PAIR_FLAGS_PIN_REQD;
-                (btm_cb.api.p_pin_callback) (p_dev_rec->bd_addr, p_dev_rec->dev_class, p_dev_rec->sec_bd_name);
+                (btm_cb.api.p_pin_callback) (p_dev_rec->bd_addr, p_dev_rec->dev_class, p_dev_rec->sec_bd_name, FALSE);
             }
         }
 
@@ -5762,32 +5848,6 @@ void btm_sec_clear_ble_keys (tBTM_SEC_DEV_REC  *p_dev_rec)
     memset (&p_dev_rec->ble.keys, 0, sizeof(tBTM_SEC_BLE_KEYS));
 #endif
     gatt_delete_dev_from_srv_chg_clt_list(p_dev_rec->bd_addr);
-}
-
-
-/*******************************************************************************
-**
-** Function         btm_sec_is_a_bonded_dev
-**
-** Description       Is the specified device is a bonded device
-**
-** Returns          TRUE - dev is bonded
-**
-*******************************************************************************/
-BOOLEAN btm_sec_is_a_bonded_dev (BD_ADDR bda)
-{
-
-    tBTM_SEC_DEV_REC *p_dev_rec= btm_find_dev (bda);
-    BOOLEAN is_bonded= FALSE;
-
-#if (SMP_INCLUDED== TRUE)
-    if (p_dev_rec && (p_dev_rec->ble.key_type || (p_dev_rec->sec_flags & BTM_SEC_LINK_KEY_KNOWN)))
-    {
-        is_bonded = TRUE;
-    }
-#endif
-    BTM_TRACE_DEBUG1 ("btm_sec_is_a_bonded_dev is_bonded=%d", is_bonded);
-    return(is_bonded);
 }
 
 /*******************************************************************************
@@ -5851,4 +5911,34 @@ BOOLEAN btm_sec_find_bonded_dev (UINT8 start_idx, UINT8 *p_found_idx, tBTM_SEC_D
     return(found);
 }
 #endif /* BLE_INCLUDED */
+
+/*******************************************************************************
+**
+** Function         btm_sec_is_a_bonded_dev
+**
+** Description       Is the specified device is a bonded device
+**
+** Returns          TRUE - dev is bonded
+**
+*******************************************************************************/
+BOOLEAN btm_sec_is_a_bonded_dev (BD_ADDR bda)
+{
+
+    tBTM_SEC_DEV_REC *p_dev_rec= btm_find_dev (bda);
+    BOOLEAN is_bonded= FALSE;
+
+#if (SMP_INCLUDED== TRUE)
+    if (p_dev_rec && (p_dev_rec->ble.key_type || (p_dev_rec->sec_flags & BTM_SEC_LINK_KEY_KNOWN)))
+    {
+        is_bonded = TRUE;
+    }
+#else
+    if (p_dev_rec && (p_dev_rec->sec_flags & BTM_SEC_LINK_KEY_KNOWN))
+    {
+        is_bonded = TRUE;
+    }
+#endif
+    BTM_TRACE_DEBUG1 ("btm_sec_is_a_bonded_dev is_bonded=%d", is_bonded);
+    return(is_bonded);
+}
 

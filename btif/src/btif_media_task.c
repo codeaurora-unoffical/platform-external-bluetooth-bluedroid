@@ -508,7 +508,8 @@ static void btif_recv_ctrl_data(void)
             {
                 /* if we are not in started state, just ack back ok and let
                    audioflinger close the channel. This can happen if we are
-                   remotely suspended */
+                   remotely suspended , clear REMOTE SUSPEND Flag */
+                btif_av_clear_remote_suspend_flag();
                 a2dp_cmd_acknowledge(A2DP_CTRL_ACK_SUCCESS);
             }
             break;
@@ -749,13 +750,13 @@ void btif_a2dp_on_init(void)
 **
 ** Function        btif_a2dp_setup_codec
 **
-** Description
+** Description     does codec setup
 **
-** Returns
+** Returns        tBTIF_STATUS
 **
 *******************************************************************************/
 
-void btif_a2dp_setup_codec(void)
+tBTIF_STATUS btif_a2dp_setup_codec(void)
 {
     tBTIF_AV_MEDIA_FEEDINGS media_feeding;
     tBTIF_STATUS status;
@@ -785,6 +786,7 @@ void btif_a2dp_setup_codec(void)
     }
 
     GKI_enable();
+    return status;
 }
 
 
