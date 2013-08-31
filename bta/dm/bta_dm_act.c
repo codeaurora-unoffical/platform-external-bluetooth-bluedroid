@@ -47,7 +47,7 @@ static void bta_dm_find_services ( BD_ADDR bd_addr);
 static void bta_dm_discover_next_device(void);
 static void bta_dm_sdp_callback (UINT16 sdp_status);
 static UINT8 bta_dm_authorize_cback (BD_ADDR bd_addr, DEV_CLASS dev_class, BD_NAME bd_name, UINT8 *service_name, UINT8 service_id, BOOLEAN is_originator);
-static UINT8 bta_dm_pin_cback (BD_ADDR bd_addr, DEV_CLASS dev_class, BD_NAME bd_name);
+static UINT8 bta_dm_pin_cback (BD_ADDR bd_addr, DEV_CLASS dev_class, BD_NAME bd_name, BOOLEAN secure);
 static UINT8 bta_dm_link_key_request_cback (BD_ADDR bd_addr, LINK_KEY key);
 static UINT8 bta_dm_new_link_key_cback(BD_ADDR bd_addr, DEV_CLASS dev_class, BD_NAME bd_name, LINK_KEY key, UINT8 key_type);
 static UINT8 bta_dm_authentication_complete_cback(BD_ADDR bd_addr, DEV_CLASS dev_class,BD_NAME bd_name, int result);
@@ -763,7 +763,7 @@ void bta_dm_add_device (tBTA_DM_MSG *p_data)
     }
 
     if (!BTM_SecAddDevice (p_dev->bd_addr, p_dc, p_dev->bd_name, p_dev->features,
-                           trusted_services_mask, p_lc, p_dev->key_type, p_dev->io_cap))
+                           trusted_services_mask, p_lc, p_dev->key_type, p_dev->io_cap, p_dev->pin_len))
     {
         APPL_TRACE_ERROR2 ("BTA_DM: Error adding device %08x%04x",
                 (p_dev->bd_addr[0]<<24)+(p_dev->bd_addr[1]<<16)+(p_dev->bd_addr[2]<<8)+p_dev->bd_addr[3],
@@ -1108,6 +1108,47 @@ void bta_dm_confirm(tBTA_DM_MSG *p_data)
     if(p_data->confirm.accept == TRUE)
         res = BTM_SUCCESS;
     BTM_ConfirmReqReply(res, p_data->confirm.bd_addr);
+}
+
+
+/*******************************************************************************
+**
+** Function         bta_dm_remote_name_cback
+**
+** Description      Callback function indicating remote request is completed
+**
+** Returns          void
+**
+*******************************************************************************/
+static void bta_dm_remote_name_cback (tBTM_REMOTE_DEV_NAME *p_remote_name)
+{
+    tBTA_DM_REM_NAME * p_msg;
+
+    APPL_TRACE_DEBUG2("bta_dm_remote_name_cback len = %d name=<%s>", p_remote_name->length,
+                      p_remote_name->remote_bd_name);
+
+    if (bta_dm_cb.p_rem_name_cback)
+    {
+        bta_dm_cb.p_rem_name_cback(p_remote_name);
+        bta_dm_cb.p_rem_name_cback = NULL;
+    }
+}
+
+/*******************************************************************************
+**
+** Function         bta_dm_remote_name
+**
+** Description      Send the remote name request to remote device
+**
+** Returns          void
+**
+*******************************************************************************/
+void bta_dm_remote_name(tBTA_DM_MSG *p_data)
+{
+    /* save callback */
+    bta_dm_cb.p_rem_name_cback = p_data->remote_name.p_cback;
+    BTM_ReadRemoteDeviceName (p_data->remote_name.bd_addr,
+                                           (tBTM_CMPL_CB *) bta_dm_remote_name_cback);
 }
 
 /*******************************************************************************
@@ -2689,6 +2730,26 @@ static void bta_dm_remname_cback (tBTM_REMOTE_DEV_NAME *p_remote_name)
     if (dev_type == BT_DEVICE_TYPE_BLE)
         GAP_BleReadPeerPrefConnParams (bta_dm_search_cb.peer_bdaddr);
 #endif
+
+    if ((p_remote_name->status == BTM_REM_NAME_CANCELLED_INCMNG_CONN) ||
+        (p_remote_name->rnr_inc_conn_status == BTM_RNR_DONE_NO_FURTHER_RNR_REQ))
+    {
+        APPL_TRACE_DEBUG0("bta_dm_remname_cback: Informing that search is now complete");
+        /* reset the RNR cancellation on incoming connection flag */
+        BTM_ResetRnrIncFlag();
+        /* Remote name request is cancelled,  inform upper layers that Search is complete */
+        /* If search was not active, this message would be ignored. */
+        bta_dm_search_cb.services = 0;
+        if ((p_msg = (tBTA_DM_MSG *) GKI_getbuf(sizeof(tBTA_DM_MSG))) != NULL)
+        {
+            p_msg->hdr.event          = BTA_DM_SEARCH_CMPL_EVT;
+            p_msg->hdr.layer_specific = BTA_DM_API_DISCOVER_EVT;
+            bta_sys_sendmsg(p_msg);
+            if(p_remote_name->status == BTM_REM_NAME_CANCELLED_INCMNG_CONN)
+                return;
+        }
+    }
+
     if ((p_msg = (tBTA_DM_REM_NAME *) GKI_getbuf(sizeof(tBTA_DM_REM_NAME))) != NULL)
     {
         bdcpy (p_msg->result.disc_res.bd_addr, bta_dm_search_cb.peer_bdaddr);
@@ -2835,7 +2896,7 @@ static void bta_dm_pinname_cback (void *p_data)
 ** Returns          void
 **
 *******************************************************************************/
-static UINT8 bta_dm_pin_cback (BD_ADDR bd_addr, DEV_CLASS dev_class, BD_NAME bd_name)
+static UINT8 bta_dm_pin_cback (BD_ADDR bd_addr, DEV_CLASS dev_class, BD_NAME bd_name, BOOLEAN secure)
 {
     tBTA_DM_SEC sec_event;
 
@@ -2858,6 +2919,7 @@ static UINT8 bta_dm_pin_cback (BD_ADDR bd_addr, DEV_CLASS dev_class, BD_NAME bd_
     BTA_COPY_DEVICE_CLASS(sec_event.pin_req.dev_class, dev_class);
     BCM_STRNCPY_S((char*)sec_event.pin_req.bd_name, sizeof(BD_NAME), (char*)bd_name, (BD_NAME_LEN-1));
     sec_event.pin_req.bd_name[BD_NAME_LEN-1] = 0;
+    sec_event.pin_req.secure = secure;
 
     bta_dm_cb.p_sec_cback(BTA_DM_PIN_REQ_EVT, &sec_event);
     return BTM_CMD_STARTED;

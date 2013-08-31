@@ -656,6 +656,29 @@ void BTA_DmLinkPolicy(BD_ADDR bd_addr, tBTA_DM_LP_MASK policy_mask,
     }
 }
 
+/*******************************************************************************
+**
+** Function         BTA_DmRemName
+**
+** Description      This function initiates a Remote Name Request with a peer
+**                  device
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+void BTA_DmRemName(BD_ADDR bd_addr, tBTA_DM_REM_NAME_CBACK * p_cback)
+{
+    tBTA_DM_API_REM_NAME    *p_msg;
+
+    if ((p_msg = (tBTA_DM_API_REM_NAME *) GKI_getbuf(sizeof(tBTA_DM_API_REM_NAME))) != NULL)
+    {
+        p_msg->hdr.event = BTA_DM_API_REM_NAME_EVT;
+        bdcpy(p_msg->bd_addr, bd_addr);
+        p_msg->p_cback = p_cback;
+        bta_sys_sendmsg(p_msg);
+    }
+}
 
 #if (BTM_OOB_INCLUDED == TRUE)
 /*******************************************************************************
@@ -741,7 +764,7 @@ void BTA_DmPasskeyCancel(BD_ADDR bd_addr)
 *******************************************************************************/
 void BTA_DmAddDevice(BD_ADDR bd_addr, DEV_CLASS dev_class, LINK_KEY link_key,
                      tBTA_SERVICE_MASK trusted_mask, BOOLEAN is_trusted,
-                     UINT8 key_type, tBTA_IO_CAP io_cap)
+                     UINT8 key_type, tBTA_IO_CAP io_cap, UINT8 pin_len)
 {
 
     tBTA_DM_API_ADD_DEVICE *p_msg;
@@ -755,6 +778,7 @@ void BTA_DmAddDevice(BD_ADDR bd_addr, DEV_CLASS dev_class, LINK_KEY link_key,
         p_msg->tm = trusted_mask;
         p_msg->is_trusted = is_trusted;
         p_msg->io_cap = io_cap;
+        p_msg->pin_len = pin_len;
 
         if (link_key)
         {
@@ -836,6 +860,7 @@ void BTA_DmAddDevWithName (BD_ADDR bd_addr, DEV_CLASS dev_class,
         p_msg->tm = trusted_mask;
         p_msg->is_trusted = is_trusted;
         p_msg->io_cap = io_cap;
+        p_msg->pin_len = 0;
 
         if (link_key)
         {

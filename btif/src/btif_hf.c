@@ -266,6 +266,7 @@ static void btif_hf_upstreams_evt(UINT16 event, char* p_param)
 
         case BTA_AG_REGISTER_EVT:
             btif_hf_cb.handle = p_data->reg.hdr.handle;
+            btif_queue_pending_retry();
             break;
 
         case BTA_AG_OPEN_EVT:
@@ -535,6 +536,7 @@ static bt_status_t init_features(int features)
 *******************************************************************************/
 static bt_status_t connect_int( bt_bdaddr_t *bd_addr )
 {
+    CHECK_BTHF_INIT();
     if (!is_connected(bd_addr))
     {
         btif_hf_cb.state = BTHF_CONNECTION_STATE_CONNECTING;
@@ -551,7 +553,10 @@ static bt_status_t connect_int( bt_bdaddr_t *bd_addr )
 static bt_status_t connect( bt_bdaddr_t *bd_addr )
 {
     CHECK_BTHF_INIT();
-    return btif_queue_connect(UUID_SERVCLASS_AG_HANDSFREE, bd_addr, connect_int);
+   if(btif_hf_cb.handle)
+       return btif_queue_connect(UUID_SERVCLASS_AG_HANDSFREE, bd_addr, connect_int, BTIF_QUEUE_CONNECT_EVT);
+    else
+       return btif_queue_connect(UUID_SERVCLASS_AG_HANDSFREE, bd_addr, connect_int, BTIF_QUEUE_PENDING_CONECT_EVT);
 }
 
 /*******************************************************************************
@@ -1115,6 +1120,30 @@ update_call_states:
     return status;
 }
 
+/*******************************************************************************
+**
+** Function         btif_hf_is_call_idle
+**
+** Description      returns true if no call is in progress
+**
+** Returns          bt_status_t
+**
+*******************************************************************************/
+BOOLEAN btif_hf_is_call_idle()
+{
+    BTIF_TRACE_EVENT2("%s: call_setup_state: %d", __FUNCTION__, btif_hf_cb.call_setup_state );
+    BTIF_TRACE_EVENT2("num_held:%d, num_active:%d", btif_hf_cb.num_held, btif_hf_cb.num_active );
+    if ((btif_hf_cb.call_setup_state == BTHF_CALL_STATE_IDLE) &&
+        ((btif_hf_cb.num_held + btif_hf_cb.num_active) == 0))
+    {
+        BTIF_TRACE_EVENT1("%s: call state idle ", __FUNCTION__);
+        return TRUE;
+    }
+    else
+    {
+        return FALSE;
+    }
+}
 
 /*******************************************************************************
 **
@@ -1199,8 +1228,11 @@ bt_status_t btif_hf_execute_service(BOOLEAN b_enable)
           /* Enable and register with BTA-AG */
           BTA_AgEnable (BTA_AG_PARSE, bte_hf_evt);
           if (btif_features)
+          {
+              btif_features |= BTA_AG_FEAT_UNAT; /* used for phone book at commands, e.g. CPBR*/
               BTA_AgRegister(BTIF_HF_SERVICES, BTIF_HF_SECURITY, btif_features,
                              p_service_names, BTIF_HF_ID_1);
+          }
           else
               BTA_AgRegister(BTIF_HF_SERVICES, BTIF_HF_SECURITY, BTIF_HF_FEATURES,
                              p_service_names, BTIF_HF_ID_1);
