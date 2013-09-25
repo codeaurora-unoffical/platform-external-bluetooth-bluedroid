@@ -881,8 +881,30 @@ BOOLEAN SDP_FindProfileVersionInRec (tSDP_DISC_REC *p_rec, UINT16 profile_uuid, 
             {
                 /* Safety check - each entry should itself be a sequence */
                 if (SDP_DISC_ATTR_TYPE(p_attr->attr_len_type) != DATA_ELE_SEQ_DESC_TYPE)
+                {
+                     /* Check if remote does not have sequence type */
+                    if ((SDP_DISC_ATTR_TYPE(p_attr->attr_len_type) == UUID_DESC_TYPE)
+                        && (SDP_DISC_ATTR_LEN(p_attr->attr_len_type) == 2)
+                        && (p_attr->attr_value.v.u16 == profile_uuid))
+                    {
+                        /* Now fill in the major and minor numbers */
+                        /* if the attribute matches the description
+                           for version (type UINT, size 2 bytes) */
+                        p_attr = p_attr->p_next_attr;
+                        if (p_attr == NULL) {
+                            return FALSE;
+                        }
+                        if ((SDP_DISC_ATTR_TYPE(p_attr->attr_len_type) == UINT_DESC_TYPE) &&
+                            (SDP_DISC_ATTR_LEN(p_attr->attr_len_type) == 2))
+                        {
+                            /* The high order 8 bits is the major number,
+                               low order is the minor number (big endian) */
+                            *p_version = p_attr->attr_value.v.u16;
+                            return(TRUE);
+                        }
+                    }
                     return(FALSE);
-
+                }
                 /* Now, see if the entry contains the profile UUID we are interested in */
                 for (p_sattr = p_attr->attr_value.v.p_sub_attr; p_sattr; p_sattr = p_sattr->p_next_attr)
                 {

@@ -153,8 +153,9 @@ enum {
 #define BTIF_MEDIA_BITRATE_STEP 5
 #endif
 
-/* Middle quality quality setting @ 44.1 khz */
-#define DEFAULT_SBC_BITRATE 229
+/* Middle quality quality setting @ 48 khz */
+#define DEFAULT_SBC_BITRATE 237
+#define SBC_HIGH_QUALITY_BITRATE 345
 
 #ifndef A2DP_MEDIA_TASK_STACK_SIZE
 #define A2DP_MEDIA_TASK_STACK_SIZE       0x2000         /* In bytes */
@@ -229,6 +230,7 @@ typedef struct
     UINT8 a2dp_cmd_pending; /* we can have max one command pending */
     BOOLEAN tx_flush; /* discards any outgoing data when true */
     BOOLEAN scaling_disabled;
+    BOOLEAN is_edr_supported;
 #endif
 
 } tBTIF_MEDIA_CB;
@@ -276,6 +278,7 @@ static void btif_media_task_audio_feeding_init(BT_HDR *p_msg);
 static void btif_media_task_aa_tx_flush(BT_HDR *p_msg);
 static void btif_media_aa_prep_2_send(UINT8 nb_frame);
 #endif
+extern BOOLEAN btif_hf_is_call_idle();
 
 
 /*****************************************************************************
@@ -462,6 +465,14 @@ static void btif_recv_ctrl_data(void)
             break;
 
         case A2DP_CTRL_CMD_START:
+            /* Dont sent START request to stack while we are in call.
+               Some headsets like Sony MW600, dont allow AVDTP START
+               in call and respond BAD_STATE */
+            if (!btif_hf_is_call_idle())
+            {
+                a2dp_cmd_acknowledge(A2DP_CTRL_ACK_INCALL_FAILURE);
+                break;
+            }
 
             if (btif_av_stream_ready() == TRUE)
             {
@@ -750,13 +761,13 @@ void btif_a2dp_on_init(void)
 **
 ** Function        btif_a2dp_setup_codec
 **
-** Description
+** Description     does codec setup
 **
-** Returns
+** Returns        tBTIF_STATUS
 **
 *******************************************************************************/
 
-void btif_a2dp_setup_codec(void)
+tBTIF_STATUS btif_a2dp_setup_codec(void)
 {
     tBTIF_AV_MEDIA_FEEDINGS media_feeding;
     tBTIF_STATUS status;
@@ -786,6 +797,7 @@ void btif_a2dp_setup_codec(void)
     }
 
     GKI_enable();
+    return status;
 }
 
 
@@ -826,6 +838,28 @@ void btif_a2dp_on_open(void)
     /* always use callback to notify socket events */
     UIPC_Open(UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb);
 }
+
+
+/*****************************************************************************
+**
+** Function        btif_set_edr_cap
+**
+** Description
+**
+** Returns
+**
+*******************************************************************************/
+
+void btif_set_edr_cap(tBTA_AV_OPEN *p_av)
+{
+    APPL_TRACE_EVENT0("SET EDR CAP ON OPEN");
+
+    if (p_av->edr)
+        btif_media_cb.is_edr_supported = TRUE;
+    else
+        btif_media_cb.is_edr_supported = FALSE;
+}
+
 
 /*****************************************************************************
 **
@@ -1022,7 +1056,14 @@ static void btif_media_task_aa_handle_timer(void)
     log_tstamps_us("media task tx timer");
 
 #if (BTA_AV_INCLUDED == TRUE)
-    btif_media_send_aa_frame();
+    if(btif_media_cb.is_tx_timer == TRUE)
+    {
+        btif_media_send_aa_frame();
+    }
+    else
+    {
+        APPL_TRACE_ERROR0("ERROR Media task Scheduled after Suspend");
+    }
 #endif
 }
 
@@ -1447,7 +1488,8 @@ static void btif_media_task_enc_init(BT_HDR *p_msg)
     btif_media_cb.encoder.s16AllocationMethod = pInitAudio->AllocationMethod;
     btif_media_cb.encoder.s16SamplingFreq = pInitAudio->SamplingFreq;
 
-    btif_media_cb.encoder.u16BitRate = DEFAULT_SBC_BITRATE;
+    btif_media_cb.encoder.u16BitRate = btif_media_cb.is_edr_supported ?
+                                    SBC_HIGH_QUALITY_BITRATE : DEFAULT_SBC_BITRATE;
     /* Default transcoding is PCM to SBC, modified by feeding configuration */
     btif_media_cb.TxTranscoding = BTIF_MEDIA_TRSCD_PCM_2_SBC;
     btif_media_cb.TxAaMtuSize = ((BTIF_MEDIA_AA_BUF_SIZE-BTIF_MEDIA_AA_SBC_OFFSET-sizeof(BT_HDR))
@@ -1499,7 +1541,8 @@ static void btif_media_task_enc_update(BT_HDR *p_msg)
                 - sizeof(BT_HDR)) : pUpdateAudio->MinMtuSize;
 
         /* Set the initial target bit rate */
-        pstrEncParams->u16BitRate = DEFAULT_SBC_BITRATE;
+        pstrEncParams->u16BitRate = btif_media_cb.is_edr_supported ?
+                                    SBC_HIGH_QUALITY_BITRATE : DEFAULT_SBC_BITRATE;
 
         if (pstrEncParams->s16SamplingFreq == SBC_sf16000)
             s16SamplingFreq = 16000;
@@ -1797,13 +1840,30 @@ static void btif_media_task_aa_start_tx(void)
  *******************************************************************************/
 static void btif_media_task_aa_stop_tx(void)
 {
+    BOOLEAN  is_data_path = FALSE;
     APPL_TRACE_DEBUG1("btif_media_task_aa_stop_tx is timer: %d", btif_media_cb.is_tx_timer);
 
     /* Stop the timer first */
     GKI_stop_timer(BTIF_MEDIA_AA_TASK_TIMER_ID);
-    btif_media_cb.is_tx_timer = FALSE;
-
+    if (btif_media_cb.is_tx_timer)
+    {
+        btif_media_cb.is_tx_timer = FALSE;
+        is_data_path  = TRUE ;
+    }
     UIPC_Close(UIPC_CH_ID_AV_AUDIO);
+    /* Try to send acknowldegment once the media stream is
+       stopped. This will make sure that the A2dp HAL layer is
+       unblocked on wait for acknowledgment for the sent command.
+       This resolves corner cases of AVDTP SUSPEND collision
+       when DUT and Remote device issues SUSPEND simultaneously
+       and due to processing of the SUSPEND request of remote,
+       the media path is teared down. If A2dp HAL happens to wait
+       for ACK for initiated SUSPEND, would never receive it casuing
+       a block/wait. Due to this acknowledgement, A2dp HAL is guranteed
+       to get ACK for any pending command in such cases. */
+
+    if (!is_data_path)
+        a2dp_cmd_acknowledge(A2DP_CTRL_ACK_SUCCESS);
 
     /* audio engine stopped, reset tx suspended flag */
     btif_media_cb.tx_flush = 0;
@@ -2124,7 +2184,10 @@ static void btif_media_aa_prep_sbc_2_send(UINT8 nb_frame)
 
                 /* break read loop if timer was stopped (media task stopped) */
                 if ( btif_media_cb.is_tx_timer == FALSE )
+                {
+                    GKI_freebuf(p_buf);
                     return;
+                }
             }
 
         } while (((p_buf->len + btif_media_cb.encoder.u16PacketLength) < btif_media_cb.TxAaMtuSize)

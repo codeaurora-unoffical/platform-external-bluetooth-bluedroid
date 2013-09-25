@@ -890,8 +890,6 @@ tBTM_STATUS BTM_StartInquiry (tBTM_INQ_PARMS *p_inqparms, tBTM_INQ_RESULTS_CB *p
     p_inq->p_inq_results_cb = p_results_cb;
     p_inq->inq_cmpl_info.num_resp = 0;         /* Clear the results counter */
     p_inq->inq_active = p_inqparms->mode;
-    BTM_TRACE_EVENT0 ("BTM_StartInquiry no_rname_req_in_conn is reset\n");
-    p_inq->no_rname_req_in_conn = FALSE; /* reset the the flag */
 
     BTM_TRACE_DEBUG1("BTM_StartInquiry: p_inq->inq_active = 0x%02x", p_inq->inq_active);
 
@@ -953,9 +951,7 @@ tBTM_STATUS BTM_StartInquiry (tBTM_INQ_PARMS *p_inqparms, tBTM_INQ_RESULTS_CB *p
             BTM_TRACE_API1("BTM:Interleaving: started LE scan, Advancing to next state: %d", p_inq->next_state+1);
             p_inq->next_state+=1;
         }
-        if(p_inq->next_state==BTM_FINISH)
-            p_inqparms->mode &= ~BTM_BLE_INQUIRY_MASK;
-            //reset next_state if status <> BTM_Started
+        //reset next_state if status <> BTM_Started
         if(status!=BTM_CMD_STARTED)
             p_inq->next_state=BTM_BR_ONE;
 
@@ -1033,23 +1029,6 @@ tBTM_STATUS BTM_StartInquiry (tBTM_INQ_PARMS *p_inqparms, tBTM_INQ_RESULTS_CB *p
     return (status);
 }
 
-/*******************************************************************************
-**
-** Function         BTM_ResetRnrIncFlag
-**
-** Description      This function is called to reset the RNR cancellation on
-**                  incoming connection flag.
-**
-** Returns          BTM_SUCCESS if successful
-**
-*******************************************************************************/
-tBTM_STATUS  BTM_ResetRnrIncFlag ()
-{
-    tBTM_INQUIRY_VAR_ST *p_inq = &btm_cb.btm_inq_vars;
-    BTM_TRACE_EVENT0 ("BTM_ResetRnrIncFlag no_rname_req_in_conn is reset\n");
-    p_inq->no_rname_req_in_conn = FALSE;
-    return BTM_SUCCESS;
-}
 
 /*******************************************************************************
 **
@@ -2732,16 +2711,6 @@ void btm_process_remote_name (BD_ADDR bda, BD_NAME bdn, UINT16 evt_len, UINT8 hc
             rem_name.length = 0;
             rem_name.remote_bd_name[0] = 0;
         }
-
-        if(p_inq->no_rname_req_in_conn == TRUE)
-        {
-            rem_name.rnr_inc_conn_status = BTM_RNR_DONE_NO_FURTHER_RNR_REQ;
-        }
-        else
-        {
-            rem_name.rnr_inc_conn_status = BTM_SUCCESS;
-        }
-
         /* Reset the remote BAD to zero and call callback if possible */
         memset(p_inq->remname_bda, 0, BD_ADDR_LEN);
 

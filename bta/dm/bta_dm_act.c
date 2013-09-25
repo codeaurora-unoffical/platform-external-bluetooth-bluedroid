@@ -1110,6 +1110,47 @@ void bta_dm_confirm(tBTA_DM_MSG *p_data)
     BTM_ConfirmReqReply(res, p_data->confirm.bd_addr);
 }
 
+
+/*******************************************************************************
+**
+** Function         bta_dm_remote_name_cback
+**
+** Description      Callback function indicating remote request is completed
+**
+** Returns          void
+**
+*******************************************************************************/
+static void bta_dm_remote_name_cback (tBTM_REMOTE_DEV_NAME *p_remote_name)
+{
+    tBTA_DM_REM_NAME * p_msg;
+
+    APPL_TRACE_DEBUG2("bta_dm_remote_name_cback len = %d name=<%s>", p_remote_name->length,
+                      p_remote_name->remote_bd_name);
+
+    if (bta_dm_cb.p_rem_name_cback)
+    {
+        bta_dm_cb.p_rem_name_cback(p_remote_name);
+        bta_dm_cb.p_rem_name_cback = NULL;
+    }
+}
+
+/*******************************************************************************
+**
+** Function         bta_dm_remote_name
+**
+** Description      Send the remote name request to remote device
+**
+** Returns          void
+**
+*******************************************************************************/
+void bta_dm_remote_name(tBTA_DM_MSG *p_data)
+{
+    /* save callback */
+    bta_dm_cb.p_rem_name_cback = p_data->remote_name.p_cback;
+    BTM_ReadRemoteDeviceName (p_data->remote_name.bd_addr,
+                                           (tBTM_CMPL_CB *) bta_dm_remote_name_cback);
+}
+
 /*******************************************************************************
 **
 ** Function         bta_dm_passkey_cancel
@@ -2689,26 +2730,6 @@ static void bta_dm_remname_cback (tBTM_REMOTE_DEV_NAME *p_remote_name)
     if (dev_type == BT_DEVICE_TYPE_BLE)
         GAP_BleReadPeerPrefConnParams (bta_dm_search_cb.peer_bdaddr);
 #endif
-
-    if ((p_remote_name->status == BTM_REM_NAME_CANCELLED_INCMNG_CONN) ||
-        (p_remote_name->rnr_inc_conn_status == BTM_RNR_DONE_NO_FURTHER_RNR_REQ))
-    {
-        APPL_TRACE_DEBUG0("bta_dm_remname_cback: Informing that search is now complete");
-        /* reset the RNR cancellation on incoming connection flag */
-        BTM_ResetRnrIncFlag();
-        /* Remote name request is cancelled,  inform upper layers that Search is complete */
-        /* If search was not active, this message would be ignored. */
-        bta_dm_search_cb.services = 0;
-        if ((p_msg = (tBTA_DM_MSG *) GKI_getbuf(sizeof(tBTA_DM_MSG))) != NULL)
-        {
-            p_msg->hdr.event          = BTA_DM_SEARCH_CMPL_EVT;
-            p_msg->hdr.layer_specific = BTA_DM_API_DISCOVER_EVT;
-            bta_sys_sendmsg(p_msg);
-            if(p_remote_name->status == BTM_REM_NAME_CANCELLED_INCMNG_CONN)
-                return;
-        }
-    }
-
     if ((p_msg = (tBTA_DM_REM_NAME *) GKI_getbuf(sizeof(tBTA_DM_REM_NAME))) != NULL)
     {
         bdcpy (p_msg->result.disc_res.bd_addr, bta_dm_search_cb.peer_bdaddr);
@@ -2819,6 +2840,9 @@ static void bta_dm_pinname_cback (void *p_data)
 
         /* 1 additional event data fields for this event */
         sec_event.cfm_req.just_works = bta_dm_cb.just_works;
+        /* retrieve the loc and rmt caps */
+        sec_event.cfm_req.loc_io_caps = bta_dm_cb.loc_io_caps;
+        sec_event.cfm_req.rmt_io_caps = bta_dm_cb.rmt_io_caps;
     }
     else
     {
@@ -3058,6 +3082,9 @@ static UINT8 bta_dm_sp_cback (tBTM_SP_EVT event, tBTM_SP_EVT_DATA *p_data)
         if (p_data->key_notif.bd_name[0] == 0)
         {
             bta_dm_cb.pin_evt = pin_evt;
+            /* Store the local and remote io caps */
+            bta_dm_cb.loc_io_caps = sec_event.cfm_req.loc_io_caps;
+            bta_dm_cb.rmt_io_caps = sec_event.cfm_req.rmt_io_caps;
             bdcpy(bta_dm_cb.pin_bd_addr, p_data->key_notif.bd_addr);
             BTA_COPY_DEVICE_CLASS(bta_dm_cb.pin_dev_class, p_data->key_notif.dev_class);
             if ((BTM_ReadRemoteDeviceName(p_data->key_notif.bd_addr, bta_dm_pinname_cback)) == BTM_CMD_STARTED)
@@ -4541,6 +4568,7 @@ void bta_dm_set_encryption (tBTA_DM_MSG *p_data)
     if (bta_dm_cb.p_encrypt_cback)
     {
         (*p_data->set_encryption.p_callback)(p_data->set_encryption.bd_addr, BTA_BUSY);
+        APPL_TRACE_ERROR0("bta_dm_set_encryption status is BTA_BUSY.");
         return;
     }
 

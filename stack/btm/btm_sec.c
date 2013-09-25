@@ -2534,9 +2534,6 @@ tBTM_STATUS btm_sec_mx_access_request (BD_ADDR bd_addr, UINT16 psm, BOOLEAN is_o
 void btm_sec_conn_req (UINT8 *bda, UINT8 *dc)
 {
     tBTM_SEC_DEV_REC  *p_dev_rec = btm_find_dev (bda);
-    tBTM_CMPL_CB *p_inq_cb;
-    tBTM_INQUIRY_VAR_ST *p_inq = &btm_cb.btm_inq_vars;
-
 
     /* Some device may request a connection before we are done with the HCI_Reset sequence */
     if (btm_cb.devcb.state != BTM_DEV_STATE_READY)
@@ -2596,28 +2593,6 @@ void btm_sec_conn_req (UINT8 *bda, UINT8 *dc)
         btsnd_hcic_reject_conn (bda, HCI_ERR_HOST_REJECT_DEVICE);
         return;
     }
-    /* Host is about to accept the Incoming ACL Connection, cancel */
-    /* any ongoing name requests to avoid connection being disconnected */
-    /* because of delays in firmware. */
-    if (p_inq->remname_active)
-    {
-        BTM_TRACE_EVENT0 ("Accepting Incoming Connection, cancelling name request");
-        tBTM_REMOTE_DEV_NAME     rem_name;
-
-        BTM_CancelRemoteDeviceName();
-        /* Notify the caller (if waiting) */
-        btu_stop_timer (&p_inq->rmt_name_timer_ent);
-        p_inq->remname_active = FALSE;
-        memset(p_inq->remname_bda, 0, BD_ADDR_LEN);
-        if (p_inq->p_remname_cmpl_cb)
-        {
-            rem_name.status = BTM_REM_NAME_CANCELLED_INCMNG_CONN;
-            (*p_inq->p_remname_cmpl_cb)(&rem_name);
-            p_inq->p_remname_cmpl_cb = NULL;
-        }
-    }
-    BTM_TRACE_EVENT0 ("btm_sec_conn_req no_rname_req_in_conn is set\n");
-    p_inq->no_rname_req_in_conn = TRUE;
 
     /* Host is not interested or approved connection.  Save BDA and DC and */
     /* pass request to L2CAP */
@@ -5850,32 +5825,6 @@ void btm_sec_clear_ble_keys (tBTM_SEC_DEV_REC  *p_dev_rec)
     gatt_delete_dev_from_srv_chg_clt_list(p_dev_rec->bd_addr);
 }
 
-
-/*******************************************************************************
-**
-** Function         btm_sec_is_a_bonded_dev
-**
-** Description       Is the specified device is a bonded device
-**
-** Returns          TRUE - dev is bonded
-**
-*******************************************************************************/
-BOOLEAN btm_sec_is_a_bonded_dev (BD_ADDR bda)
-{
-
-    tBTM_SEC_DEV_REC *p_dev_rec= btm_find_dev (bda);
-    BOOLEAN is_bonded= FALSE;
-
-#if (SMP_INCLUDED== TRUE)
-    if (p_dev_rec && (p_dev_rec->ble.key_type || (p_dev_rec->sec_flags & BTM_SEC_LINK_KEY_KNOWN)))
-    {
-        is_bonded = TRUE;
-    }
-#endif
-    BTM_TRACE_DEBUG1 ("btm_sec_is_a_bonded_dev is_bonded=%d", is_bonded);
-    return(is_bonded);
-}
-
 /*******************************************************************************
 **
 ** Function         btm_sec_is_le_capable_dev
@@ -5937,4 +5886,34 @@ BOOLEAN btm_sec_find_bonded_dev (UINT8 start_idx, UINT8 *p_found_idx, tBTM_SEC_D
     return(found);
 }
 #endif /* BLE_INCLUDED */
+
+/*******************************************************************************
+**
+** Function         btm_sec_is_a_bonded_dev
+**
+** Description       Is the specified device is a bonded device
+**
+** Returns          TRUE - dev is bonded
+**
+*******************************************************************************/
+BOOLEAN btm_sec_is_a_bonded_dev (BD_ADDR bda)
+{
+
+    tBTM_SEC_DEV_REC *p_dev_rec= btm_find_dev (bda);
+    BOOLEAN is_bonded= FALSE;
+
+#if (SMP_INCLUDED== TRUE)
+    if (p_dev_rec && (p_dev_rec->ble.key_type || (p_dev_rec->sec_flags & BTM_SEC_LINK_KEY_KNOWN)))
+    {
+        is_bonded = TRUE;
+    }
+#else
+    if (p_dev_rec && (p_dev_rec->sec_flags & BTM_SEC_LINK_KEY_KNOWN))
+    {
+        is_bonded = TRUE;
+    }
+#endif
+    BTM_TRACE_DEBUG1 ("btm_sec_is_a_bonded_dev is_bonded=%d", is_bonded);
+    return(is_bonded);
+}
 
