@@ -1,5 +1,8 @@
 /******************************************************************************
  *
+ * Copyright (c) 2013, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ *
  *  Copyright (C) 2009-2012 Broadcom Corporation
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,6 +50,7 @@
 #include "btif_util.h"
 #include "btif_sock.h"
 #include "btif_pan.h"
+#include "btif_mce.h"
 #include "btc_common.h"
 #include "btif_profile_queue.h"
 #include "btif_config.h"
@@ -931,7 +935,7 @@ static bt_status_t btif_in_get_remote_device_properties(bt_bdaddr_t *bd_addr)
     uint32_t num_props = 0;
 
     bt_bdname_t name, alias;
-    uint32_t cod, devtype;
+    uint32_t cod, devtype, trustval;
     bt_uuid_t remote_uuids[BT_MAX_NUM_UUIDS];
 
     memset(remote_properties, 0, sizeof(remote_properties));
@@ -943,6 +947,12 @@ static bt_status_t btif_in_get_remote_device_properties(bt_bdaddr_t *bd_addr)
 
     BTIF_STORAGE_FILL_PROPERTY(&remote_properties[num_props], BT_PROPERTY_REMOTE_FRIENDLY_NAME,
                                sizeof(alias), &alias);
+    btif_storage_get_remote_device_property(bd_addr,
+                                            &remote_properties[num_props]);
+    num_props++;
+
+    BTIF_STORAGE_FILL_PROPERTY(&remote_properties[num_props], BT_PROPERTY_REMOTE_TRUST_VALUE,
+                               sizeof(trustval), &trustval);
     btif_storage_get_remote_device_property(bd_addr,
                                             &remote_properties[num_props]);
     num_props++;

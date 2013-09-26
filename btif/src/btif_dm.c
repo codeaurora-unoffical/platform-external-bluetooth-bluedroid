@@ -1,5 +1,8 @@
 /******************************************************************************
  *
+ * Copyright (c) 2013, The Linux Foundation. All rights reserved.
+ * Not a Contribution.
+ *
  *  Copyright (C) 2009-2012 Broadcom Corporation
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -144,6 +147,7 @@ extern UINT16 bta_service_id_to_uuid_lkup_tbl [BTA_MAX_SERVICE_ID];
 extern bt_status_t btif_hf_execute_service(BOOLEAN b_enable);
 extern bt_status_t btif_av_execute_service(BOOLEAN b_enable);
 extern bt_status_t btif_hh_execute_service(BOOLEAN b_enable);
+extern bt_status_t btif_mce_execute_service(BOOLEAN b_enable);
 extern int btif_hh_connect(bt_bdaddr_t *bd_addr);
 extern BOOLEAN btif_av_is_connected();
 extern void btif_av_close_update();
@@ -172,7 +176,10 @@ bt_status_t btif_in_execute_service_request(tBTA_SERVICE_ID service_id,
          {
               btif_hh_execute_service(b_enable);
          }break;
-
+         case BTA_MAP_SERVICE_ID:
+         {
+             btif_mce_execute_service(b_enable);
+         }break;
          default:
               BTIF_TRACE_ERROR1("%s: Unknown service being enabled", __FUNCTION__);
               return BT_STATUS_FAIL;
@@ -415,7 +422,7 @@ static void btif_update_remote_properties(BD_ADDR bd_addr, BD_NAME bd_name,
 ** Returns          void
 **
 *******************************************************************************/
-static void hid_remote_name_cback(void *p_param)
+static void hid_remote_name_cback(tBTM_REMOTE_DEV_NAME *p_param)
 {
     BTIF_TRACE_DEBUG1("%s", __FUNCTION__);
 
@@ -444,6 +451,36 @@ static void btif_dm_cb_hid_remote_name(tBTM_REMOTE_DEV_NAME *p_remote_name)
 
         if (p_remote_name->status == BTM_SUCCESS)
         {
+            int status;
+            BTIF_TRACE_DEBUG2("%s: name of device =%s ", __FUNCTION__, p_remote_name->remote_bd_name);
+            int num_properties = 0;
+            bt_property_t properties[1];
+
+            /* remote name */
+            if (strlen((const char *) p_remote_name->remote_bd_name))
+            {
+                BTIF_STORAGE_FILL_PROPERTY(&properties[num_properties],
+                                    BT_PROPERTY_BDNAME,
+                                    strlen((char *)p_remote_name->remote_bd_name),
+                                    p_remote_name->remote_bd_name);
+                status = btif_storage_set_remote_device_property(&remote_bd, &properties[num_properties]);
+                ASSERTC(status == BT_STATUS_SUCCESS, "failed to save remote device name", status);
+                num_properties++;
+                HAL_CBACK(bt_hal_cbacks, remote_device_properties_cb,
+                                 status, &remote_bd, num_properties, properties);
+            }
+
+            status = btif_hh_connect(&remote_bd);
+            if(status != BT_STATUS_SUCCESS)
+                bond_state_changed(status, &remote_bd, BT_BOND_STATE_NONE);
+            else
+            {
+                /* Trigger SDP on the device */
+                pairing_cb.sdp_attempts = 1;
+                btif_dm_get_remote_services(&remote_bd);
+                /* Store Device as bonded in nvram */
+                btif_storage_add_bonded_device(&remote_bd, NULL, 0, 0);
+            }
             bond_state_changed(BT_STATUS_SUCCESS, &remote_bd, BT_BOND_STATE_BONDED);
         }
         else
@@ -496,18 +533,34 @@ static void btif_dm_cb_create_bond(bt_bdaddr_t *bd_addr)
     bond_state_changed(BT_STATUS_SUCCESS, bd_addr, BT_BOND_STATE_BONDING);
 
     if (is_hid){
+            tBTA_DM_SEARCH p_search_data;
+            bt_bdname_t bdname;
+            bt_bdaddr_t bdaddr;
+            UINT8 remote_name_len = 0;
 
-            int status;
-            status = btif_hh_connect(bd_addr);
-            if(status != BT_STATUS_SUCCESS)
-                bond_state_changed(status, bd_addr, BT_BOND_STATE_NONE);
+            bdcpy(p_search_data.inq_res.bd_addr,  bd_addr->address);
+            bdname.name[0] = 0;
+            check_cached_remote_name(&p_search_data, bdname.name, &remote_name_len);
+            if (remote_name_len != 0)
+            {
+                /* Remote Name of device known, start with HID connection */
+                int status;
+                status = btif_hh_connect(bd_addr);
+                if(status != BT_STATUS_SUCCESS)
+                    bond_state_changed(status, bd_addr, BT_BOND_STATE_NONE);
+                else
+                {
+                    /* Trigger SDP on the device */
+                    pairing_cb.sdp_attempts = 1;
+                    btif_dm_get_remote_services(bd_addr);
+                    /* Store Device as bonded in nvram */
+                    btif_storage_add_bonded_device(bd_addr, NULL, 0, 0);
+                }
+            }
             else
             {
-                /* Trigger SDP on the device */
-                pairing_cb.sdp_attempts = 1;
-                btif_dm_get_remote_services(bd_addr);
-                /* Store Device as bonded in nvram */
-                btif_storage_add_bonded_device(bd_addr, NULL, 0, 0);
+                /* Remote Name of device unknown, Perform RnR */
+                BTA_DmRemName(p_search_data.inq_res.bd_addr, hid_remote_name_cback);
             }
     }
     else
@@ -1782,7 +1835,11 @@ bt_status_t btif_dm_start_discovery(void)
     tBTA_DM_INQ inq_params;
     tBTA_SERVICE_MASK services = 0;
 
-    BTIF_TRACE_EVENT1("%s", __FUNCTION__);
+    BTIF_TRACE_EVENT2("%s : pairing_cb.state: 0x%x", __FUNCTION__, pairing_cb.state);
+
+    /* We should not go for inquiry in BONDING STATE. */
+    if (pairing_cb.state == BT_BOND_STATE_BONDING)
+        return BT_STATUS_BUSY;
     /* TODO: Do we need to handle multiple inquiries at the same time? */
 
     /* Set inquiry params and call API */
@@ -2075,9 +2132,18 @@ bt_status_t btif_dm_get_adapter_property(bt_property_t *prop)
 
         case BT_PROPERTY_ADAPTER_SCAN_MODE:
         {
-            /* if the storage does not have it. Most likely app never set it. Default is NONE */
+            /* get scan mode state from storage */
             bt_scan_mode_t *mode = (bt_scan_mode_t*)prop->val;
-            *mode = BT_SCAN_MODE_NONE;
+            switch (*mode)
+            {
+                case BT_SCAN_MODE_NONE:
+                case BT_SCAN_MODE_CONNECTABLE:
+                case BT_SCAN_MODE_CONNECTABLE_DISCOVERABLE:
+                break;
+
+                default:
+                    *mode = BT_SCAN_MODE_NONE;
+            }
             prop->len = sizeof(bt_scan_mode_t);
         }
         break;
