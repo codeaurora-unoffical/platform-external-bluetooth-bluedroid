@@ -48,7 +48,7 @@
 #define L2CAP_CHNL_CFG_TIMEOUT       30           /* 30 seconds */
 #define L2CAP_CHNL_DISCONNECT_TOUT   10           /* 10 seconds */
 #define L2CAP_DELAY_CHECK_SM4        2            /* 2 seconds */
-#define L2CAP_WAIT_INFO_RSP_TOUT     3            /* 3 seconds */
+#define L2CAP_WAIT_INFO_RSP_TOUT     1            /* 1 second */
 #define L2CAP_WAIT_UNPARK_TOUT       2            /* 2 seconds */
 #define L2CAP_LINK_INFO_RESP_TOUT    2            /* 2  seconds */
 #define L2CAP_BLE_LINK_CONNECT_TOUT  30           /* 30 seconds */
