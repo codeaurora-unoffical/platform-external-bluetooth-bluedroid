@@ -458,9 +458,9 @@ static const void* get_testapp_interface(int test_app_profile)
         case TEST_APP_L2CAP:
             return btif_l2cap_get_interface();
         case TEST_APP_SDP:
-           return btif_sdp_get_interface();
+            return btif_sdp_get_interface();
         case TEST_APP_RFCOMM:
-           //return btif_rfcomm_get_interface();
+            return btif_rfcomm_get_interface();
         default:
             return NULL;
     }

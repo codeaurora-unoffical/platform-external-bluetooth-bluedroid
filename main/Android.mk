@@ -53,6 +53,7 @@ LOCAL_SRC_FILES += \
     ../btif/src/btif_l2cap.c \
     ../btif/src/btif_sdp.c \
     ../wipowerif/src/wipower.c \
+    ../btif/src/btif_rfcomm.c \
 
 # callouts
 LOCAL_SRC_FILES+= \
