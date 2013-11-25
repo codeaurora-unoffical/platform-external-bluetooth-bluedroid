@@ -43,6 +43,7 @@
 #include "btif_dm.h"
 #include "btif_storage.h"
 #include "btif_hh.h"
+#include "btif_hd.h"
 #include "btif_config.h"
 
 #include "bta_gatt_api.h"
@@ -162,7 +163,8 @@ extern bt_status_t btif_hh_execute_service(BOOLEAN b_enable);
 extern bt_status_t btif_mce_execute_service(BOOLEAN b_enable);
 extern bt_status_t btif_hf_client_execute_service(BOOLEAN b_enable);
 extern int btif_hh_connect(bt_bdaddr_t *bd_addr);
-extern BOOLEAN btif_hh_check_if_conn_in_prog(void);
+extern BOOLEAN btif_hh_check_if_sdp_required(bt_bdaddr_t *bd_addr);
+extern bt_status_t btif_hd_execute_service(BOOLEAN b_enable);
 extern void bta_gatt_convert_uuid16_to_uuid128(UINT8 uuid_128[LEN_UUID_128], UINT16 uuid_16);
 extern BOOLEAN btif_av_is_connected();
 extern void btif_av_close_update();
@@ -198,6 +200,10 @@ bt_status_t btif_in_execute_service_request(tBTA_SERVICE_ID service_id,
          case BTA_HFP_HS_SERVICE_ID:
          {
              btif_hf_client_execute_service(b_enable);
+         }break;
+         case BTA_HIDD_SERVICE_ID:
+         {
+              btif_hd_execute_service(b_enable);
          }break;
          default:
               BTIF_TRACE_ERROR1("%s: Unknown service being enabled", __FUNCTION__);
@@ -947,7 +953,7 @@ static void btif_dm_auth_cmpl_evt (tBTA_DM_AUTH_CMPL *p_auth_cmpl)
 
         /* Special Handling for HID Devices */
         BOOLEAN is_hid = check_cod(&bd_addr, COD_HID_POINTING);
-        if (is_hid && btif_hh_check_if_conn_in_prog())
+        if (is_hid && btif_hh_check_if_sdp_required(&bd_addr))
         {
             /* For HID Pointing devices, in case of outgoing connection,
              * SDP has been performed already before initiating HID connection,
@@ -1497,6 +1503,9 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
             /*special handling for HID devices */
             #if (defined(BTA_HH_INCLUDED) && (BTA_HH_INCLUDED == TRUE))
             btif_hh_remove_device(bd_addr);
+            #endif
+            #if (defined(BTA_HD_INCLUDED) && (BTA_HD_INCLUDED == TRUE))
+            btif_hd_remove_device(bd_addr);
             #endif
             #if (defined(BLE_INCLUDED) && (BLE_INCLUDED == TRUE))
             btif_storage_remove_ble_bonding_keys(&bd_addr);
