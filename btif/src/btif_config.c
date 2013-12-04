@@ -438,7 +438,7 @@ static cfg_node* find_add_node(cfg_node* p, const char* name)
         }
     }
     else node = &p->child[i];
-    if(!node->name)
+    if(node && (!node->name))
         node->name = strdup(name);
     //debug("out");
     return node;
