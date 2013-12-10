@@ -358,7 +358,7 @@
 #endif
 
 #ifndef BTA_AV_CO_CP_SCMS_T
-#define BTA_AV_CO_CP_SCMS_T  FALSE
+#define BTA_AV_CO_CP_SCMS_T  TRUE
 #endif
 
 #ifndef AVDT_CONNECT_CP_ONLY
@@ -368,6 +368,11 @@
 /* This feature is used to eanble interleaved scan*/
 #ifndef BTA_HOST_INTERLEAVE_SEARCH
 #define BTA_HOST_INTERLEAVE_SEARCH FALSE
+#endif
+
+/* This feature is used to skip query of ble read remote features*/
+#ifndef BTA_SKIP_BLE_READ_REMOTE_FEAT
+#define BTA_SKIP_BLE_READ_REMOTE_FEAT FALSE
 #endif
 
 #ifndef BT_TRACE_PROTOCOL
@@ -1460,7 +1465,7 @@ and USER_HW_DISABLE_API macros */
 #endif
 
 #ifndef GATT_MAX_PHY_CHANNEL
-#define GATT_MAX_PHY_CHANNEL        4
+#define GATT_MAX_PHY_CHANNEL        7
 #endif
 
 /* Used for conformance testing ONLY */
