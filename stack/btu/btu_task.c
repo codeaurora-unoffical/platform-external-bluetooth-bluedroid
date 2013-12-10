@@ -877,6 +877,8 @@ void btu_check_bt_sleep (void)
     if ((btu_cb.hci_cmd_cb[LOCAL_BR_EDR_CONTROLLER_ID].cmd_cmpl_q.count == 0)
         &&(btu_cb.hci_cmd_cb[LOCAL_BR_EDR_CONTROLLER_ID].cmd_xmit_q.count == 0))
     {
+        BT_TRACE_2(TRACE_LAYER_BTU, TRACE_TYPE_DEBUG, "BR/EDR window: %d, ACL BUFs: %d",
+            l2cb.controller_xmit_window, l2cb.num_lm_acl_bufs);
         if (l2cb.controller_xmit_window == l2cb.num_lm_acl_bufs)
         {
             /* enable dev to sleep  in the cmd cplt and cmd status only and num cplt packet */
