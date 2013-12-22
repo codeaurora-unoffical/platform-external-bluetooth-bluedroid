@@ -47,6 +47,7 @@
 #define BTA_AV_FAIL_STREAM      3       /* stream connection failed */
 #define BTA_AV_FAIL_RESOURCES   4       /* no resources */
 #define BTA_AV_FAIL_ROLE        5       /* failed due to role management related issues */
+#define BTA_AV_FAIL_GET_CAP     6       /* get capability failed due to no SEP availale on the peer  */
 
 typedef UINT8 tBTA_AV_STATUS;
 
