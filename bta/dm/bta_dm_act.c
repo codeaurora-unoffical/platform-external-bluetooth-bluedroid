@@ -1300,7 +1300,7 @@ void bta_dm_search_cancel (tBTA_DM_MSG *p_data)
 
     tBTA_DM_MSG * p_msg;
 
-    if(BTM_IsInquiryActive())
+    if(BTM_IsInquiryActive() || (bta_dm_search_cb.state == BTA_DM_SEARCH_ACTIVE))
     {
         BTM_CancelInquiry();
         bta_dm_search_cancel_notify(NULL);
@@ -2186,6 +2186,12 @@ void bta_dm_search_cancel_transac_cmpl(tBTA_DM_MSG *p_data)
     }
 
     bta_dm_search_cancel_notify(NULL);
+
+    if(bta_dm_search_cb.p_search_queue)
+    {
+        bta_sys_sendmsg(bta_dm_search_cb.p_search_queue);
+        bta_dm_search_cb.p_search_queue = NULL;
+    }
 }
 
 
@@ -5103,7 +5109,7 @@ void bta_dm_ble_set_adv_config (tBTA_DM_MSG *p_data)
 
 #if ((defined BTA_GATT_INCLUDED) &&  (BTA_GATT_INCLUDED == TRUE))
 #ifndef BTA_DM_GATT_CLOSE_DELAY_TOUT
-#define BTA_DM_GATT_CLOSE_DELAY_TOUT    1000
+#define BTA_DM_GATT_CLOSE_DELAY_TOUT    3000
 #endif
 
 /*******************************************************************************

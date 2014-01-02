@@ -84,6 +84,10 @@
 #define BLUETOOTH_QCOM_SW TRUE
 #endif
 
+#ifndef BTA_BLE_SKIP_CONN_UPD
+#define BTA_BLE_SKIP_CONN_UPD FALSE
+#endif
+
 #ifndef BTUI_OPS_FORMATS
 #define BTUI_OPS_FORMATS (BTA_OP_VCARD21_MASK | BTA_OP_ANY_MASK)
 #endif
@@ -3776,6 +3780,11 @@ The maximum number of payload octets that the local device can receive in a sing
 /* When TRUE indicates that an application task is to be run */
 #ifndef APPL_INCLUDED
 #define APPL_INCLUDED                TRUE
+#endif
+
+/* TEST_APP_INTERFACE */
+#ifndef TEST_APP_INTERFACE
+#define TEST_APP_INTERFACE          TRUE
 #endif
 
 /* When TRUE remote terminal code included (RPC MUST be included) */
