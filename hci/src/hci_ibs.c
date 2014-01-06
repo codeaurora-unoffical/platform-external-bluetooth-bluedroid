@@ -279,13 +279,13 @@ void ibs_msm_serial_clock_vote(uint8_t vote, IBS_STATE_MACHINE * ibs_state)
             /*vote UART CLK ON using UART driver's ioctl() */
             ALOGI("%s: vote UART CLK ON using UART driver's ioctl()",
                 __FUNCTION__);
-            /*p_userial_if->ioctl(USERIAL_OP_CLK_ON, NULL);*/
+            p_userial_if->ioctl(USERIAL_OP_CLK_ON, NULL);
         }
         else {
             /*vote UART CLK OFF using UART driver's ioctl() */
             ALOGI("%s: vote UART CLK OFF using UART driver's ioctl()",
                 __FUNCTION__);
-            /*p_userial_if->ioctl(USERIAL_OP_CLK_OFF, NULL);*/
+            p_userial_if->ioctl(USERIAL_OP_CLK_OFF, NULL);
         }
     }
 }
