@@ -666,9 +666,15 @@ void l2c_link_processs_ble_num_bufs (UINT16 num_lm_ble_bufs)
     {
         num_lm_ble_bufs = L2C_DEF_NUM_BLE_BUF_SHARED;
         l2cb.num_lm_acl_bufs -= L2C_DEF_NUM_BLE_BUF_SHARED;
+        /* Reinitializing BR/EDR transmit windows to number available ACL buffers for BR/EDR after BLE buffers are initialized */
+        l2cb.controller_xmit_window = l2cb.num_lm_acl_bufs;
     }
 
     l2cb.num_lm_ble_bufs = l2cb.controller_le_xmit_window = num_lm_ble_bufs;
+    L2CAP_TRACE_DEBUG2("BR/EDR window: %d, ACL BUFs: %d", l2cb.controller_xmit_window,
+        l2cb.num_lm_acl_bufs);
+    L2CAP_TRACE_DEBUG2("LE window: %d, BLE BUFs: %d", l2cb.controller_le_xmit_window,
+        l2cb.num_lm_ble_bufs);
 }
 
 #endif /* (BLE_INCLUDED == TRUE) */
