@@ -41,6 +41,7 @@
 
 #include "btif_api.h"
 
+#include "btif_storage.h"
 #include "btif_util.h"
 #include "bd.h"
 #include "gki.h"
@@ -155,7 +156,6 @@
 #define BTIF_STORAGE_HL_APP_DATA     "hl_app_data_"
 #define BTIF_STORAGE_HL_APP_MDL_DATA "hl_app_mdl_data_"
 
-#define  BTIF_STORAGE_MAX_ALLOWED_REMOTE_DEVICE 512
 /************************************************************************************
 **  Local type definitions
 ************************************************************************************/
@@ -268,7 +268,7 @@ static int prop2cfg(bt_bdaddr_t *remote_bd_addr, bt_property_t *prop)
             btif_config_set_int("Remote", bdstr,
                                 BTIF_STORAGE_PATH_REMOTE_DEVTIME, (int)time(NULL));
             static const char* exclude_filter[] =
-                        {"LinkKey", "LE_KEY_PENC", "LE_KEY_PID", "LE_KEY_PCSRK", "LE_KEY_LENC", "LE_KEY_LCSRK"};
+                        {"Name", "LinkKey", "LE_KEY_PENC", "LE_KEY_PID", "LE_KEY_PCSRK", "LE_KEY_LENC", "LE_KEY_LCSRK"};
             btif_config_filter_remove("Remote", exclude_filter, sizeof(exclude_filter)/sizeof(char*),
                         BTIF_STORAGE_MAX_ALLOWED_REMOTE_DEVICE);
             break;
@@ -1226,6 +1226,8 @@ bt_status_t btif_in_fetch_bonded_ble_device(char *remote_bd_addr,int add, btif_b
 
     if(!btif_config_get_int("Remote", remote_bd_addr,"DevType", &device_type))
         return BT_STATUS_FAIL;
+    if(!btif_config_get_int("Remote", remote_bd_addr,"AddrType", &addr_type))
+        addr_type=0;//set PUBLIC_ADDR as default if not present in NVRAM
     if(device_type == BT_DEVICE_TYPE_BLE)
     {
             BTIF_TRACE_DEBUG2("%s %s found a BLE device", __FUNCTION__,remote_bd_addr);
