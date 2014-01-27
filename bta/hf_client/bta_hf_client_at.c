@@ -1741,6 +1741,12 @@ void bta_hf_client_send_at_nrec(void)
 
     APPL_TRACE_DEBUG1("%s", __FUNCTION__);
 
+    if (!(bta_hf_client_cb.scb.peer_features & BTA_HF_CLIENT_PEER_FEAT_ECNR))
+    {
+        APPL_TRACE_DEBUG0("Remote does not support NREC.");
+        return;
+    }
+
     buf = "AT+NREC=0\r";
 
     bta_hf_client_send_at(BTA_HF_CLIENT_AT_NREC, buf, strlen(buf));
