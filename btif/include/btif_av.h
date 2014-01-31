@@ -45,6 +45,7 @@ typedef enum {
     BTIF_AV_STOP_STREAM_REQ_EVT,
     BTIF_AV_SUSPEND_STREAM_REQ_EVT,
     BTIF_AV_RECONFIGURE_REQ_EVT,
+    BTIF_AV_REQUEST_AUDIO_FOCUS_EVT,
 } btif_av_sm_event_t;
 
 
@@ -63,6 +64,18 @@ typedef enum {
 *******************************************************************************/
 
 btif_sm_handle_t btif_av_get_sm_handle(void);
+
+/*******************************************************************************
+**
+** Function         btif_av_get_addr
+**
+** Description      Fetches current AV BD address
+**
+** Returns          BD address
+**
+*******************************************************************************/
+
+bt_bdaddr_t btif_av_get_addr(void);
 
 /*******************************************************************************
 **
