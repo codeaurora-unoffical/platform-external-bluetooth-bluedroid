@@ -325,11 +325,12 @@ static UINT8 SMP_cb (tSMP_EVT event, BD_ADDR bda, tSMP_EVT_DATA *p_data)
     switch(event)
     {
     case SMP_IO_CAP_REQ_EVT:
+        printf("Io_Caps=%d, auth_req=%d, max_key_size=%d, init_keys=%d, resp_keys=%d \n", p_data->io_req.io_cap, p_data->io_req.auth_req, p_data->io_req.max_key_size, p_data->io_req.init_keys, p_data->io_req.resp_keys);
         break;
 
     case SMP_PASSKEY_REQ_EVT:
     case SMP_PASSKEY_NOTIF_EVT:
-        printf("passkey value=%d\n", p_data->passkey);
+        printf("passkey value=%u\n", p_data->passkey);
         sSmpIface->PasskeyReply(bda, SMP_SUCCESS, p_data->passkey);
         break;
     case SMP_OOB_REQ_EVT:
@@ -718,12 +719,27 @@ void check_return_status(bt_status_t status)
     }
 }
 
+static void do_start_advertisment(char *p)
+{
+    int V2 = 3;
+    V2 = get_int(&p, -1);  // arg1  Other than zero will be considered as true.
+    bt_property_t property = {BT_PROPERTY_ADAPTER_BLE_ADV_MODE , 2, &V2};
+    status = sBtInterface->set_adapter_property(&property);
+}
+
+static void do_set_localname(char *p)
+{
+    printf("set name in progress: %s\n", p);
+    bt_property_t property = {BT_PROPERTY_BDNAME, strlen(p), p};
+    status = sBtInterface->set_adapter_property(&property);
+}
+
 static void adapter_state_changed(bt_state_t state)
 {
     int V1 = 1000, V2=2;
     bt_property_t property = {9 /*BT_PROPERTY_DISCOVERY_TIMEOUT*/, 4, &V1};
     bt_property_t property1 = {7 /*SCAN*/, 2, &V2};
-    bt_property_t property2 ={1,6,"Amith"};
+    bt_property_t property2 ={1,9,"GATTTOOL"};
     printf("ADAPTER STATE UPDATED : %s\n", (state == BT_STATE_OFF)?"OFF":"ON");
 
     g_AdapterState = state;
@@ -751,6 +767,9 @@ static void adapter_properties_changed(bt_status_t status, int num_properties, b
     case BT_PROPERTY_BDADDR:
         memcpy(Bd_addr, properties->val, properties->len);
         break;
+    case BT_PROPERTY_ADAPTER_BLE_ADV_MODE:
+        printf("Set in advertisement mode\n");
+        break;
     }
     return;
 }
@@ -776,6 +795,7 @@ static void pin_request_cb(bt_bdaddr_t *remote_bd_addr, bt_bdname_t *bd_name, ui
 static void ssp_request_cb(bt_bdaddr_t *remote_bd_addr, bt_bdname_t *bd_name,
                            uint32_t cod, bt_ssp_variant_t pairing_variant, uint32_t pass_key)
 {
+    printf("ssp_request_cb : name=%s variant=%d passkey=%u\n", bd_name->name, pairing_variant, pass_key);
     if(BT_STATUS_SUCCESS != sBtInterface->ssp_reply(remote_bd_addr, pairing_variant, TRUE, pass_key))
     {
         printf("SSP Reply failed\n");
@@ -1515,8 +1535,11 @@ void do_smp_passkey_reply(char *p)
     UINT8    res;
     bt_bdaddr_t bd_addr = {{0}};
     if(FALSE == GetBdAddr(p, &bd_addr))    return; //arg1
+        printf("get res value\n");
     res = get_int(&p, -1); // arg2
+        printf("res value=%d\n", res);
     passkey = get_int(&p, -1); // arg3
+        printf("passkey value=%d\n", passkey);
     sSmpIface->PasskeyReply(bd_addr.address, res, passkey);
     printf("%s:: Ret=%d \n", __FUNCTION__);
 }
@@ -1687,6 +1710,15 @@ const t_cmd console_cmd_list[] =
     //{ "smp_encrypt", do_smp_encrypt, "::", 0 },
     { "l2cap_send_data_cid", do_l2cap_send_data_cid, ":: BdAddr<00112233445566>, CID<>", 0 },
 
+    { "start_advertising", do_start_advertisment, ":: starts advertisment <mode> \
+                                                      \n\t 0 - BLE_ADV_MODE_NONE \
+                                                      \n\t 1 - BLE_ADV_IND_GENERAL_CONNECTABLE \
+                                                      \n\t 2 - BLE_ADV_IND_LIMITED_CONNECTABLE \
+                                                      \n\t 3 - BLE_ADV_DIR_CONNECTABLE        \
+                                                      \n\t 4 - BLE_ADV_IND_GENERAL_NON_CONNECTABLE \
+                                                      \n\t 5 - BLE_ADV_IND_LIMITED_NON_CONNECTABLE \
+                                                      \n\t 6 - BLE_ADV_IND_NON_DISC_CONNECTABLE" , 0},
+    { "set_local_name", do_set_localname, ":: setName<name>", 0 },
     /* add here */
 
     /* last entry */
