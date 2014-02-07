@@ -149,6 +149,7 @@ extern const btl2cap_interface_t *btif_l2cap_get_interface(void);
 extern const btsdp_interface_t *btif_sdp_get_interface(void);
 extern const btrfcomm_interface_t *btif_rfcomm_get_interface(void);
 extern const btgatt_test_interface_t *btif_gatt_test_get_interface(void);
+extern const btsmp_interface_t *btif_smp_get_interface(void);
 extern const btgap_interface_t *btif_gap_get_interface(void);
 #endif
 
@@ -447,6 +448,8 @@ static const void* get_testapp_interface(int test_app_profile)
            //return btif_rfcomm_get_interface();
         case TEST_APP_GATT:
            return btif_gatt_test_get_interface();
+        case TEST_APP_SMP:
+           return btif_smp_get_interface();
         case TEST_APP_GAP:
            return btif_gap_get_interface();
         default:
