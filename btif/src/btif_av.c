@@ -194,7 +194,7 @@ const char *dump_av_sm_event_name(btif_av_sm_event_t event)
         CASE_RETURN_STR(BTIF_AV_SUSPEND_STREAM_REQ_EVT)
         CASE_RETURN_STR(BTIF_AV_RECONFIGURE_REQ_EVT)
         CASE_RETURN_STR(BTIF_AV_REQUEST_AUDIO_FOCUS_EVT)
-
+        CASE_RETURN_STR(BTIF_AV_REQUEST_ACTIVATE_SINK_EVT)
         default: return "UNKNOWN_EVENT";
    }
 }
@@ -290,6 +290,14 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data)
             break;
 
         case BTA_AV_ENABLE_EVT:
+            break;
+
+        case BTIF_AV_REQUEST_ACTIVATE_SINK_EVT:
+        {
+            int enable = *((int*)p_data);
+            BTIF_TRACE_DEBUG1(" Active_Sink enable %d", enable)
+            BTA_AvEnable_Sink(enable);
+        }
             break;
 
         case BTA_AV_REGISTER_EVT:
@@ -1126,6 +1134,21 @@ bt_status_t is_src( bt_bdaddr_t *bd_addr )
 
 /*******************************************************************************
 **
+** Function         activate_sink
+**
+** Description      Activates/Deactivates A2DP Sink
+**
+** Returns          None
+**
+*******************************************************************************/
+void activate_sink(int enable)
+{
+    BTIF_TRACE_DEBUG1(" Activate Sink %d", enable);
+    btif_dispatch_sm_event(BTIF_AV_REQUEST_ACTIVATE_SINK_EVT, (char*)&enable, sizeof(int));
+}
+
+/*******************************************************************************
+**
 ** Function         suspend_sink
 **
 ** Description      Suspends stream  in case of A2DP Sink
@@ -1226,6 +1249,7 @@ static const btav_interface_t bt_av_interface = {
     suspend_sink,
     resume_sink,
     audio_focus_status,
+    activate_sink,
 };
 
 /*******************************************************************************
