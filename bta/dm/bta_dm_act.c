@@ -5479,9 +5479,9 @@ static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC *p_data)
             break;
 
         case BTA_GATTC_CLOSE_EVT:
-            APPL_TRACE_DEBUG1("BTA_GATTC_CLOSE_EVT reason = %d", p_data->close.reason);
+            APPL_TRACE_DEBUG2("BTA_GATTC_CLOSE_EVT reason = %d, search.state = %d", p_data->close.reason, bta_dm_search_cb.state);
             /* in case of disconnect before search is completed */
-            if ( (bta_dm_search_cb.state != BTA_DM_SEARCH_IDLE) &&
+            if ( (bta_dm_search_cb.state != BTA_DM_SEARCH_IDLE) && (bta_dm_search_cb.state != BTA_DM_SEARCH_ACTIVE) &&
                  !memcmp(p_data->close.remote_bda, bta_dm_search_cb.peer_bdaddr, BD_ADDR_LEN))
             {
                 bta_dm_gatt_disc_complete((UINT16)BTA_GATT_INVALID_CONN_ID,  (tBTA_GATT_STATUS) BTA_GATT_ERROR);
