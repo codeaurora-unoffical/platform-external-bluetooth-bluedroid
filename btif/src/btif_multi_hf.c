@@ -430,6 +430,7 @@ static void btif_hf_upstreams_evt(UINT16 event, char* p_param)
             bdsetany(btif_hf_cb[idx].connected_bda.address);
             btif_hf_cb[idx].peer_feat = 0;
             clear_phone_state_multihf(idx);
+            hf_idx = btif_hf_latest_connected_idx();
             /* If AG_OPEN was received but SLC was not setup in a specified time (10 seconds),
             ** then AG_CLOSE may be received. We need to advance the queue here
             */
@@ -443,18 +444,20 @@ static void btif_hf_upstreams_evt(UINT16 event, char* p_param)
                                                 __FUNCTION__, idx);
             btif_hf_cb[idx].peer_feat = p_data->conn.peer_feat;
             btif_hf_cb[idx].state = BTHF_CONNECTION_STATE_SLC_CONNECTED;
-
+            hf_idx = btif_hf_latest_connected_idx();
             HAL_CBACK(bt_multi_hf_callbacks, connection_state_cb, btif_hf_cb[idx].state,
                              &btif_hf_cb[idx].connected_bda);
             btif_queue_advance();
             break;
 
         case BTA_AG_AUDIO_OPEN_EVT:
+            hf_idx = idx;
             HAL_CBACK(bt_multi_hf_callbacks, audio_state_cb, BTHF_AUDIO_STATE_CONNECTED,
                                                         &btif_hf_cb[idx].connected_bda);
             break;
 
         case BTA_AG_AUDIO_CLOSE_EVT:
+            hf_idx = btif_hf_latest_connected_idx();
             HAL_CBACK(bt_multi_hf_callbacks, audio_state_cb, BTHF_AUDIO_STATE_DISCONNECTED,
                                                            &btif_hf_cb[idx].connected_bda);
             break;
@@ -1142,11 +1145,14 @@ static bt_status_t phone_state_change(int num_active, int num_held, bthf_call_st
     tBTA_AG_RES_DATA ag_res;
     bt_status_t status = BT_STATUS_SUCCESS;
     BOOLEAN activeCallUpdated = FALSE;
-    int idx, i;
+    int idx = BTIF_HF_INVALID_IDX, i;
 
-    /* Set idx to index of HF which sent ATA/BLDN else latest connected HF */
-    idx = (hf_idx == BTIF_HF_INVALID_IDX) ?
-               btif_hf_latest_connected_idx(): hf_idx;
+    /* hf_idx is index of connected HS that sent ATA/BLDN,
+            otherwise index of latest connected HS */
+    if (hf_idx != BTIF_HF_INVALID_IDX) {
+        idx = hf_idx;
+    }
+
     BTIF_TRACE_DEBUG1("phone_state_change: idx = %d", idx);
 
     /* Check if SLC is connected */
@@ -1172,7 +1178,6 @@ static bt_status_t phone_state_change(int num_active, int num_held, bthf_call_st
             clock_gettime(CLOCK_MONOTONIC, &btif_hf_cb[0].call_end_timestamp);
         }
         BTA_AgResult (BTA_AG_HANDLE_ALL, BTA_AG_END_CALL_RES, NULL);
-        hf_idx = BTIF_HF_INVALID_IDX;
 
         /* if held call was present, reset that as well */
         if (btif_hf_cb[idx].num_held)
