@@ -813,6 +813,9 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
             if (btif_av_cb.sep == SEP_SRC)
                 btif_a2dp_set_rx_flush(TRUE);
 
+            if (btif_av_cb.sep == SEP_SRC)
+                btif_a2dp_set_rx_flush(TRUE);
+
             BTA_AvStop(TRUE);
             break;
 
