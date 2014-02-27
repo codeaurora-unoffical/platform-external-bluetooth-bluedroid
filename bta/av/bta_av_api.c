@@ -167,7 +167,8 @@ void BTA_AvDeregister(tBTA_AV_HNDL hndl)
 ** Returns          void
 **
 *******************************************************************************/
-void BTA_AvOpen(BD_ADDR bd_addr, tBTA_AV_HNDL handle, BOOLEAN use_rc, tBTA_SEC sec_mask)
+void BTA_AvOpen(BD_ADDR bd_addr, tBTA_AV_HNDL handle, BOOLEAN use_rc, tBTA_SEC sec_mask,
+                                                                             UINT16 uuid)
 {
     tBTA_AV_API_OPEN  *p_buf;
 
@@ -179,6 +180,7 @@ void BTA_AvOpen(BD_ADDR bd_addr, tBTA_AV_HNDL handle, BOOLEAN use_rc, tBTA_SEC s
         p_buf->use_rc = use_rc;
         p_buf->sec_mask = sec_mask;
         p_buf->switch_res = BTA_AV_RS_NONE;
+        p_buf->uuid = uuid;
         bta_sys_sendmsg(p_buf);
     }
 }
