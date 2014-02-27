@@ -596,7 +596,7 @@ BTA_API void BTA_AvDeregister(tBTA_AV_HNDL hndl);
 **
 *******************************************************************************/
 BTA_API void BTA_AvOpen(BD_ADDR bd_addr, tBTA_AV_HNDL handle,
-                        BOOLEAN use_rc, tBTA_SEC sec_mask);
+                        BOOLEAN use_rc, tBTA_SEC sec_mask, UINT16 uuid);
 
 /*******************************************************************************
 **
