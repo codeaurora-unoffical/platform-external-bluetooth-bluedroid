@@ -56,7 +56,6 @@ int btCreateTrack(int trackFreq, int channelType)
 #endif
     ret = 0;
     track->mTrack->setVolume(1, 1);
-    track->mTrack->start();
     return ret;
 }
 
@@ -75,6 +74,7 @@ void btDeleteTrack()
     {
         track->mTrack.clear();
         delete track;
+        track = NULL;
     }
 #if (defined(DUMP_PCM_DATA) && (DUMP_PCM_DATA == TRUE))
     if (outputPcmSampleFile)
@@ -90,6 +90,7 @@ void btPauseTrack()
     if ((track != NULL) && (track->mTrack.get() != NULL))
     {
         track->mTrack->pause();
+        track->mTrack->flush();
     }
 }
 
