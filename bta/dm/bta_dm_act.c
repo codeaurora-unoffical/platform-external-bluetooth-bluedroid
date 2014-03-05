@@ -1,4 +1,4 @@
-/******************************************************************************
+/*
  *
  *  Copyright (C) 2003-2012 Broadcom Corporation
  *
@@ -1967,6 +1967,8 @@ void bta_dm_sdp_result (tBTA_DM_MSG *p_data)
 void bta_dm_search_cmpl (tBTA_DM_MSG *p_data)
 {
     APPL_TRACE_DEBUG0("bta_dm_search_cmpl");
+    tBTA_DM_SEARCH   result;
+
 
 #if (BLE_INCLUDED == TRUE && BTA_GATT_INCLUDED == TRUE)
     utl_freebuf((void **)&bta_dm_search_cb.p_srvc_uuid);
@@ -1975,7 +1977,10 @@ void bta_dm_search_cmpl (tBTA_DM_MSG *p_data)
     if (p_data->hdr.layer_specific == BTA_DM_API_DI_DISCOVER_EVT)
         bta_dm_di_disc_cmpl(p_data);
     else
-        bta_dm_search_cb.p_search_cback(BTA_DM_DISC_CMPL_EVT, NULL);
+    {
+        bdcpy (result.disc_ble_res.bd_addr, bta_dm_search_cb.peer_bdaddr);
+        bta_dm_search_cb.p_search_cback(BTA_DM_DISC_CMPL_EVT, &result);
+    }
 }
 
 /*******************************************************************************
@@ -2887,6 +2892,8 @@ static void bta_dm_pinname_cback (void *p_data)
     {
         /* Retrieved saved device class and bd_addr */
         bdcpy(sec_event.pin_req.bd_addr, bta_dm_cb.pin_bd_addr);
+        /* Retrieve the secure flag of pairing also */
+        sec_event.pin_req.secure = bta_dm_cb.secure;
         BTA_COPY_DEVICE_CLASS(sec_event.pin_req.dev_class, bta_dm_cb.pin_dev_class);
 
         if (p_result && p_result->status == BTM_SUCCESS)
@@ -2929,6 +2936,8 @@ static UINT8 bta_dm_pin_cback (BD_ADDR bd_addr, DEV_CLASS dev_class, BD_NAME bd_
     if (bd_name[0] == 0)
     {
         bta_dm_cb.pin_evt = BTA_DM_PIN_REQ_EVT;
+        /* Store the secure flag of pairing */
+        bta_dm_cb.secure = secure;
         bdcpy(bta_dm_cb.pin_bd_addr, bd_addr);
         BTA_COPY_DEVICE_CLASS(bta_dm_cb.pin_dev_class, dev_class);
         if ((BTM_ReadRemoteDeviceName(bd_addr, bta_dm_pinname_cback)) == BTM_CMD_STARTED)
@@ -5145,7 +5154,7 @@ void bta_dm_ble_set_adv_config (tBTA_DM_MSG *p_data)
 
 #if ((defined BTA_GATT_INCLUDED) &&  (BTA_GATT_INCLUDED == TRUE))
 #ifndef BTA_DM_GATT_CLOSE_DELAY_TOUT
-#define BTA_DM_GATT_CLOSE_DELAY_TOUT    3000
+#define BTA_DM_GATT_CLOSE_DELAY_TOUT    30000
 #endif
 
 /*******************************************************************************

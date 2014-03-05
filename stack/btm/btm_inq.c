@@ -739,6 +739,12 @@ UINT16 BTM_IsInquiryActive (void)
     return(btm_cb.btm_inq_vars.inq_active);
 }
 
+UINT8 BTM_IsRnrActive (void)
+{
+    BTM_TRACE_API0 ("BTM_IsRNRActive");
+
+    return (btm_cb.btm_inq_vars.remname_active);
+}
 
 
 /*******************************************************************************
@@ -2188,7 +2194,7 @@ void btm_process_inq_results (UINT8 *p, UINT8 inq_res_mode)
         */
         else if (p_i->inq_count == p_inq->inq_counter
 #if (BLE_INCLUDED == TRUE )
-            && (p_i->inq_info.results.device_type & BT_DEVICE_TYPE_BREDR)
+            && (p_i->inq_info.results.device_type == BT_DEVICE_TYPE_BREDR)
 #endif
             )
             is_new = FALSE;

@@ -113,8 +113,8 @@ typedef struct
 /* Structure returned with HCI Raw Command complete callback */
 typedef struct
 {
-    UINT16  opcode;
-    UINT16  param_len;
+    UINT8  event_code;
+    UINT8  param_len;
     UINT8   *p_param_buf;
 } tBTM_RAW_CMPL;
 
@@ -1268,7 +1268,8 @@ typedef void (tBTM_ESCO_CBACK) (tBTM_ESCO_EVT event, tBTM_ESCO_EVT_DATA *p_data)
 #define BTM_SEC_SERVICE_FIRST_EMPTY     54
 
 #ifndef BTM_SEC_MAX_SERVICES
-#define BTM_SEC_MAX_SERVICES            65
+/* accomadate client profiles also */
+#define BTM_SEC_MAX_SERVICES            70
 #endif
 
 /************************************************************************************************
@@ -2564,6 +2565,17 @@ BTM_API extern BOOLEAN BTM_TryAllocateSCN(UINT8 scn);
 *******************************************************************************/
     BTM_API extern UINT16 BTM_IsInquiryActive (void);
 
+/*******************************************************************************
+**
+** Function         BTM_IsRnrActive
+**
+** Description      This function returns a current RNR status
+**
+** Returns          TRUE if RNR is active
+**                  FALSE incase RNR is not active
+**
+*******************************************************************************/
+    BTM_API extern UINT8 BTM_IsRnrActive(void);
 
 /*******************************************************************************
 **
