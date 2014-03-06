@@ -140,6 +140,7 @@ static void pan_disable()
 }
 void btif_pan_cleanup()
 {
+    BTIF_TRACE_DEBUG1("btpan_jni_cleanup function:stack_initialized:%d",stack_initialized);
     if(stack_initialized)
     {
         //bt is shuting down, invalid all bta pan handles
@@ -154,16 +155,23 @@ void btif_pan_cleanup()
 static btpan_callbacks_t callback;
 static bt_status_t btpan_jni_init(const btpan_callbacks_t* callbacks)
 {
+    BTIF_TRACE_DEBUG2("stack_initialized = %d, jni_initialized:%d", stack_initialized, jni_initialized);
+    if(jni_initialized == TRUE)
+    return BT_STATUS_SUCCESS;
     BTIF_TRACE_DEBUG2("stack_initialized = %d, btpan_cb.enabled:%d", stack_initialized, btpan_cb.enabled);
     jni_initialized = TRUE;
-    if(stack_initialized && !btpan_cb.enabled)
-        btif_pan_init();
+    if(stack_initialized && !btpan_cb.enabled){
+         callback = *callbacks;
+         btif_pan_init();
+    return BT_STATUS_SUCCESS;
+    }
     callback = *callbacks;
     return BT_STATUS_SUCCESS;
 }
 
 static void btpan_jni_cleanup()
 {
+    BTIF_TRACE_DEBUG1("btpan_jni_cleanup function:jni_initialized:%d",jni_initialized);
     pan_disable();
     jni_initialized = FALSE;
 }
