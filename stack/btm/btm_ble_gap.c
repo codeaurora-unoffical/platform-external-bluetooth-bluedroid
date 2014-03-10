@@ -2404,9 +2404,11 @@ void btm_ble_read_remote_features_complete(UINT8 *p)
         if ((p_acl_cb->in_use) && (p_acl_cb->hci_handle == handle))
         {
             STREAM_TO_ARRAY(p_acl_cb->peer_le_features, p, BD_FEATURES_LEN);
+            p_acl_cb->le_read_remote_features_complete_status = status;
             break;
         }
     }
+    L2CA_is_conn_update_api_pending(p_acl_cb->remote_addr);
 }
 
 /*******************************************************************************

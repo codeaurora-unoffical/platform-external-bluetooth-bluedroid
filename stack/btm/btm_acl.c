@@ -211,6 +211,7 @@ void btm_acl_created (BD_ADDR bda, DEV_CLASS dc, BD_NAME bdn,
         btm_save_remote_device_role(bda, link_role);
 #if BLE_INCLUDED == TRUE
         p->is_le_link = is_le_link;
+        p->le_read_remote_features_complete_status = -1;
 #endif
         BTM_TRACE_DEBUG6 ("Duplicate btm_acl_created: RemBdAddr: %02x%02x%02x%02x%02x%02x",
                           bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
@@ -231,6 +232,7 @@ void btm_acl_created (BD_ADDR bda, DEV_CLASS dc, BD_NAME bdn,
 
 #if BLE_INCLUDED == TRUE
             p->is_le_link        = is_le_link;
+            p->le_read_remote_features_complete_status = -1;
 
             if (is_le_link)
             {
@@ -369,6 +371,7 @@ void btm_acl_removed (BD_ADDR bda)
     if (p != (tACL_CONN *)NULL)
     {
         p->in_use = FALSE;
+        p->le_read_remote_features_complete_status = -1;
 
         /* if the disconnected channel has a pending role switch, clear it now */
         btm_acl_report_role_change(HCI_ERR_NO_CONNECTION, bda);
