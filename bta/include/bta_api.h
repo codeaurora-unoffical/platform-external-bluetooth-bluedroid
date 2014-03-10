@@ -1235,6 +1235,20 @@ BTA_API extern void BTA_DmSetScanParam (UINT16 page_scan_interval, UINT16 page_s
 
 /*******************************************************************************
 **
+** Function         BTA_DmSendBleConnUpdate
+**
+** Description      This function sends LE connection paraemeters update
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+BTA_API extern void BTA_DmSendBleConnUpdate (BD_ADDR remote_addr, UINT16 interval_min,
+                                  UINT16 interval_max, UINT16 latency,
+                                  UINT16 supervision_timeout);
+
+/*******************************************************************************
+**
 ** Function         BTA_DmSetAfhChannels
 **
 ** Description      This function sets the AFH first and

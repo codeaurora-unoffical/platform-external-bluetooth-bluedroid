@@ -827,6 +827,14 @@ static bt_status_t bt_le_lpp_read_rssi_threshold(const bt_bdaddr_t *remote_bda)
                                  (char*)&btif_cb, sizeof(bt_le_lpp_monitor_rssi_cb_t), NULL);
 }
 
+static int le_send_conn_update(bt_bdaddr_t *remote_bda, uint16_t interval_min, uint16_t interval_max,
+                               uint16_t latency, uint16_t supervision_timeout)
+{
+    if(!remote_bda)
+        return BT_STATUS_PARM_INVALID;
+    return btif_send_le_conn_update(remote_bda, interval_min, interval_max, latency, supervision_timeout);
+}
+
 static const bt_interface_t bluetoothInterface = {
     sizeof(bluetoothInterface),
     init,
@@ -877,6 +885,7 @@ static const bt_interface_t bluetoothInterface = {
     bt_le_lpp_write_rssi_threshold,
     bt_le_lpp_enable_rssi_monitor,
     bt_le_lpp_read_rssi_threshold,
+    le_send_conn_update,
 #if TEST_APP_INTERFACE == TRUE
     get_testapp_interface,
 #else
