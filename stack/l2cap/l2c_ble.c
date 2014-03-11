@@ -308,6 +308,33 @@ void L2CA_HandleConnUpdateEvent (UINT16 handle, UINT8 status)
         L2CA_EnableUpdateBleConnParams (rem_bda, TRUE);
 }
 
+/*******************************************************************************
+**
+** Function         L2CA_HandleConnUpdateEvent
+**
+** Description      This function enables the connection update request from remote
+**                  after a successful connection update response is received.
+**
+** Returns          void
+**
+*******************************************************************************/
+void L2CA_HandleBleConnParamsEvent (UINT16 handle, UINT8 status, UINT16 conn_interval_min,
+        UINT16 conn_interval_max, UINT16 latency, UINT16 supervision_timeout, UINT8 evt)
+{
+    tL2C_LCB *p_lcb;
+    BD_ADDR rem_bda;
+
+    L2CAP_TRACE_DEBUG0("L2CA_HandleBleConnParamsEvent");
+    /* See if we have a link control block for the remote device */
+    p_lcb = l2cu_find_lcb_by_handle(handle);
+    if(!p_lcb)
+    {
+        L2CAP_TRACE_WARNING1("L2CA_HandleBleConnParamsEvent: Invalid handle: %d", handle);
+        return;
+    }
+    btm_ble_conn_params_evt(p_lcb->remote_bd_addr, status, conn_interval_min, conn_interval_max, latency, supervision_timeout, evt);
+}
+
 
 /*******************************************************************************
 **

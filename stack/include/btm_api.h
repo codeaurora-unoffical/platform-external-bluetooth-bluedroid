@@ -938,6 +938,9 @@ typedef void (tBTM_BL_CHANGE_CB) (tBTM_BL_EVENT_DATA *p_data);
 typedef void (tBTM_ACL_DB_CHANGE_CB) (BD_ADDR p_bda, DEV_CLASS p_dc,
                                       BD_NAME p_bdn, UINT8 *features,
                                       BOOLEAN is_new);
+typedef void (tBTM_BLE_CONN_PARAMS_CB) (BD_ADDR p_bda, UINT8 status, UINT16 conn_interval_min,
+                                        UINT16 conn_interval_max, UINT16 latency,
+                                        UINT16 supervision_timeout, UINT8 evt);
 
 /*****************************************************************************
 **  SCO CHANNEL MANAGEMENT
@@ -3405,6 +3408,18 @@ BTM_API extern BOOLEAN BTM_TryAllocateSCN(UINT8 scn);
 **
 *******************************************************************************/
     BTM_API extern tBTM_STATUS BTM_AclRegisterForChanges (tBTM_ACL_DB_CHANGE_CB *p_cb);
+
+/*******************************************************************************
+**
+** Function         BTM_BleRegisterForConnParamChanges
+**
+** Description      This function is called to register a callback to receive
+**                  ACL database change events, i.e. new connection or removed.
+**
+** Returns          BTM_SUCCESS if successfully initiated, otherwise error
+**
+*******************************************************************************/
+    BTM_API extern tBTM_STATUS BTM_BleRegisterForConnParamChanges (tBTM_BLE_CONN_PARAMS_CB *p_cb);
 
 /*******************************************************************************
 **

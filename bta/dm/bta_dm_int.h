@@ -108,6 +108,7 @@ enum
     BTA_DM_API_BLE_SET_ADV_CONFIG_EVT,
     BTA_DM_API_BLE_SERVICEDATA_EVT,
     BTA_DM_API_BLE_SEND_CONN_UPDATE_EVT,
+    BTA_DM_BLE_CONN_PARAMS_CHANGE_EVT,
 #endif
 
 #if ( BTM_EIR_SERVER_INCLUDED == TRUE )&&( BTA_EIR_CANNED_UUID_LIST != TRUE )&&(BTA_EIR_SERVER_NUM_CUSTOM_UUID > 0)
@@ -418,6 +419,19 @@ typedef struct
     UINT8           hci_status;
 } tBTA_DM_ACL_CHANGE;
 
+/* data type for BTA_DM_BLE_CONN_PARAMS_EVT */
+typedef struct
+{
+    BT_HDR          hdr;
+    BD_ADDR         bd_addr;
+    UINT8           status;
+    UINT16          conn_interval_min;
+    UINT16          conn_interval_max;
+    UINT16          latency;
+    UINT16          supervision_timeout;
+    UINT8           evt;
+} tBTA_DM_BLE_CONN_PARAMS_CHANGE;
+
 /* data type for BTA_DM_PM_BTM_STATUS_EVT */
 typedef struct
 {
@@ -722,6 +736,7 @@ typedef union
     tBTA_DM_API_SET_ADV_CONFIG          ble_set_adv_data;
     tBTA_DM_API_BLE_OBSERVE_WITH_FILTER ble_observe_with_filter;
     tBTA_DM_API_BLE_SEND_CONN_UPDATE    ble_send_conn_update;
+    tBTA_DM_BLE_CONN_PARAMS_CHANGE      ble_conn_params;
 #endif
 
     tBTA_DM_API_SET_AFH_CHANNEL_ASSESSMENT set_afh_channel_assessment;
@@ -1092,6 +1107,7 @@ extern void bta_dm_set_adv_data(tBTA_DM_MSG *p_data);
 extern void bta_dm_ble_set_adv_config (tBTA_DM_MSG *p_data);
 extern void bta_dm_set_service_data(tBTA_DM_MSG *p_data);
 extern void bta_dm_ble_send_conn_update(tBTA_DM_MSG *p_data);
+extern void bta_dm_ble_conn_params_change(tBTA_DM_MSG *p_data);
 
 #endif
 extern void bta_dm_set_encryption(tBTA_DM_MSG *p_data);
