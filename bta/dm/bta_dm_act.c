@@ -60,6 +60,8 @@ static void bta_dm_bl_change_cback (tBTM_BL_EVENT_DATA *p_data);
 #else
 static void bta_dm_acl_change_cback (BD_ADDR p_bda, DEV_CLASS p_dc, BD_NAME p_bdn, UINT8 *features, BOOLEAN is_new);
 #endif
+static void bta_dm_ble_conn_params_cback (BD_ADDR p_bda, UINT8 status, UINT16 conn_interval_min, UINT16 conn_interval_max,
+        UINT16 latency, UINT16 supervision_timeout, UINT8 evt);
 static void bta_dm_policy_cback(tBTA_SYS_CONN_STATUS status, UINT8 id, UINT8 app_id, BD_ADDR peer_addr);
 
 /* Extended Inquiry Response */
@@ -401,6 +403,7 @@ static void bta_dm_sys_hw_cback( tBTA_SYS_HW_EVT status )
             BTM_BleLoadLocalKeys(BTA_BLE_LOCAL_KEY_TYPE_ID, (tBTM_BLE_LOCAL_KEYS *)&id_key);
         }
         bta_dm_search_cb.conn_id = BTA_GATT_INVALID_CONN_ID;
+        BTM_BleRegisterForConnParamChanges(bta_dm_ble_conn_params_cback);
 #endif
 
         BTM_SecRegister((tBTM_APPL_INFO*)&bta_security);
@@ -3516,6 +3519,35 @@ static void bta_dm_acl_change_cback (BD_ADDR p_bda, DEV_CLASS p_dc, BD_NAME p_bd
 #endif
 /*******************************************************************************
 **
+** Function         bta_dm_ble_conn_params_cback
+**
+** Description      Callback from btm when acl connection goes up or down
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+static void bta_dm_ble_conn_params_cback (BD_ADDR p_bda, UINT8 status, UINT16 conn_interval_min,
+        UINT16 conn_interval_max, UINT16 latency, UINT16 supervision_timeout, UINT8 evt)
+{
+    tBTA_DM_BLE_CONN_PARAMS_CHANGE * p_msg;
+    if ((p_msg = (tBTA_DM_BLE_CONN_PARAMS_CHANGE *) GKI_getbuf(sizeof(tBTA_DM_BLE_CONN_PARAMS_CHANGE))) != NULL)
+    {
+        bdcpy (p_msg->bd_addr, p_bda);
+        p_msg->hdr.event = BTA_DM_BLE_CONN_PARAMS_CHANGE_EVT;
+        p_msg->status = status;
+        p_msg->conn_interval_min = conn_interval_min;
+        p_msg->conn_interval_max = conn_interval_max;
+        p_msg->latency = latency;
+        p_msg->supervision_timeout = supervision_timeout;
+        p_msg->evt = evt;
+        bta_sys_sendmsg(p_msg);
+
+    }
+
+}
+/*******************************************************************************
+**
 ** Function         bta_dm_rs_cback
 **
 ** Description      Receives the role switch complete event
@@ -3775,6 +3807,36 @@ void bta_dm_acl_change(tBTA_DM_MSG *p_data)
     }
 
     bta_dm_adjust_roles(TRUE);
+}
+
+/*******************************************************************************
+**
+** Function         bta_dm_ble_conn_params
+**
+** Description      Process BTA_DM_BLE_CONN_PARAMS_CHANGE_EVT
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+void bta_dm_ble_conn_params_change(tBTA_DM_MSG *p_data)
+{
+    tBTA_DM_SEC conn;
+    switch(p_data->ble_conn_params.hdr.event)
+    {
+        case BTA_DM_BLE_CONN_PARAMS_CHANGE_EVT:
+            if( bta_dm_cb.p_sec_cback ) {
+                conn.ble_conn_params.status = p_data->ble_conn_params.status;
+                conn.ble_conn_params.conn_interval_min = p_data->ble_conn_params.conn_interval_min;
+                conn.ble_conn_params.conn_interval_max = p_data->ble_conn_params.conn_interval_max;
+                conn.ble_conn_params.latency = p_data->ble_conn_params.latency;
+                conn.ble_conn_params.supervision_timeout = p_data->ble_conn_params.supervision_timeout;
+                bdcpy (conn.ble_conn_params.bd_addr, p_data->ble_conn_params.bd_addr);
+                if( bta_dm_cb.p_sec_cback )
+                    bta_dm_cb.p_sec_cback(BTA_DM_BLE_CONN_PARAMS_EVT, &conn);
+            }
+        break;
+   }
 }
 
 /*******************************************************************************
