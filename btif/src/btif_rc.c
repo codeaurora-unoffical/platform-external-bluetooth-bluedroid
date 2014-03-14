@@ -275,7 +275,7 @@ void send_key (int fd, uint16_t key, int pressed)
         return;
     }
 
-    BTIF_TRACE_DEBUG3("AVRCP: Send key %d (%d) fd=%d", key, pressed, fd);
+    BTIF_TRACE_IMP3("AVRCP: Send key %d (%d) fd=%d", key, pressed, fd);
     send_event(fd, EV_KEY, key, pressed);
     send_event(fd, EV_SYN, SYN_REPORT, 0);
 }
@@ -402,7 +402,7 @@ void handle_rc_features()
     {
         rc_features |= BTRC_FEAT_METADATA;
     }
-    BTIF_TRACE_DEBUG2("%s: rc_features=0x%x", __FUNCTION__, rc_features);
+    BTIF_TRACE_IMP2("%s: rc_features=0x%x", __FUNCTION__, rc_features);
     HAL_CBACK(bt_rc_callbacks, remote_features_cb, &rc_addr, rc_features)
 
 #if (AVRC_ADV_CTRL_INCLUDED == TRUE)
@@ -451,7 +451,7 @@ void handle_rc_features()
  ***************************************************************************/
 void handle_rc_connect (tBTA_AV_RC_OPEN *p_rc_open)
 {
-    BTIF_TRACE_DEBUG2("%s: rc_handle: %d", __FUNCTION__, p_rc_open->rc_handle);
+    BTIF_TRACE_IMP2("%s: rc_handle: %d", __FUNCTION__, p_rc_open->rc_handle);
     bt_status_t result = BT_STATUS_SUCCESS;
     int i;
     char bd_str[18];
@@ -521,7 +521,7 @@ void handle_rc_disconnect (tBTA_AV_RC_CLOSE *p_rc_close)
 #if (AVRC_CTLR_INCLUDED == TRUE)
     bt_bdaddr_t rc_addr;
 #endif
-    BTIF_TRACE_DEBUG2("%s: rc_handle: %d", __FUNCTION__, p_rc_close->rc_handle);
+    BTIF_TRACE_IMP2("%s: rc_handle: %d", __FUNCTION__, p_rc_close->rc_handle);
     if ((p_rc_close->rc_handle != btif_rc_cb.rc_handle)
         && (bdcmp(btif_rc_cb.rc_addr, p_rc_close->peer_addr)))
     {
@@ -529,7 +529,6 @@ void handle_rc_disconnect (tBTA_AV_RC_CLOSE *p_rc_close)
         return;
     }
 
-    btif_rc_cb.rc_handle = 0;
     btif_rc_cb.rc_connected = FALSE;
     memset(btif_rc_cb.rc_addr, 0, sizeof(BD_ADDR));
     btif_rc_cb.rc_features = 0;
@@ -822,7 +821,8 @@ void handle_rc_browsemsg_cmd (tBTA_AV_BROWSE_MSG *pbrowse_msg)
     UINT8  dropmsg = TRUE;
 
     BTIF_TRACE_EVENT1("+ %s", __FUNCTION__);
-    BTIF_TRACE_EVENT1("pbrowse_msg PDU_ID :%x",pbrowse_msg->p_msg->browse.p_browse_data[0]);
+    BTIF_TRACE_IMP2("%s  pbrowse_msg PDU_ID :%x",__FUNCTION__,
+            pbrowse_msg->p_msg->browse.p_browse_data[0]);
     BTIF_TRACE_EVENT1("pbrowse_msg length :%x",pbrowse_msg->p_msg->browse.browse_len);
     switch(pbrowse_msg->p_msg->browse.p_browse_data[0])
     {
@@ -901,7 +901,7 @@ void handle_rc_browsemsg_cmd (tBTA_AV_BROWSE_MSG *pbrowse_msg)
  ***************************************************************************/
 void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV *p_data)
 {
-    BTIF_TRACE_DEBUG2 ("%s event:%s", __FUNCTION__, dump_rc_event(event));
+    BTIF_TRACE_IMP2 ("%s event:%s", __FUNCTION__, dump_rc_event(event));
     switch (event)
     {
         case BTA_AV_RC_OPEN_EVT:
@@ -1254,7 +1254,7 @@ int app_sendbrowsemsg(UINT8 index ,tAVRC_RESPONSE *avrc_rsp)
 *******************************************************************************/
 static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 ctype, UINT8 label)
 {
-    BTIF_TRACE_EVENT5("%s pdu: %s handle: 0x%x ctype:%x label:%x", __FUNCTION__,
+    BTIF_TRACE_IMP5("%s pdu: %s handle: 0x%x ctype:%x label:%x", __FUNCTION__,
         dump_rc_pdu(pavrc_cmd->pdu), btif_rc_cb.rc_handle, ctype, label);
 
     switch (event)
@@ -1547,7 +1547,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
 *******************************************************************************/
 static void btif_rc_upstreams_rsp_evt(UINT16 event, tAVRC_RESPONSE *pavrc_resp, UINT8 ctype, UINT8 label)
 {
-    BTIF_TRACE_EVENT5("%s pdu: %s handle: 0x%x ctype:%x label:%x", __FUNCTION__,
+    BTIF_TRACE_IMP5("%s pdu: %s handle: 0x%x ctype:%x label:%x", __FUNCTION__,
         dump_rc_pdu(pavrc_resp->pdu), btif_rc_cb.rc_handle, ctype, label);
 
 #if (AVRC_ADV_CTRL_INCLUDED == TRUE)
@@ -1925,7 +1925,7 @@ static bt_status_t register_notification_rsp(btrc_event_id_t event_id,
 {
     tAVRC_RESPONSE avrc_rsp;
     CHECK_RC_CONNECTED
-    BTIF_TRACE_EVENT2("## %s ## event_id:%s", __FUNCTION__, dump_rc_notification_event_id(event_id));
+    BTIF_TRACE_IMP2("## %s ## event_id:%s", __FUNCTION__, dump_rc_notification_event_id(event_id));
     memset(&(avrc_rsp.reg_notif), 0, sizeof(tAVRC_REG_NOTIF_RSP));
     avrc_rsp.reg_notif.event_id = event_id;
 
