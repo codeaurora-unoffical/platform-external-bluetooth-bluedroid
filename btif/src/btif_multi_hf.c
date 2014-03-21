@@ -457,7 +457,6 @@ static void btif_hf_upstreams_evt(UINT16 event, char* p_param)
             break;
 
         case BTA_AG_AUDIO_CLOSE_EVT:
-            hf_idx = btif_hf_latest_connected_idx();
             HAL_CBACK(bt_multi_hf_callbacks, audio_state_cb, BTHF_AUDIO_STATE_DISCONNECTED,
                                                            &btif_hf_cb[idx].connected_bda);
             break;
@@ -472,7 +471,11 @@ static void btif_hf_upstreams_evt(UINT16 event, char* p_param)
             break;
 
         case BTA_AG_AT_A_EVT:
-            hf_idx = idx;
+            if ((btif_hf_cb[0].num_held + btif_hf_cb[0].num_active) == 0)
+                hf_idx = idx;
+            else
+                BTIF_TRACE_DEBUG0("Donot set hf_idx for ATA since already in a call");
+
             HAL_CBACK(bt_multi_hf_callbacks, answer_call_cmd_cb,
                               &btif_hf_cb[idx].connected_bda);
             break;
@@ -480,7 +483,11 @@ static void btif_hf_upstreams_evt(UINT16 event, char* p_param)
         /* Java needs to send OK/ERROR for these commands */
         case BTA_AG_AT_BLDN_EVT:
         case BTA_AG_AT_D_EVT:
-            hf_idx = idx;
+            if ((btif_hf_cb[0].num_held + btif_hf_cb[0].num_active) == 0)
+                hf_idx = idx;
+            else
+                BTIF_TRACE_DEBUG0("Donot set hf_idx for BLDN/D since already in a call");
+
             HAL_CBACK(bt_multi_hf_callbacks, dial_call_cmd_cb,
                 (event == BTA_AG_AT_D_EVT) ? p_data->val.str : NULL,
                               &btif_hf_cb[idx].connected_bda);
@@ -1149,9 +1156,10 @@ static bt_status_t phone_state_change(int num_active, int num_held, bthf_call_st
 
     /* hf_idx is index of connected HS that sent ATA/BLDN,
             otherwise index of latest connected HS */
-    if (hf_idx != BTIF_HF_INVALID_IDX) {
+    if (hf_idx != BTIF_HF_INVALID_IDX)
         idx = hf_idx;
-    }
+    else
+        idx = btif_hf_latest_connected_idx();
 
     BTIF_TRACE_DEBUG1("phone_state_change: idx = %d", idx);
 
@@ -1178,7 +1186,7 @@ static bt_status_t phone_state_change(int num_active, int num_held, bthf_call_st
             clock_gettime(CLOCK_MONOTONIC, &btif_hf_cb[0].call_end_timestamp);
         }
         BTA_AgResult (BTA_AG_HANDLE_ALL, BTA_AG_END_CALL_RES, NULL);
-
+        hf_idx = BTIF_HF_INVALID_IDX;
         /* if held call was present, reset that as well */
         if (btif_hf_cb[idx].num_held)
             send_indicator_update(BTA_AG_IND_CALLHELD, 0);
