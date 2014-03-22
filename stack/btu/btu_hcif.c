@@ -136,6 +136,7 @@ static void btu_ble_read_remote_feat_evt (UINT8 *p, UINT16 evt_len);
 static void btu_ble_ll_conn_param_upd_evt (UINT8 *p, UINT16 evt_len);
 static void btu_ble_proc_ltk_req (UINT8 *p, UINT16 evt_len);
 static void btu_hcif_encyption_key_refresh_cmpl_evt (UINT8 *p, UINT16 evt_len);
+static void btu_ble_ll_conn_param_req_evt (UINT8 *p, UINT16 evt_len);
     #endif
 /*******************************************************************************
 **
@@ -420,6 +421,9 @@ void btu_hcif_process_event (UINT8 controller_id, BT_HDR *p_msg)
                     break;
                 case HCI_BLE_LTK_REQ_EVT: /* received only at slave device */
                     btu_ble_proc_ltk_req(p, hci_evt_len);
+                    break;
+                case HCI_BLE_LL_CONN_PARAM_REQ_EVT:
+                    btu_ble_ll_conn_param_req_evt(p, hci_evt_len);
                     break;
             }
             break;
@@ -2296,6 +2300,32 @@ static void btu_ble_ll_conn_param_upd_evt (UINT8 *p, UINT16 evt_len)
     STREAM_TO_UINT16  (supervision_timeout, p);
     L2CA_HandleConnUpdateEvent(handle, status);
     L2CA_HandleBleConnParamsEvent(handle, status, conn_interval, conn_interval, latency, supervision_timeout, HCI_BLE_LL_CONN_PARAM_UPD_EVT);
+}
+
+static void btu_ble_ll_conn_param_req_evt (UINT8 *p, UINT16 evt_len)
+{
+    UINT16  handle;
+    UINT16 conn_interval_min;
+    UINT16 conn_interval_max;
+    UINT16 latency;
+    UINT16 timeout;
+    UINT8 is_positive_reply = 1;
+
+    BT_TRACE_0(TRACE_LAYER_HCI, TRACE_TYPE_EVENT, "btu_ble_ll_conn_param_req_evt");
+
+    STREAM_TO_UINT16 (handle, p);
+    STREAM_TO_UINT16 (conn_interval_min, p);
+    STREAM_TO_UINT16 (conn_interval_max, p);
+    STREAM_TO_UINT16 (latency, p);
+    STREAM_TO_UINT16 (timeout, p);
+
+
+    if(is_positive_reply)
+        btsnd_hcic_ble_remote_conn_params_request_reply(handle, conn_interval_min, conn_interval_max,
+                latency, timeout, 0, 0);
+    else
+        btsnd_hcic_ble_remote_conn_params_request_negative_reply(handle, HCI_ERR_UNACCEPT_CONN_INTERVAL);
+
 }
 
 static void btu_ble_read_remote_feat_evt (UINT8 *p, UINT16 evt_len)
