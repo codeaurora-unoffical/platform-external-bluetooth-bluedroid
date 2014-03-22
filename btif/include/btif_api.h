@@ -444,5 +444,18 @@ bt_status_t btif_config_hci_snoop_log(uint8_t enable);
 **
 *******************************************************************************/
 bt_status_t btif_dm_cancel_hid_bond(const bt_bdaddr_t *bd_addr);
+/*******************************************************************************
+**
+** Function         btif_send_le_conn_update
+**
+** Description      Start device discovery/inquiry
+**
+**
+** Returns          bt_status_t
+**
+*******************************************************************************/
+bt_status_t btif_send_le_conn_update(bt_bdaddr_t *remote_bda, uint16_t interval_min,
+                                     uint16_t interval_max, uint16_t latency,
+                                     uint16_t supervision_timeout);
 
 #endif /* BTIF_API_H */

@@ -126,7 +126,7 @@ typedef struct
     BD_ADDR         active_remote_addr;     /* remote address used on this connection */
     UINT8           active_remote_addr_type;         /* local device address type for this connection */
     BD_FEATURES     peer_le_features;       /* Peer LE Used features mask for the device */
-
+    UINT8           le_read_remote_features_complete_status;
 #endif
 
 } tACL_CONN;
@@ -829,6 +829,7 @@ typedef struct
     BT_OCTET8               enc_rand;   /* received rand value from LTK request*/
     UINT16                  ediv;       /* received ediv value from LTK request */
     UINT8                   key_size;
+    tBTM_BLE_CONN_PARAMS_CB *p_ble_conn_params_cb;    /* Callback for when BLE Conn params*/
 #endif
 
                                             /* Packet types supported by the local device */
@@ -978,6 +979,10 @@ extern void         btm_acl_timeout (TIMER_LIST_ENT  *p_tle);
 extern void         btm_acl_created (BD_ADDR bda, DEV_CLASS dc, BD_NAME bdn,
                                      UINT16 hci_handle, UINT8 link_role, UINT8 is_le_link);
 extern void         btm_acl_removed (BD_ADDR bda);
+extern void         btm_ble_conn_params_evt(BD_ADDR remote_bd_addr, UINT8 status,
+                                            UINT16 conn_interval_min,
+                                            UINT16 conn_interval_max, UINT16 latency,
+                                            UINT16 supervision_timeout, UINT8 evt);
 extern void         btm_acl_device_down (void);
 extern void         btm_acl_update_busy_level (tBTM_BLI_EVENT event);
 extern void         btm_acl_link_key_change (UINT16 handle, UINT8 status);
@@ -1080,6 +1085,7 @@ extern void btm_read_white_list_size_complete(UINT8 *p, UINT16 evt_len);
 extern void btm_ble_add_2_white_list_complete(UINT8 status);
 extern void btm_ble_remove_from_white_list_complete(UINT8 *p, UINT16 evt_len);
 extern void btm_ble_clear_white_list_complete(UINT8 *p, UINT16 evt_len);
+extern UINT8 btm_ble_get_local_features(void);
 #endif  /* BLE_INCLUDED */
 
 /* HCI event handler */
