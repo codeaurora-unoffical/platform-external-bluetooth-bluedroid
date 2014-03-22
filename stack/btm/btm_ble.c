@@ -1652,7 +1652,7 @@ UINT8 btm_proc_smp_cback(tSMP_EVT event, BD_ADDR bd_addr, tSMP_EVT_DATA *p_data)
     tBTM_SEC_DEV_REC    *p_dev_rec = btm_find_dev (bd_addr);
     UINT8 res = 0;
 
-    BTM_TRACE_DEBUG1 ("btm_proc_smp_cback event = %d", event);
+    BTM_TRACE_DEBUG3 ("btm_proc_smp_cback event = %d, state=%d btm_cb.pairing_bda[5]=0x%0x", event, btm_cb.pairing_state, btm_cb.pairing_bda[5]);
 
     if (p_dev_rec != NULL)
     {
@@ -1667,6 +1667,14 @@ UINT8 btm_proc_smp_cback(tSMP_EVT event, BD_ADDR bd_addr, tSMP_EVT_DATA *p_data)
             case SMP_OOB_REQ_EVT:
                 p_dev_rec->sec_flags |= BTM_SEC_LINK_KEY_AUTHED;
             case SMP_SEC_REQUEST_EVT:
+                if(event == SMP_SEC_REQUEST_EVT)
+                {
+                    if(btm_cb.pairing_state != BTM_PAIR_STATE_IDLE && memcmp(bd_addr, btm_cb.pairing_bda, BD_ADDR_LEN) != 0)
+                    {
+                        BTM_TRACE_DEBUG1("%s: btm_cb busy with another pairing, cancel this one", __FUNCTION__);
+                        return 0;
+                    }
+                }
                 memcpy (btm_cb.pairing_bda, bd_addr, BD_ADDR_LEN);
                 p_dev_rec->sec_state = BTM_SEC_STATE_AUTHENTICATING;
                 /* fall through */
