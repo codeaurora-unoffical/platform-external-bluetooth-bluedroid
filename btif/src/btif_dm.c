@@ -1984,6 +1984,12 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
             BTIF_TRACE_DEBUG0("BTA_DM_BLE_KEY_EVT. ");
             btif_dm_ble_auth_cmpl_evt(&p_data->auth_cmpl);
             break;
+        case BTA_DM_BLE_CONN_PARAMS_EVT:
+            bdcpy(bd_addr.address, p_data->ble_conn_params.bd_addr);
+            HAL_CBACK(bt_hal_cbacks, ble_conn_params_cb, p_data->ble_conn_params.status,
+                    &bd_addr, p_data->ble_conn_params.conn_interval_min, p_data->ble_conn_params.conn_interval_max,
+                    p_data->ble_conn_params.latency, p_data->ble_conn_params.supervision_timeout, p_data->ble_conn_params.evt);
+            break;
 #endif
 
         case BTA_DM_REM_NAME_EVT:
