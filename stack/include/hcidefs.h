@@ -1613,7 +1613,7 @@ typedef struct
 #define HCI_LE_FEATURE_LE_ENCRYPTION_OFF        0
 #define HCI_LE_ENCRYPTION_SUPPORTED(x) ((x)[HCI_LE_FEATURE_LE_ENCRYPTION_OFF] & HCI_LE_FEATURE_LE_ENCRYPTION_MASK)
 
-
+#define HCI_LE_FEATURE_LE_CONN_UPDATE_MASK       0x02
 /*
 **   Local Supported Commands encoding
 */

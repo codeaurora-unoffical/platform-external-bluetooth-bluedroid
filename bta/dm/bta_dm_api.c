@@ -436,6 +436,34 @@ void BTA_DmSetServiceData(UINT8 *p_buff, UINT8 len)
 
 /*******************************************************************************
 **
+** Function         BTA_DmSendBleConnUpdate
+**
+** Description      This function sends LE connection parameters update command
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+void BTA_DmSendBleConnUpdate (BD_ADDR bd_addr, UINT16 interval_min,
+                             UINT16 interval_max, UINT16 latency,
+                             UINT16 supervision_timeout)
+{
+    tBTA_DM_API_BLE_SEND_CONN_UPDATE    *p_msg;
+    APPL_TRACE_API0 ("BTA_DmSendBleConnUpdate");
+    if ((p_msg = (tBTA_DM_API_BLE_SEND_CONN_UPDATE *) GKI_getbuf(sizeof(tBTA_DM_MSG))) != NULL)
+    {
+        p_msg->hdr.event = BTA_DM_API_BLE_SEND_CONN_UPDATE_EVT;
+        p_msg->interval_min = interval_min;
+        p_msg->interval_max = interval_max;
+        p_msg->latency = latency;
+        p_msg->supervision_timeout = supervision_timeout;
+        bdcpy(p_msg->bd_addr, bd_addr);
+        bta_sys_sendmsg(p_msg);
+    }
+}
+
+/*******************************************************************************
+**
 ** Function         BTA_DmSetScanParam
 **
 ** Description      This function sets the parameters for page scan and

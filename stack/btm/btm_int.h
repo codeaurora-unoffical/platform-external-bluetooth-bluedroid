@@ -126,7 +126,7 @@ typedef struct
     BD_ADDR         active_remote_addr;     /* remote address used on this connection */
     UINT8           active_remote_addr_type;         /* local device address type for this connection */
     BD_FEATURES     peer_le_features;       /* Peer LE Used features mask for the device */
-
+    UINT8           le_read_remote_features_complete_status;
 #endif
 
 } tACL_CONN;
@@ -1080,6 +1080,7 @@ extern void btm_read_white_list_size_complete(UINT8 *p, UINT16 evt_len);
 extern void btm_ble_add_2_white_list_complete(UINT8 status);
 extern void btm_ble_remove_from_white_list_complete(UINT8 *p, UINT16 evt_len);
 extern void btm_ble_clear_white_list_complete(UINT8 *p, UINT16 evt_len);
+extern UINT8 btm_ble_get_local_features(void);
 #endif  /* BLE_INCLUDED */
 
 /* HCI event handler */
