@@ -460,6 +460,25 @@ static void bta_dm_sys_hw_cback( tBTA_SYS_HW_EVT status )
 
 }
 
+/*******************************************************************************
+**
+** Function         bta_dm_ble_send_conn_update
+**
+** Description      This function sets the AFH first and
+**                  last disable channel, so channels within
+**                  that range are disabled.
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+void bta_dm_ble_send_conn_update (tBTA_DM_MSG *p_data)
+{
+    BD_ADDR bd_addr;
+    L2CA_UpdateBleConnParams(p_data->ble_send_conn_update.bd_addr, p_data->ble_send_conn_update.interval_min,
+            p_data->ble_send_conn_update.interval_max, p_data->ble_send_conn_update.latency,
+            p_data->ble_send_conn_update.supervision_timeout);
+}
 
 /*******************************************************************************
 **
