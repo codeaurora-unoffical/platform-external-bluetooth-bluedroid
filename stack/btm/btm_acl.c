@@ -316,6 +316,30 @@ void btm_acl_created (BD_ADDR bda, DEV_CLASS dc, BD_NAME bdn,
     }
 }
 
+/*******************************************************************************
+**
+** Function         btm_ble_conn_params_evt
+**
+** Description      This function is called by L2CAP when an ACL connection
+**                  is created.
+**
+** Returns          void
+**
+*******************************************************************************/
+void btm_ble_conn_params_evt(BD_ADDR remote_bd_addr, UINT8 status, UINT16 conn_interval_min,
+        UINT16 conn_interval_max, UINT16 latency, UINT16 supervision_timeout, UINT8 evt)
+{
+    tBTM_SEC_DEV_REC *p_dev_rec = NULL;
+    UINT8             yy;
+    tACL_CONN        *p;
+    UINT8             xx;
+
+    BTM_TRACE_DEBUG0 ("btm_ble_conn_params_evt");
+    if (btm_cb.p_ble_conn_params_cb)
+        (*btm_cb.p_ble_conn_params_cb) (remote_bd_addr, status, conn_interval_min,
+                conn_interval_max, latency, supervision_timeout, evt);
+ }
+
 
 /*******************************************************************************
 **
@@ -2768,6 +2792,26 @@ tBTM_STATUS BTM_AclRegisterForChanges (tBTM_ACL_DB_CHANGE_CB *p_cb)
 }
 #endif
 
+/*******************************************************************************
+**
+** Function         BTM_BleRegisterForConnParamChanges
+**
+** Returns          This function is called to register a callback for when the
+**                  ACL database changes, i.e. new entry or entry deleted.
+**
+*******************************************************************************/
+tBTM_STATUS BTM_BleRegisterForConnParamChanges (tBTM_BLE_CONN_PARAMS_CB *p_cb)
+{
+    BTM_TRACE_DEBUG0 ("BTM_BleRegisterForConnParamChanges");
+    if (!p_cb)
+        btm_cb.p_ble_conn_params_cb = NULL;
+    else if (btm_cb.p_ble_conn_params_cb)
+        return(BTM_BUSY);
+    else
+        btm_cb.p_ble_conn_params_cb = p_cb;
+
+    return(BTM_SUCCESS);
+}
 /*******************************************************************************
 **
 ** Function         BTM_SetQoS

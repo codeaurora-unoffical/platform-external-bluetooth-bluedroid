@@ -2280,11 +2280,18 @@ static void btu_ble_ll_conn_param_upd_evt (UINT8 *p, UINT16 evt_len)
     //extract the HCI handle first
     UINT8   status;
     UINT16  handle;
+    UINT16  conn_interval;
+    UINT16  latency;
+    UINT16  supervision_timeout;
     BT_TRACE_0(TRACE_LAYER_HCI, TRACE_TYPE_EVENT, "btu_ble_ll_conn_param_upd_evt");
 
     STREAM_TO_UINT8  (status, p);
     STREAM_TO_UINT16 (handle, p);
+    STREAM_TO_UINT16  (conn_interval, p);
+    STREAM_TO_UINT16  (latency, p);
+    STREAM_TO_UINT16  (supervision_timeout, p);
     L2CA_HandleConnUpdateEvent(handle, status);
+    L2CA_HandleBleConnParamsEvent(handle, status, conn_interval, conn_interval, latency, supervision_timeout, HCI_BLE_LL_CONN_PARAM_UPD_EVT);
 }
 
 static void btu_ble_ll_conn_param_req_evt (UINT8 *p, UINT16 evt_len)

@@ -518,6 +518,7 @@ typedef UINT8 tBTA_SIG_STRENGTH_MASK;
 #define BTA_DM_HW_ERROR_EVT             24      /* BT Chip H/W error */
 #define BTA_DM_BLE_ADV_ENABLE_EVT       25      /*BLE adv enable/diable callback event*/
 #define BTA_DM_REM_NAME_EVT             26      /* Remote name event */
+#define BTA_DM_BLE_CONN_PARAMS_EVT      27      /* BLE CONN PARAMS EVT */
 typedef UINT8 tBTA_DM_SEC_EVT;
 
 /* Structure associated with BTA_DM_ENABLE_EVT */
@@ -666,6 +667,17 @@ typedef struct
     BD_ADDR         bd_addr;            /* BD address peer device. */
 } tBTA_DM_LINK_UP;
 
+/* Structure associated with BTA_DM_BLE_CONN_PARAMS_EVT */
+typedef struct
+{
+    BD_ADDR         bd_addr;            /* BD address peer device. */
+    UINT8           status;
+    UINT16          conn_interval_min;
+    UINT16          conn_interval_max;
+    UINT16          latency;
+    UINT16          supervision_timeout;
+    UINT8           evt;
+} tBTA_DM_BLE_CONN_PARAMS;
 /* Structure associated with BTA_DM_LINK_DOWN_EVT */
 typedef struct
 {
@@ -830,6 +842,7 @@ typedef union
     tBTA_BLE_LOCAL_ID_KEYS  ble_id_keys;  /* IR event */
     BT_OCTET16              ble_er;       /* ER event data */
     tBTA_DM_ADV_ENABLE_CMPL adv_enable;   /*adv enable / disable*/
+    tBTA_DM_BLE_CONN_PARAMS     ble_conn_params;       /* BLE Conn params event */
 } tBTA_DM_SEC;
 
 /* Security callback */
