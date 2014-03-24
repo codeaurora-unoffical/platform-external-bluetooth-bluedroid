@@ -35,6 +35,7 @@
 #include "btif_profile_queue.h"
 #include "bta_api.h"
 #include "btif_media.h"
+#include "btif_storage.h"
 #include "bta_av_api.h"
 #include "gki.h"
 #include "bd.h"
@@ -194,7 +195,6 @@ const char *dump_av_sm_event_name(btif_av_sm_event_t event)
         CASE_RETURN_STR(BTIF_AV_SUSPEND_STREAM_REQ_EVT)
         CASE_RETURN_STR(BTIF_AV_RECONFIGURE_REQ_EVT)
         CASE_RETURN_STR(BTIF_AV_REQUEST_AUDIO_FOCUS_EVT)
-        CASE_RETURN_STR(BTA_AV_SM_PRIORITY_EVT)
 
         default: return "UNKNOWN_EVENT";
    }
@@ -273,9 +273,8 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data)
 {
     tBTA_AV *p_bta_data;
 
-    BTIF_TRACE_DEBUG3("%s event:%s flags %x", __FUNCTION__,
+    BTIF_TRACE_IMP3("%s event:%s flags %x", __FUNCTION__,
                      dump_av_sm_event_name(event), btif_av_cb.flags);
-
     switch (event)
     {
         case BTIF_SM_ENTER_EVT:
@@ -373,10 +372,6 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data)
             // Only for AVDTP connection request move to opening state
             if (event == BTA_AV_PENDING_EVT)
                 btif_sm_change_state(btif_av_cb.sm_handle, BTIF_AV_STATE_OPENING);
-            btif_dispatch_sm_event(BTA_AV_SM_PRIORITY_EVT, NULL, 0);
-            break;
-
-        case BTA_AV_SM_PRIORITY_EVT:
             HAL_CBACK(bt_av_callbacks, connection_priority_cb, &(btif_av_cb.peer_bda));
             break;
 
@@ -417,7 +412,7 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data)
 
 static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data)
 {
-    BTIF_TRACE_DEBUG3("%s event:%s flags %x", __FUNCTION__,
+    BTIF_TRACE_IMP3("%s event:%s flags %x", __FUNCTION__,
                      dump_av_sm_event_name(event), btif_av_cb.flags);
 
     switch (event)
@@ -430,9 +425,7 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
 
         case BTIF_SM_EXIT_EVT:
             break;
-        case BTA_AV_SM_PRIORITY_EVT:
-            HAL_CBACK(bt_av_callbacks, connection_priority_cb, &(btif_av_cb.peer_bda));
-            break;
+
         case BTA_AV_REJECT_EVT:
             BTIF_TRACE_DEBUG0(" Received  BTA_AV_REJECT_EVT ");
             HAL_CBACK(bt_av_callbacks, connection_state_cb,
@@ -537,7 +530,7 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
 
 static BOOLEAN btif_av_state_closing_handler(btif_sm_event_t event, void *p_data)
 {
-    BTIF_TRACE_DEBUG3("%s event:%s flags %x", __FUNCTION__,
+    BTIF_TRACE_IMP3("%s event:%s flags %x", __FUNCTION__,
                      dump_av_sm_event_name(event), btif_av_cb.flags);
 
     switch (event)
@@ -614,7 +607,7 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data)
     tBTA_AV *p_av = (tBTA_AV*)p_data;
     tBTIF_STATUS status = BTIF_SUCCESS;
 
-    BTIF_TRACE_DEBUG3("%s event:%s flags %x", __FUNCTION__,
+    BTIF_TRACE_IMP3("%s event:%s flags %x", __FUNCTION__,
                      dump_av_sm_event_name(event), btif_av_cb.flags);
 
     if ( (event == BTA_AV_REMOTE_CMD_EVT) && (btif_av_cb.flags & BTIF_AV_FLAG_REMOTE_SUSPEND) &&
@@ -663,16 +656,18 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data)
             if ((p_av->start.status == BTA_SUCCESS) && (p_av->start.suspending == TRUE))
                 return TRUE;
 
-            /* if remote tries to start a2dp when call is in progress, suspend it right away */
-            if ((!(btif_av_cb.flags & BTIF_AV_FLAG_PENDING_START)) &&
-                                       (!btif_multihf_is_call_idle()))
+            /* if remote tries to start a2dp when DUT is a2dp source
+             * then suspend. In case a2dp is sink and call is active
+             * then disconnect the AVDTP channel
+             */
+            if (!(btif_av_cb.flags & BTIF_AV_FLAG_PENDING_START))
             {
                 if (btif_av_cb.sep == SEP_SNK)
                 {
-                    BTIF_TRACE_EVENT1("%s: trigger suspend as call is in progress!!", __FUNCTION__);
+                    BTIF_TRACE_EVENT1("%s: trigger suspend as remote initiated!!", __FUNCTION__);
                     btif_dispatch_sm_event(BTIF_AV_SUSPEND_STREAM_REQ_EVT, NULL, 0);
                 }
-                else
+                else if (!btif_multihf_is_call_idle())
                 {
                     BTIF_TRACE_WARNING0(" Peer is SRC, Disc the Link ");
                     btif_dispatch_sm_event(BTIF_AV_DISCONNECT_REQ_EVT, NULL, 0);
@@ -788,7 +783,7 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
 {
     tBTA_AV *p_av = (tBTA_AV*)p_data;
 
-    BTIF_TRACE_DEBUG3("%s event:%s flags %x", __FUNCTION__,
+    BTIF_TRACE_IMP3("%s event:%s flags %x", __FUNCTION__,
                      dump_av_sm_event_name(event), btif_av_cb.flags);
 
     switch (event)
@@ -1044,7 +1039,20 @@ static bt_status_t connect_int(bt_bdaddr_t *bd_addr)
 {
     BTIF_TRACE_EVENT1("%s", __FUNCTION__);
 
-    btif_sm_dispatch(btif_av_cb.sm_handle, BTIF_AV_CONNECT_REQ_EVT, (char*)bd_addr);
+    if(btif_storage_is_device_bonded (bd_addr))
+    {
+        btif_sm_dispatch(btif_av_cb.sm_handle, BTIF_AV_CONNECT_REQ_EVT, (char*)bd_addr);
+    }
+    else
+    {
+        bdstr_t bdstr;
+
+        BTIF_TRACE_ERROR1("## connect_int ## Device Not Bonded : %s", bd2str (bd_addr, &bdstr));
+        /* inform the application of the disconnection as the connection is not processed */
+        HAL_CBACK(bt_av_callbacks, connection_state_cb,
+                         BTAV_CONNECTION_STATE_DISCONNECTED, bd_addr);
+        btif_queue_advance();
+    }
 
     return BT_STATUS_SUCCESS;
 }
