@@ -176,6 +176,8 @@ extern int btif_hh_connect(bt_bdaddr_t *bd_addr);
 extern BOOLEAN btif_hh_check_if_sdp_required(bt_bdaddr_t *bd_addr);
 extern bt_status_t btif_hd_execute_service(BOOLEAN b_enable);
 extern void bta_gatt_convert_uuid16_to_uuid128(UINT8 uuid_128[LEN_UUID_128], UINT16 uuid_16);
+extern BOOLEAN btif_hf_is_connected();
+extern void btif_hf_close_update();
 extern BOOLEAN btif_av_is_connected();
 extern void btif_av_close_update();
 extern void btif_av_move_idle(bt_bdaddr_t bd_addr);
@@ -1074,6 +1076,7 @@ static void btif_dm_auth_cmpl_evt (tBTA_DM_AUTH_CMPL *p_auth_cmpl)
 
             /* map the auth failure codes, so we can retry pairing if necessary */
             case HCI_ERR_AUTH_FAILURE:
+            case HCI_ERR_KEY_MISSING:
                 btif_storage_remove_bonded_device(&bd_addr);
             case HCI_ERR_HOST_REJECT_SECURITY:
             case HCI_ERR_ENCRY_MODE_NOT_ACCEPTABLE:
@@ -1745,6 +1748,7 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
             {
                 bdcpy(bd_addr.address, pairing_cb.bd_addr);
                 bond_state_changed(p_data->bond_cancel_cmpl.result, &bd_addr, BT_BOND_STATE_NONE);
+                btif_dm_remove_bond(&bd_addr);
             }
             break;
 
@@ -1818,6 +1822,12 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
             BTIF_TRACE_ERROR0("Received H/W Error. ");
             /* Flush storage data */
             btif_config_flush();
+            //checking hfp is connected
+            if (btif_hf_is_connected())
+            {
+                BTIF_TRACE_DEBUG0("HFP Connection is Active disconnect before kill");
+                btif_hf_close_update();
+            }
             //checking weather music is palyed or not
             if (btif_av_is_connected())
             {
@@ -1974,6 +1984,12 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
         case BTA_DM_BLE_AUTH_CMPL_EVT:
             BTIF_TRACE_DEBUG0("BTA_DM_BLE_KEY_EVT. ");
             btif_dm_ble_auth_cmpl_evt(&p_data->auth_cmpl);
+            break;
+        case BTA_DM_BLE_CONN_PARAMS_EVT:
+            bdcpy(bd_addr.address, p_data->ble_conn_params.bd_addr);
+            HAL_CBACK(bt_hal_cbacks, ble_conn_params_cb, p_data->ble_conn_params.status,
+                    &bd_addr, p_data->ble_conn_params.conn_interval_min, p_data->ble_conn_params.conn_interval_max,
+                    p_data->ble_conn_params.latency, p_data->ble_conn_params.supervision_timeout, p_data->ble_conn_params.evt);
             break;
 #endif
 

@@ -27,6 +27,12 @@
  **
  ******************************************************************************/
 
+//#define BT_AUDIO_SYSTRACE_LOG
+
+#ifdef BT_AUDIO_SYSTRACE_LOG
+#define ATRACE_TAG ATRACE_TAG_ALWAYS
+#endif
+
 #include <string.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -84,6 +90,11 @@ OI_UINT32 contextData[CODEC_DATA_WORDS(2, SBC_CODEC_FAST_FILTER_BUFFERS)];
 OI_INT16 pcmData[15*SBC_MAX_SAMPLES_PER_FRAME*SBC_MAX_CHANNELS];
 void *dlhandle = NULL;
 oi_sbc_decoder_vendor_interface_t *oi_sbc_decode_vnd_if = NULL;
+#endif
+
+#ifdef BT_AUDIO_SYSTRACE_LOG
+#include <cutils/trace.h>
+#define PERF_SYSTRACE 1
 #endif
 
 /*****************************************************************************
@@ -216,7 +227,7 @@ static UINT32 a2dp_media_task_stack[(A2DP_MEDIA_TASK_STACK_SIZE + 3) / 4];
    layers we might need to temporarily buffer up data */
 
 /* 24 frames is equivalent to 6.89*24*2.9 ~= 480 ms @ 44.1 khz, 20 ms mediatick */
-#define MAX_OUTPUT_A2DP_FRAME_QUEUE_SZ 50
+#define MAX_OUTPUT_A2DP_FRAME_QUEUE_SZ 24
 
 //#define BTIF_MEDIA_VERBOSE_ENABLED
 /* In case of A2DP SINK, we will delay start by 5 AVDTP Packets*/
@@ -407,6 +418,7 @@ static void tput_mon(int is_rx, int len, int reset)
 static void log_tstamps_us(char *comment)
 {
     #define USEC_PER_SEC 1000000L
+    #define USEC_PER_MSEC 1000L
     static struct timespec prev = {0, 0};
     struct timespec now, diff;
     unsigned int diff_us = 0;
@@ -416,9 +428,16 @@ static void log_tstamps_us(char *comment)
     now_us = now.tv_sec*USEC_PER_SEC + now.tv_nsec/1000;
     diff_us = (now.tv_sec - prev.tv_sec) * USEC_PER_SEC + (now.tv_nsec - prev.tv_nsec)/1000;
 
-    APPL_TRACE_DEBUG4("[%s] ts %08d, diff : %08d, queue sz %d", comment, now_us, diff_us,
+    if ((diff_us / USEC_PER_MSEC) > (BTIF_MEDIA_TIME_TICK + 10))
+    {
+        APPL_TRACE_ERROR4("[%s] ts %08d, diff : %08d, queue sz %d", comment, now_us, diff_us,
                 btif_media_cb.TxAaQ.count);
-
+    }
+    else
+    {
+        APPL_TRACE_DEBUG4("[%s] ts %08d, diff : %08d, queue sz %d", comment, now_us, diff_us,
+                btif_media_cb.TxAaQ.count);
+    }
     prev = now;
 }
 
@@ -1674,6 +1693,7 @@ static void btif_media_task_handle_inc_media(tBT_SBC_HDR*p_msg)
     }
 
     retwriteAudioTrack = btWriteData((void*)pcmData, (2*sizeof(pcmData) - availPcmBytes));
+    APPL_TRACE_LATENCY_AUDIO1("Written to audio, seq number %d", p_msg->layer_specific);
 }
 #endif
 
@@ -2783,6 +2803,9 @@ BOOLEAN btif_media_aa_read_feeding(tUIPC_CH_ID channel_id)
     INT32   fract_max;
     INT32   fract_threshold;
     UINT32  nb_byte_read;
+    #ifdef BT_AUDIO_SYSTRACE_LOG
+    char trace_buf[512];
+    #endif
 
     /* Get the SBC sampling rate */
     switch (btif_media_cb.encoder.s16SamplingFreq)
@@ -2872,6 +2895,20 @@ BOOLEAN btif_media_aa_read_feeding(tUIPC_CH_ID channel_id)
     {
         APPL_TRACE_WARNING2("### UNDERRUN :: ONLY READ %d BYTES OUT OF %d ###",
                 nb_byte_read, read_size);
+
+        #ifdef BT_AUDIO_SYSTRACE_LOG
+        snprintf(trace_buf, 32, "A2DP UNDERRUN read %ld ", nb_byte_read);
+
+        if (PERF_SYSTRACE)
+        {
+            ATRACE_BEGIN(trace_buf);
+        }
+
+        if (PERF_SYSTRACE)
+        {
+            ATRACE_END();
+        }
+        #endif
 
         if (nb_byte_read == 0)
             return FALSE;
@@ -3089,9 +3126,20 @@ static void btif_media_send_aa_frame(void)
     UINT8 nb_frame_2_send;
     UINT8 nb_iterations;
     UINT8 counter;
+    #ifdef BT_AUDIO_SYSTRACE_LOG
+    char trace_buf[1024];
+    #endif
 
     /* get the number of frame to send */
     btif_get_num_aa_frame(&nb_iterations, &nb_frame_2_send);
+
+    #ifdef BT_AUDIO_SYSTRACE_LOG
+    snprintf(trace_buf, 32, "btif_media_send_aa_frame:");
+    if (PERF_SYSTRACE)
+    {
+        ATRACE_BEGIN(trace_buf);
+    }
+    #endif
 
     for (counter = 0; counter < nb_iterations; counter++)
     {
@@ -3099,6 +3147,14 @@ static void btif_media_send_aa_frame(void)
         btif_media_aa_prep_2_send(nb_frame_2_send);
     }
     /* send it */
+
+    #ifdef BT_AUDIO_SYSTRACE_LOG
+    if (PERF_SYSTRACE)
+    {
+        ATRACE_END();
+    }
+    #endif
+
     VERBOSE("btif_media_send_aa_frame : send %d frames", nb_frame_2_send);
     bta_av_ci_src_data_ready(BTA_AV_CHNL_AUDIO);
 }

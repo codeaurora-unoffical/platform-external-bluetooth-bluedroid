@@ -803,6 +803,15 @@ bt_status_t btif_shutdown_bluetooth(void)
     return BT_STATUS_SUCCESS;
 }
 
+/*******************************************************************************
+Function       btif_ssrcleanup
+Description   Trigger SSR when Disable timeout occured
+
+*******************************************************************************/
+void btif_ssr_cleanup(void)
+{
+  bte_ssr_cleanup();
+}
 
 /*******************************************************************************
 **
@@ -1540,7 +1549,30 @@ bt_status_t btif_set_remote_device_property(bt_bdaddr_t *remote_addr,
                                  btif_in_storage_request_copy_cb);
 }
 
-
+/*******************************************************************************
+**
+** Function         btif_send_le_conn_update
+**
+** Description      sends BLE conn params update
+**
+** Returns          bt_status_t
+**
+*******************************************************************************/
+bt_status_t btif_send_le_conn_update(bt_bdaddr_t *remote_addr,
+                                     uint16_t interval_min, uint16_t interval_max,
+                                     uint16_t latency, uint16_t supervision_timeout)
+{
+    int i;
+    BD_ADDR temp_addr;
+    bdstr_t bdstr;
+    if (!btif_is_enabled())
+        return BT_STATUS_NOT_READY;
+    BTIF_TRACE_EVENT0("btif_send_le_conn_update");
+    bdcpy(temp_addr,  remote_addr->address);
+    BTA_DmSendBleConnUpdate(temp_addr, interval_min, interval_max, latency,
+                           supervision_timeout);
+    return BT_STATUS_SUCCESS;
+}
 /*******************************************************************************
 **
 ** Function         btif_set_le_adv_params
