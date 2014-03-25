@@ -1037,7 +1037,6 @@ static void BTM_SetAdvData(tBTM_BLE_ADV_MASK bMask)
     if(bMask==BTM_BLE_ADV_MASK)
     {
         dMask=p_inqvar_data->adv_data.data_mask;//BTM_GetAdvDataMask();
-        dMask |= BTM_BLE_AD_BIT_FLAGS;
         BTM_TRACE_ERROR1("BTM_SetAdvData: adv data with mask: %d",dMask);
         BTM_BleWriteAdvData(dMask,p_data);
     }
@@ -1315,7 +1314,7 @@ tBTM_STATUS btm_ble_set_discoverability(UINT16 combined_mode)
     tBTM_STATUS         status = BTM_SUCCESS;
     BD_ADDR             p_addr_ptr= {0};
     tBLE_ADDR_TYPE      init_addr_type = BLE_ADDR_PUBLIC,
-                        own_addr_type = p_addr_cb->own_addr_type;;
+                        own_addr_type = p_addr_cb->own_addr_type;
     tBTM_BLE_AD_MASK dMask=0;
     tBTM_BLE_ADV_DATA p_data;
 
@@ -1364,7 +1363,9 @@ tBTM_STATUS btm_ble_set_discoverability(UINT16 combined_mode)
             p_cb->evt_type = btm_set_conn_mode_adv_init_addr(p_cb, p_addr_ptr, &init_addr_type, &own_addr_type);
         }
     }
-    btm_ble_update_adv_flag(flag);
+    p_cb->adv_data_input.flag = flag;
+    p_cb->adv_data.data_mask |= BTM_BLE_AD_BIT_FLAGS;
+    BTM_SetAdvData(BTM_BLE_ADV_MASK);
 
     /* update adv params if start advertising */
     BTM_TRACE_EVENT2 ("evt_type=0x%x p-cb->evt_type=0x%x ", evt_type, p_cb->evt_type);
@@ -2453,10 +2454,7 @@ void btm_ble_set_visibility(UINT16 conn_mode, UINT16 disc_mode, tBTM_BLE_ADV_ENA
         return;
     }
     //BTM_ReadAdvTxPower();//for adv data Tx power param
-    //set adv Data
     BTM_SetAdvData(BTM_BLE_SCAN_RESP_MASK);
-    //set scan resp data
-    BTM_SetAdvData(BTM_BLE_ADV_MASK);
     if(conn_mode!=BTM_BLE_IGNORE)
         btm_ble_set_connectability(conn_mode);
     if(disc_mode!=BTM_BLE_IGNORE)
