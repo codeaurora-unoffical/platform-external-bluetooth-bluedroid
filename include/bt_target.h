@@ -3553,6 +3553,11 @@ Range: Minimum 12000 (12 secs) when supporting PBF.
 #endif
 #endif
 #endif
+
+#ifndef AVRC_CTLR_INCLUDED
+#define AVRC_CTLR_INCLUDED          TRUE
+#endif
+
 /******************************************************************************
 **
 ** MCAP
