@@ -524,6 +524,22 @@ static void btm_read_ble_local_supported_features(void)
     /* Send a Read Local Supported Features message to the Host Controller. */
     btsnd_hcic_ble_read_local_spt_feat ();
 }
+
+/*******************************************************************************
+**
+** Function         btm_ble_get_local_features
+**
+** Description      Local function called to get BLE local supported
+**                  features
+**
+** Returns          void
+**
+*******************************************************************************/
+UINT8 btm_ble_get_local_features(void)
+{
+    UINT8 *p = btm_cb.devcb.local_le_features;
+    return *p;
+}
 #endif
 /*******************************************************************************
 **
