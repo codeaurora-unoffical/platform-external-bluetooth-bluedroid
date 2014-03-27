@@ -2556,9 +2556,10 @@ void l2cu_adjust_out_mps (tL2C_CCB *p_ccb)
         For EDR 2.0 packet size is 1027.  So we better send RFCOMM packet as 1 3DH5 packet
         1 * 1027 = 1027.  Minus 4 bytes L2CAP header 1023.  */
         if (p_ccb->peer_cfg.fcr.mps >= packet_size)
-            p_ccb->tx_mps = p_ccb->peer_cfg.fcr.mps / packet_size * packet_size;
+            p_ccb->tx_mps = packet_size;
         else
             p_ccb->tx_mps = p_ccb->peer_cfg.fcr.mps;
+
 
         L2CAP_TRACE_DEBUG3 ("l2cu_adjust_out_mps use %d   Based on peer_cfg.fcr.mps: %u  packet_size: %u",
                             p_ccb->tx_mps, p_ccb->peer_cfg.fcr.mps, packet_size);
