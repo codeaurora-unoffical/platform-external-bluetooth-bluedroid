@@ -1815,6 +1815,22 @@ and USER_HW_DISABLE_API macros */
 #define OBX_MD5_TEST_INCLUDED       FALSE
 #endif
 
+/* TRUE to include Obex Over L2CAP */
+#ifndef OBX_OVER_L2CAP_INCLUDED
+#define OBX_OVER_L2CAP_INCLUDED               TRUE
+#endif
+
+#if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
+#define MAX_L2C_SOCK_CONNECTIONS              (8)
+#define OBX_OVER_L2C_MAX_MTU                  (65000)
+#define OBX_OVER_L2C_TX_WINDOW_SIZE           (63)
+#define OBX_OVER_L2C_MAX_TX_B4_DISCNT         (20)
+#define OBX_OVER_L2C_RETX_TOUT                (2000)
+#define OBX_OVER_L2C_MONITOR_TOUT             (12000)
+#define OBX_OVER_L2C_MPS_SIZE                 (1008)
+#endif
+
+
 /* TRUE to include OBEX 1.4 enhancement (including Obex Over L2CAP) */
 #ifndef OBX_14_INCLUDED
 #define OBX_14_INCLUDED             FALSE
