@@ -382,7 +382,7 @@ static void bta_ag_send_result(tBTA_AG_SCB *p_scb, UINT8 code, char *p_arg,
     *p++ = '\n';
 
 #if defined(BTA_AG_RESULT_DEBUG) && (BTA_AG_RESULT_DEBUG == TRUE)
-    APPL_TRACE_DEBUG1("bta_ag_send_result: %s", buf);
+    APPL_TRACE_IMP1("bta_ag_send_result: %s", buf);
 #endif
 
     /* send to RFCOMM */
@@ -875,7 +875,7 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB *p_scb, UINT16 cmd, UINT8 arg_type,
     tBTA_AG_PEER_CODEC  codec_type, codec_sent;
 #endif
 
-    APPL_TRACE_DEBUG4("HFP AT cmd:%d arg_type:%d arg:%d arg:%s", cmd, arg_type,
+    APPL_TRACE_IMP4("HFP AT cmd:%d arg_type:%d arg:%d arg:%s", cmd, arg_type,
                       int_arg, p_arg);
 
     val.hdr.handle = bta_ag_scb_to_idx(p_scb);
@@ -1444,7 +1444,7 @@ void bta_ag_hfp_result(tBTA_AG_SCB *p_scb, tBTA_AG_API_RESULT *p_result)
 {
     UINT8 code = bta_ag_trans_result[p_result->result];
 
-    APPL_TRACE_DEBUG1("bta_ag_hfp_result : res = %d", p_result->result);
+    APPL_TRACE_IMP1("bta_ag_hfp_result : res = %d", p_result->result);
 
     switch(p_result->result)
     {
