@@ -91,6 +91,7 @@
 #define BTTRC_ID_STK_CE                    51
 #define BTTRC_ID_STK_SNEP                  52
 #define BTTRC_ID_STK_NDEF                  53
+#define BTTRC_ID_STK_HIDD                  54
 
 
 /* LayerIDs for BTA */
@@ -767,6 +768,14 @@ EXPORT_API extern void BTTRC_StackTrace6(tBTTRC_LAYER_ID layer_id,
 #define L2CAP_TRACE_DEBUG5(m,p1,p2,p3,p4,p5)      {if (l2cb.l2cap_trace_level >= BT_TRACE_LEVEL_DEBUG) BT_TRACE_5(TRACE_LAYER_L2CAP, TRACE_TYPE_DEBUG, m,p1,p2,p3,p4,p5);}
 #define L2CAP_TRACE_DEBUG6(m,p1,p2,p3,p4,p5,p6)   {if (l2cb.l2cap_trace_level >= BT_TRACE_LEVEL_DEBUG) BT_TRACE_6(TRACE_LAYER_L2CAP, TRACE_TYPE_DEBUG, m,p1,p2,p3,p4,p5,p6);}
 
+#define L2CAP_TRACE_VERBOSE0(m)                     {if (l2cb.l2cap_trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_0(TRACE_LAYER_L2CAP, TRACE_TYPE_DEBUG, m);}
+#define L2CAP_TRACE_VERBOSE1(m,p1)                  {if (l2cb.l2cap_trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_1(TRACE_LAYER_L2CAP, TRACE_TYPE_DEBUG, m,p1);}
+#define L2CAP_TRACE_VERBOSE2(m,p1,p2)               {if (l2cb.l2cap_trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_2(TRACE_LAYER_L2CAP, TRACE_TYPE_DEBUG, m,p1,p2);}
+#define L2CAP_TRACE_VERBOSE3(m,p1,p2,p3)            {if (l2cb.l2cap_trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_3(TRACE_LAYER_L2CAP, TRACE_TYPE_DEBUG, m,p1,p2,p3);}
+#define L2CAP_TRACE_VERBOSE4(m,p1,p2,p3,p4)         {if (l2cb.l2cap_trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_4(TRACE_LAYER_L2CAP, TRACE_TYPE_DEBUG, m,p1,p2,p3,p4);}
+#define L2CAP_TRACE_VERBOSE5(m,p1,p2,p3,p4,p5)      {if (l2cb.l2cap_trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_5(TRACE_LAYER_L2CAP, TRACE_TYPE_DEBUG, m,p1,p2,p3,p4,p5);}
+#define L2CAP_TRACE_VERBOSE6(m,p1,p2,p3,p4,p5,p6)   {if (l2cb.l2cap_trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_6(TRACE_LAYER_L2CAP, TRACE_TYPE_DEBUG, m,p1,p2,p3,p4,p5,p6);}
+
 /* Define tracing for the LLCP unit
 */
 #define LLCP_TRACE_ERROR0(m)                     {if (llcp_cb.trace_level >= BT_TRACE_LEVEL_ERROR) BT_TRACE_0(TRACE_LAYER_LLCP, TRACE_TYPE_ERROR, m);}
@@ -1296,6 +1305,14 @@ EXPORT_API extern void BTTRC_StackTrace6(tBTTRC_LAYER_ID layer_id,
 #define HIDH_TRACE_DEBUG5(m,p1,p2,p3,p4,p5)      {if (hh_cb.trace_level >= BT_TRACE_LEVEL_DEBUG) BT_TRACE_5(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, m,p1,p2,p3,p4,p5);}
 #define HIDH_TRACE_DEBUG6(m,p1,p2,p3,p4,p5,p6)   {if (hh_cb.trace_level >= BT_TRACE_LEVEL_DEBUG) BT_TRACE_6(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, m,p1,p2,p3,p4,p5,p6);}
 
+#define HIDH_TRACE_VERBOSE0(m)                   {if (hh_cb.trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_0(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, m);}
+#define HIDH_TRACE_VERBOSE1(m,p1)                {if (hh_cb.trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_1(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, m,p1);}
+#define HIDH_TRACE_VERBOSE2(m,p1,p2)             {if (hh_cb.trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_2(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, m,p1,p2);}
+#define HIDH_TRACE_VERBOSE3(m,p1,p2,p3)          {if (hh_cb.trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_3(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, m,p1,p2,p3);}
+#define HIDH_TRACE_VERBOSE4(m,p1,p2,p3,p4)       {if (hh_cb.trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_4(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, m,p1,p2,p3,p4);}
+#define HIDH_TRACE_VERBOSE5(m,p1,p2,p3,p4,p5)    {if (hh_cb.trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_5(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, m,p1,p2,p3,p4,p5);}
+#define HIDH_TRACE_VERBOSE6(m,p1,p2,p3,p4,p5,p6) {if (hh_cb.trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_6(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, m,p1,p2,p3,p4,p5,p6);}
+
 /* define traces for HID Device */
 #define HIDD_TRACE_ERROR0(m)                     {if (hd_cb.trace_level >= BT_TRACE_LEVEL_ERROR) BT_TRACE_0(TRACE_LAYER_HID, TRACE_TYPE_ERROR, m);}
 #define HIDD_TRACE_ERROR1(m,p1)                  {if (hd_cb.trace_level >= BT_TRACE_LEVEL_ERROR) BT_TRACE_1(TRACE_LAYER_HID, TRACE_TYPE_ERROR, m, p1);}
@@ -1336,6 +1353,14 @@ EXPORT_API extern void BTTRC_StackTrace6(tBTTRC_LAYER_ID layer_id,
 #define HIDD_TRACE_DEBUG4(m,p1,p2,p3,p4)         {if (hd_cb.trace_level >= BT_TRACE_LEVEL_DEBUG) BT_TRACE_4(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, m,p1,p2,p3,p4);}
 #define HIDD_TRACE_DEBUG5(m,p1,p2,p3,p4,p5)      {if (hd_cb.trace_level >= BT_TRACE_LEVEL_DEBUG) BT_TRACE_5(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, m,p1,p2,p3,p4,p5);}
 #define HIDD_TRACE_DEBUG6(m,p1,p2,p3,p4,p5,p6)   {if (hd_cb.trace_level >= BT_TRACE_LEVEL_DEBUG) BT_TRACE_6(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, m,p1,p2,p3,p4,p5,p6);}
+
+#define HIDD_TRACE_VERBOSE0(m)                   {if (hd_cb.trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_0(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, m);}
+#define HIDD_TRACE_VERBOSE1(m,p1)                {if (hd_cb.trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_1(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, m,p1);}
+#define HIDD_TRACE_VERBOSE2(m,p1,p2)             {if (hd_cb.trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_2(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, m,p1,p2);}
+#define HIDD_TRACE_VERBOSE3(m,p1,p2,p3)          {if (hd_cb.trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_3(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, m,p1,p2,p3);}
+#define HIDD_TRACE_VERBOSE4(m,p1,p2,p3,p4)       {if (hd_cb.trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_4(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, m,p1,p2,p3,p4);}
+#define HIDD_TRACE_VERBOSE5(m,p1,p2,p3,p4,p5)    {if (hd_cb.trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_5(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, m,p1,p2,p3,p4,p5);}
+#define HIDD_TRACE_VERBOSE6(m,p1,p2,p3,p4,p5,p6) {if (hd_cb.trace_level >= BT_TRACE_LEVEL_VERBOSE) BT_TRACE_6(TRACE_LAYER_HID, TRACE_TYPE_DEBUG, m,p1,p2,p3,p4,p5,p6);}
 
 /* define traces for headset profile */
 #define HSP2_TRACE_ERROR0(pcb,m)                     {if (pcb->trace_level >= BT_TRACE_LEVEL_ERROR) BT_TRACE_0(TRACE_LAYER_HSP2, TRACE_TYPE_ERROR, m);}
