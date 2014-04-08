@@ -625,7 +625,7 @@ static void bt_handle_le_extended_scan(uint16_t event, char *p_param)
             break;
         case BT_LE_EXTENDED_SCAN_STOP:
             ALOGD("%s: Stop LE extended scan", __FUNCTION__);
-            BTA_DmBleObserve_With_Filter(FALSE, 0, 0, 0, 0, 0);
+            BTA_DmBleObserve_With_Filter(FALSE, 0, NULL, 0, 0, NULL);
             break;
         default:
             ALOGE("%s: Event %d unexpected!!!", __FUNCTION__, event);
