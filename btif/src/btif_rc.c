@@ -561,6 +561,14 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
             return;
         }
     }
+
+    if(!btif_av_is_connected())
+    {
+        APPL_TRACE_WARNING2("%s: AVDT not open, discarding pass-through command: %d",
+                                                        __FUNCTION__, p_remote_cmd->rc_id);
+        return;
+    }
+
     if (p_remote_cmd->key_state == AVRC_STATE_RELEASE) {
         status = "released";
         pressed = 0;
