@@ -2519,7 +2519,7 @@ void btm_ble_update_mode_operation(UINT8 link_role, BD_ADDR bd_addr, BOOLEAN con
         btm_ble_set_connectability ( btm_cb.ble_ctr_cb.inq_var.connectable_mode );
     }
 
-    if (btm_ble_get_conn_st() == BLE_CONN_IDLE)
+    if ((btm_ble_get_conn_st() == BLE_CONN_IDLE) && (dev_role != HCI_ROLE_SLAVE))
     {
         if (!btm_send_pending_direct_conn())
         {
