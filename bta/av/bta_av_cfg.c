@@ -86,6 +86,7 @@ const UINT8  bta_av_meta_caps_evt_ids[] = {
 #if AVCT_BROWSE_INCLUDED == TRUE
     AVRC_EVT_AVAL_PLAYERS_CHANGE,
     AVRC_EVT_ADDR_PLAYER_CHANGE,
+    AVRC_EVT_NOW_PLAYING_CHANGE,
 #endif
 };
 #ifndef BTA_AV_NUM_RC_EVT_IDS
