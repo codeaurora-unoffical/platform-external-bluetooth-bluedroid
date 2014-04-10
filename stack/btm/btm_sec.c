@@ -2816,7 +2816,7 @@ static tBTM_STATUS btm_sec_dd_create_conn (tBTM_SEC_DEV_REC *p_dev_rec)
     tL2C_LCB         *p_lcb;
 
     /* Make sure an L2cap link control block is available */
-    if ((p_lcb = l2cu_allocate_lcb (p_dev_rec->bd_addr, TRUE)) == NULL)
+    if ((p_lcb = l2cu_allocate_lcb (p_dev_rec->bd_addr, TRUE, LT_UNKNOWN)) == NULL)
     {
         BTM_TRACE_WARNING6 ("Security Manager: failed allocate LCB [%02x%02x%02x%02x%02x%02x]",
                             p_dev_rec->bd_addr[0], p_dev_rec->bd_addr[1], p_dev_rec->bd_addr[2],
