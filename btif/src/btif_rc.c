@@ -496,6 +496,7 @@ void handle_rc_disconnect (tBTA_AV_RC_CLOSE *p_rc_close)
     btif_rc_cb.rc_handle = 0;
     btif_rc_cb.rc_connected = FALSE;
     memset(btif_rc_cb.rc_addr, 0, sizeof(BD_ADDR));
+    memset(btif_rc_cb.rc_notif, 0, sizeof(btif_rc_cb.rc_notif));
     btif_rc_cb.rc_features = 0;
     btif_rc_cb.rc_vol_label=MAX_LABEL;
     btif_rc_cb.rc_volume=MAX_VOLUME;
@@ -821,7 +822,18 @@ void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV *p_data)
         {
             BTIF_TRACE_DEBUG2("rc_id:0x%x key_state:%d", p_data->remote_cmd.rc_id,
                                p_data->remote_cmd.key_state);
-            handle_rc_passthrough_cmd( (&p_data->remote_cmd) );
+            /** In race conditions just after 2nd AVRCP is connected
+             *  remote might send pass through commands, so check for
+             *  Rc handle before processing pass through commands
+             **/
+            if (btif_rc_cb.rc_handle == p_data->remote_cmd.rc_handle)
+            {
+                handle_rc_passthrough_cmd( (&p_data->remote_cmd) );
+            }
+            else
+            {
+                BTIF_TRACE_DEBUG0("Pas-through command for Invalid rc handle");
+            }
         }
         break;
         case BTA_AV_RC_FEAT_EVT:
@@ -1808,6 +1820,11 @@ static bt_status_t register_notification_rsp(btrc_event_id_t event_id,
     tAVRC_RESPONSE avrc_rsp;
     CHECK_RC_CONNECTED
     BTIF_TRACE_EVENT2("## %s ## event_id:%s", __FUNCTION__, dump_rc_notification_event_id(event_id));
+    if (btif_rc_cb.rc_notif[event_id-1].bNotify == FALSE)
+    {
+        BTIF_TRACE_ERROR1("Avrcp Event id not registered: event_id = %x", event_id);
+        return BT_STATUS_NOT_READY;
+    }
     memset(&(avrc_rsp.reg_notif), 0, sizeof(tAVRC_REG_NOTIF_RSP));
     avrc_rsp.reg_notif.event_id = event_id;
 
