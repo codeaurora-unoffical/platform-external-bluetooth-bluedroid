@@ -967,7 +967,7 @@ uint16_t hci_mct_receive_evt_msg(void)
 uint16_t hci_mct_receive_acl_msg(void)
 {
     uint16_t    bytes_read = 0;
-    uint8_t     byte;
+    uint8_t     byte,byte_start;
     uint16_t    msg_len, len;
     uint8_t     msg_received;
     tHCI_RCV_CB *p_cb=&mct_cb.rcv_acl;
@@ -1012,10 +1012,16 @@ uint16_t hci_mct_receive_acl_msg(void)
                     p_cb->rcv_state = MCT_RX_NEWMSG_ST;
                     continue_fetch_looping = FALSE;
                     break;
-                } else if (msg_len <= 2) {
-                    p_cb->rcv_len = msg_len;
-                    p_cb->rcv_state = MCT_RX_IGNORE_ST;
-                    break;
+                }
+                else if (msg_len <= 2) {
+                    byte_start = p_cb->preload_buffer[1];
+                    byte_start = ((byte_start >> 4) & 0x03);
+                    if(byte_start == ACL_RX_PKT_START) {
+                        ALOGW("Its Start packet:ACL_RX_PKT_START");
+                        p_cb->rcv_len = msg_len;
+                        p_cb->rcv_state = MCT_RX_IGNORE_ST;
+                        break;
+                    }
                 }
                 if (msg_len && (p_cb->preload_count == 4))
                 {
