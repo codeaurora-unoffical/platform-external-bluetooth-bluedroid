@@ -515,6 +515,8 @@ typedef struct
 #define BTA_AV_RC_ROLE_INT      0x00
 #define BTA_AV_RC_ROLE_ACP      0x10
 
+#define BTA_AV_RETRY_ATTEMPT    0x03
+
 #define BTA_AV_RC_CONN_MASK     0x20
 
 /* type for AV RCP control block */
@@ -581,6 +583,7 @@ typedef struct
     BOOLEAN             sco_occupied;   /* TRUE if SCO is being used or call is in progress */
     UINT8               audio_streams;  /* handle mask of streaming audio channels */
     UINT8               video_streams;  /* handle mask of streaming video channels */
+    UINT8               retry_attempt;  /* number of time we retried Stream Setup */
 } tBTA_AV_CB;
 
 
