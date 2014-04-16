@@ -125,6 +125,9 @@ ifeq ($(TARGET_PRODUCT), full_maguro)
      LOCAL_CFLAGS += -DTARGET_MAGURO
 endif
 
+ifeq ($(BOARD_HAVE_BLUETOOTH_QCOM),true)
+LOCAL_CFLAGS += -DQCOM_BLUETOOTH
+endif
 # Fix this
 #ifeq ($(TARGET_VARIANT), eng)
 #     LOCAL_CFLAGS += -O2 # and other production release flags
