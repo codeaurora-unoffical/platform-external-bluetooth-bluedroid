@@ -1227,6 +1227,7 @@ void bta_av_disconnect_req (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     tBTA_AV_RCB *p_rcb;
     APPL_TRACE_DEBUG1("bta_av_disconnect_req conn_lcb: 0x%x", bta_av_cb.conn_lcb);
 
+    bta_av_cb.retry_attempt = 0;
     bta_sys_stop_timer(&bta_av_cb.sig_tmr);
     bta_sys_stop_timer(&p_scb->timer);
     if(bta_av_cb.conn_lcb)
@@ -1313,6 +1314,7 @@ void bta_av_setconfig_rsp (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     AVDT_ConfigRsp(p_scb->avdt_handle, p_scb->avdt_label, p_data->ci_setconfig.err_code,
                    p_data->ci_setconfig.category);
 
+    bta_av_cb.retry_attempt = 0;
     bta_sys_stop_timer(&bta_av_cb.sig_tmr);
 
     if(p_data->ci_setconfig.err_code == AVDT_SUCCESS)
@@ -1518,6 +1520,7 @@ void bta_av_do_close (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     {
         bta_av_str_stopped(p_scb, NULL);
     }
+    bta_av_cb.retry_attempt = 0;
     bta_sys_stop_timer(&bta_av_cb.sig_tmr);
 
     /* close stream */
