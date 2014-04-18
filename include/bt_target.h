@@ -30,7 +30,6 @@
 #define BT_CLEAN_TURN_ON_DISABLED 1
 #endif
 
-
 #ifndef BTIF_HSAG_SERVICE_NAME
 #define BTIF_HSAG_SERVICE_NAME  ("Headset Gateway")
 #endif
@@ -361,6 +360,10 @@
 
 #ifndef BTA_AV_CO_CP_SCMS_T
 #define BTA_AV_CO_CP_SCMS_T  FALSE
+#endif
+
+#ifndef BTA_AV_DISCONNECT_IF_NO_SCMS_T
+#define BTA_AV_DISCONNECT_IF_NO_SCMS_T  FALSE
 #endif
 
 #ifndef AVDT_CONNECT_CP_ONLY
@@ -3813,7 +3816,7 @@ The maximum number of payload octets that the local device can receive in a sing
 
 /* TEST_APP_INTERFACE */
 #ifndef TEST_APP_INTERFACE
-#define TEST_APP_INTERFACE          TRUE
+#define TEST_APP_INTERFACE           FALSE
 #endif
 
 /* When TRUE remote terminal code included (RPC MUST be included) */
