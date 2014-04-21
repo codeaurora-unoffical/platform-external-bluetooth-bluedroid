@@ -550,8 +550,10 @@ void btif_hh_remove_device(bt_bdaddr_t bd_addr)
     BTIF_TRACE_DEBUG0("sending hal cback to disconnect HH Device");
     btif_hh_cb.status = BTIF_HH_DEV_DISCONNECTED;
     p_dev->dev_status = BTHH_CONN_STATE_DISCONNECTED;
-    if (memcmp(&btif_hh_cb.connecting_dev_bd_addr, &(p_dev->bd_addr), BD_ADDR_LEN) == 0)
+    if (btif_hh_cb.connecting_dev_addr_valid &&
+        memcmp(&btif_hh_cb.connecting_dev_bd_addr, &(p_dev->bd_addr), BD_ADDR_LEN) == 0)
     {
+        btif_hh_cb.connecting_dev_addr_valid = FALSE;
         memset(&btif_hh_cb.connecting_dev_bd_addr, 0, BD_ADDR_LEN);
     }
     HAL_CBACK(bt_hh_callbacks, connection_state_cb,&(p_dev->bd_addr), p_dev->dev_status);
@@ -707,6 +709,7 @@ bt_status_t btif_hh_connect(bt_bdaddr_t *bd_addr)
 
     btif_hh_cb.status = BTIF_HH_DEV_CONNECTING;
     /* Save the Outgoing Connection BD Address */
+    btif_hh_cb.connecting_dev_addr_valid = TRUE;
     memcpy(&btif_hh_cb.connecting_dev_bd_addr, bd_addr, BD_ADDR_LEN);
     BTA_HhOpen(*bda, BTA_HH_PROTO_RPT_MODE, sec_mask);
     HAL_CBACK(bt_hh_callbacks, connection_state_cb, bd_addr, BTHH_CONN_STATE_CONNECTING);
@@ -726,7 +729,7 @@ bt_status_t btif_hh_connect(bt_bdaddr_t *bd_addr)
 BOOLEAN btif_hh_check_if_sdp_required(bt_bdaddr_t *bd_addr)
 {
     btif_hh_device_t *dev;
-    BOOLEAN return_val;
+    BOOLEAN return_val = FALSE;
 
     /* check if device is already connected or not */
     dev = btif_hh_find_connected_dev_by_bda(bd_addr);
@@ -734,8 +737,10 @@ BOOLEAN btif_hh_check_if_sdp_required(bt_bdaddr_t *bd_addr)
         return_val = TRUE;
     } else {
         /* check if device is in connecting state or not */
-        return_val = !memcmp(&btif_hh_cb.connecting_dev_bd_addr,
-            bd_addr, BD_ADDR_LEN);
+        if (btif_hh_cb.connecting_dev_addr_valid) {
+            return_val = !memcmp(&btif_hh_cb.connecting_dev_bd_addr,
+                bd_addr, BD_ADDR_LEN);
+        }
     }
 
     BTIF_TRACE_DEBUG1("btif_hh_check_if_sdp_required: returning %d", return_val);
@@ -759,11 +764,13 @@ void btif_hh_disconnect(bt_bdaddr_t *bd_addr)
     p_dev = btif_hh_find_connected_dev_by_bda(bd_addr);
     if (p_dev != NULL)
     {
-        if (memcmp(&btif_hh_cb.connecting_dev_bd_addr, bd_addr, BD_ADDR_LEN) == 0)
+        if (btif_hh_cb.connecting_dev_addr_valid &&
+            memcmp(&btif_hh_cb.connecting_dev_bd_addr, bd_addr, BD_ADDR_LEN) == 0)
         {
             BTIF_TRACE_DEBUG1("%s-- Address matched, clearing connecting_dev_bd_addr",
                 __FUNCTION__);
             /* Clear the Outgoing Connecting BD Address */
+            btif_hh_cb.connecting_dev_addr_valid = FALSE;
             memset(&btif_hh_cb.connecting_dev_bd_addr, 0, BD_ADDR_LEN);
         }
         BTA_HhClose(p_dev->dev_handle);
@@ -790,6 +797,7 @@ void btif_hh_setreport(btif_hh_device_t *p_dev, bthh_report_type_t r_type, UINT1
     int i = 0;
     if (p_dev->p_buf != NULL) {
         GKI_freebuf(p_dev->p_buf);
+        p_dev->p_buf = NULL;
     }
     p_dev->p_buf = GKI_getbuf((UINT16) (len + BTA_HH_MIN_OFFSET + sizeof(BT_HDR)));
     if (p_dev->p_buf == NULL) {
@@ -960,11 +968,13 @@ static void btif_hh_upstreams_evt(UINT16 event, char* p_param)
                     p_dev->dev_status = BTHH_CONN_STATE_CONNECTED;
                     HAL_CBACK(bt_hh_callbacks, connection_state_cb,&(p_dev->bd_addr), p_dev->dev_status);
                 }
-                if (memcmp(&btif_hh_cb.connecting_dev_bd_addr, &(p_dev->bd_addr), BD_ADDR_LEN) == 0)
+                if (btif_hh_cb.connecting_dev_addr_valid &&
+                    memcmp(&btif_hh_cb.connecting_dev_bd_addr, &(p_dev->bd_addr), BD_ADDR_LEN) == 0)
                 {
                     BTIF_TRACE_DEBUG1("%s-- Address matched, clearing connecting_dev_bd_addr",
                         __FUNCTION__);
                     /* Clear the Outgoing Connecting BD Address */
+                    btif_hh_cb.connecting_dev_addr_valid = FALSE;
                     memset(&btif_hh_cb.connecting_dev_bd_addr, 0, BD_ADDR_LEN);
                 }
             }
@@ -975,11 +985,13 @@ static void btif_hh_upstreams_evt(UINT16 event, char* p_param)
                     /* In case we are in pairing state and connection failed, update bond state cahnge as well */
                     btif_dm_cancel_hid_bond((bt_bdaddr_t*) &p_data->conn.bda);
                 btif_hh_cb.status = BTIF_HH_DEV_DISCONNECTED;
-                if (memcmp(&btif_hh_cb.connecting_dev_bd_addr, &p_data->conn.bda, BD_ADDR_LEN) == 0)
+                if (btif_hh_cb.connecting_dev_addr_valid &&
+                    memcmp(&btif_hh_cb.connecting_dev_bd_addr, &p_data->conn.bda, BD_ADDR_LEN) == 0)
                 {
                     BTIF_TRACE_DEBUG1("%s-- Address matched, clearing connecting_dev_bd_addr",
                         __FUNCTION__);
                     /* Clear the Outgoing Connecting BD Address */
+                    btif_hh_cb.connecting_dev_addr_valid = FALSE;
                     memset(&btif_hh_cb.connecting_dev_bd_addr, 0, BD_ADDR_LEN);
                 }
             }
@@ -1002,11 +1014,13 @@ static void btif_hh_upstreams_evt(UINT16 event, char* p_param)
                 }
                 btif_hh_cb.status = BTIF_HH_DEV_DISCONNECTED;
                 p_dev->dev_status = BTHH_CONN_STATE_DISCONNECTED;
-                if (memcmp(&btif_hh_cb.connecting_dev_bd_addr, &(p_dev->bd_addr), BD_ADDR_LEN) == 0)
+                if (btif_hh_cb.connecting_dev_addr_valid &&
+                    memcmp(&btif_hh_cb.connecting_dev_bd_addr, &(p_dev->bd_addr), BD_ADDR_LEN) == 0)
                 {
                     BTIF_TRACE_DEBUG1("%s-- Address matched, clearing connecting_dev_bd_addr",
                         __FUNCTION__);
                     /* Clear the Outgoing Connecting BD Address */
+                    btif_hh_cb.connecting_dev_addr_valid = FALSE;
                     memset(&btif_hh_cb.connecting_dev_bd_addr, 0, BD_ADDR_LEN);
                 }
                 HAL_CBACK(bt_hh_callbacks, connection_state_cb,&(p_dev->bd_addr), p_dev->dev_status);
@@ -1031,8 +1045,7 @@ static void btif_hh_upstreams_evt(UINT16 event, char* p_param)
             p_data->dev_status.status, p_data->dev_status.handle);
             p_dev = btif_hh_find_connected_dev_by_handle(p_data->dev_status.handle);
             if (p_dev != NULL && p_dev->p_buf != NULL) {
-                BTIF_TRACE_DEBUG0("Freeing buffer..." );
-                GKI_freebuf(p_dev->p_buf);
+                BTIF_TRACE_DEBUG0("Buffer already freed, assigning pointer to NULL" );
                 p_dev->p_buf = NULL;
             }
             break;
@@ -1764,6 +1777,7 @@ static bt_status_t set_report (bt_bdaddr_t *bd_addr, bthh_report_type_t reportTy
 
         if (p_dev->p_buf != NULL) {
             GKI_freebuf(p_dev->p_buf);
+            p_dev->p_buf = NULL;
         }
         hexbuf = GKI_getbuf((UINT16) (strlen(report)));
         if (hexbuf == NULL) {
@@ -1839,6 +1853,7 @@ static bt_status_t send_data (bt_bdaddr_t *bd_addr, char* data)
 
         if (p_dev->p_buf != NULL) {
             GKI_freebuf(p_dev->p_buf);
+            p_dev->p_buf = NULL;
         }
         hexbuf = GKI_getbuf((UINT16) (strlen(data)));
         if (hexbuf == NULL) {
