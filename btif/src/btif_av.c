@@ -509,6 +509,7 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
                         BTAV_CONNECTION_STATE_DISCONNECTED, (bt_bdaddr_t*)p_data);
 
             break;
+
         case BTA_AV_PENDING_EVT:
             // Check for device, if same device which moved to opening then ignore callback
             if (memcmp (((tBTA_AV*)p_data)->pend.bd_addr, &(btif_av_cb.peer_bda),
@@ -520,6 +521,13 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
             BTIF_TRACE_WARNING0("Moved from idle by outgoing Connection request");
             BTA_AvDisconnect(((tBTA_AV*)p_data)->pend.bd_addr);
             break;
+
+        case BTIF_AV_DISCONNECT_REQ_EVT:
+            HAL_CBACK(bt_av_callbacks, connection_state_cb,
+                BTAV_CONNECTION_STATE_DISCONNECTED, &(btif_av_cb.peer_bda));
+            btif_sm_change_state(btif_av_cb.sm_handle, BTIF_AV_STATE_IDLE);
+            break;
+
         case BTA_AV_CLOSE_EVT:
             /* avdtp link is closed */
             btif_a2dp_on_stopped(NULL);
