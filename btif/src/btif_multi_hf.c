@@ -1198,10 +1198,10 @@ static bt_status_t phone_state_change(int num_active, int num_held, bthf_call_st
     ** force the SCO to be setup. Handle this special case here prior to
     ** call setup handling
     */
-    if ( (num_active == 1) && (btif_hf_cb[idx].num_active == 0) && (btif_hf_cb[idx].num_held == 0)
+    if ( ((num_active + num_held) > 0) && (btif_hf_cb[idx].num_active == 0) && (btif_hf_cb[idx].num_held == 0)
          && (btif_hf_cb[idx].call_setup_state == BTHF_CALL_STATE_IDLE) )
     {
-        BTIF_TRACE_IMP1("%s: Active call notification received without call setup update",
+        BTIF_TRACE_IMP1("%s: Active/Held call notification received without call setup update",
                           __FUNCTION__);
 
         memset(&ag_res, 0, sizeof(tBTA_AG_RES_DATA));
@@ -1314,13 +1314,7 @@ static bt_status_t phone_state_change(int num_active, int num_held, bthf_call_st
     {
         BTIF_TRACE_IMP3("%s: Active call states changed. old: %d new: %d",
                       __FUNCTION__, btif_hf_cb[idx].num_active, num_active);
-        if ((num_active + num_held) > 0) {
-            BTIF_TRACE_IMP1("%s: Call in progress, open sco", __FUNCTION__);
-            memset(&ag_res, 0, sizeof(tBTA_AG_RES_DATA));
-            ag_res.audio_handle = btif_hf_cb[idx].handle;
-            res = BTA_AG_OUT_CALL_CONN_RES;
-            BTA_AgResult(BTA_AG_HANDLE_ALL, res, &ag_res);
-        } else send_indicator_update(BTA_AG_IND_CALL, ((num_active + num_held) > 0) ? 1 : 0);
+        send_indicator_update(BTA_AG_IND_CALL, ((num_active + num_held) > 0) ? 1 : 0);
     }
 
     /* Held Changed? */
