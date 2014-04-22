@@ -110,7 +110,7 @@ BOOLEAN L2CA_BleSlaveConnUpdate (tL2C_LCB *p_lcb, BD_ADDR rem_bda)
             break;
         }
     }
-    if(p_acl_cb) {
+    if(xx != MAX_L2CAP_LINKS) {
         status = p_acl_cb->le_read_remote_features_complete_status;
         if(status >= 0) {
             //le_read_remote features is complete
@@ -143,8 +143,9 @@ BOOLEAN L2CA_BleSlaveConnUpdate (tL2C_LCB *p_lcb, BD_ADDR rem_bda)
             p_lcb->latency = latency;
             p_lcb->timeout = timeout;
         }
+        return(TRUE);
     }
-    return(TRUE);
+    return(FALSE);
 }
 /*******************************************************************************
 **
@@ -793,7 +794,7 @@ void L2CA_is_conn_update_api_pending (BD_ADDR  rem_bda)
 {
     tL2C_LCB  *p_lcb;
     p_lcb = l2cu_find_lcb_by_bd_addr (rem_bda);
-    if(p_lcb->upd_disabled  == UPD_SLAVE_PENDING) {
+    if(p_lcb && p_lcb->upd_disabled  == UPD_SLAVE_PENDING) {
         L2CAP_TRACE_WARNING0 ("UPD_SLAVE_PENDING");
         L2CA_BleSlaveConnUpdate (p_lcb, rem_bda);
     }
