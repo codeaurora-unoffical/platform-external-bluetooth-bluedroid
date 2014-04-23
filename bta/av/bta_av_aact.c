@@ -1355,7 +1355,10 @@ void bta_av_setconfig_rsp (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         }
         /* only in case of local sep as SRC we need to look for other SEPs, In case of SINK we don't */
         if (local_sep == AVDT_TSEP_SRC)
+        {
+            p_scb->uuid_int = UUID_SERVCLASS_AUDIO_SOURCE;
             bta_av_next_getcap(p_scb, p_data);
+        }
     }
 }
 
