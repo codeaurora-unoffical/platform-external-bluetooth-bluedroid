@@ -1198,10 +1198,10 @@ static bt_status_t phone_state_change(int num_active, int num_held, bthf_call_st
     ** force the SCO to be setup. Handle this special case here prior to
     ** call setup handling
     */
-    if ( (num_active == 1) && (btif_hf_cb[idx].num_active == 0) && (btif_hf_cb[idx].num_held == 0)
+    if ( ((num_active + num_held) > 0) && (btif_hf_cb[idx].num_active == 0) && (btif_hf_cb[idx].num_held == 0)
          && (btif_hf_cb[idx].call_setup_state == BTHF_CALL_STATE_IDLE) )
     {
-        BTIF_TRACE_IMP1("%s: Active call notification received without call setup update",
+        BTIF_TRACE_IMP1("%s: Active/Held call notification received without call setup update",
                           __FUNCTION__);
 
         memset(&ag_res, 0, sizeof(tBTA_AG_RES_DATA));
@@ -1314,13 +1314,7 @@ static bt_status_t phone_state_change(int num_active, int num_held, bthf_call_st
     {
         BTIF_TRACE_IMP3("%s: Active call states changed. old: %d new: %d",
                       __FUNCTION__, btif_hf_cb[idx].num_active, num_active);
-        if ((num_active + num_held) > 0) {
-            BTIF_TRACE_IMP1("%s: Call in progress, open sco", __FUNCTION__);
-            memset(&ag_res, 0, sizeof(tBTA_AG_RES_DATA));
-            ag_res.audio_handle = btif_hf_cb[idx].handle;
-            res = BTA_AG_OUT_CALL_CONN_RES;
-            BTA_AgResult(BTA_AG_HANDLE_ALL, res, &ag_res);
-        } else send_indicator_update(BTA_AG_IND_CALL, ((num_active + num_held) > 0) ? 1 : 0);
+        send_indicator_update(BTA_AG_IND_CALL, ((num_active + num_held) > 0) ? 1 : 0);
     }
 
     /* Held Changed? */
@@ -1372,6 +1366,51 @@ static int get_remote_features(bt_bdaddr_t *bd_addr)
         return btif_hf_cb[idx].peer_feat;
     }
     return 0;
+}
+
+/*******************************************************************************
+**
+** Function         btif_multihf_is_connected
+**
+** Description      Checks if hf is connected
+**
+** Returns          BOOLEAN
+**
+*******************************************************************************/
+BOOLEAN btif_multihf_is_connected(void)
+{
+    return is_connected(NULL);
+}
+
+
+/*******************************************************************************
+**
+** Function         btif_multihf_close_update
+**
+** Description      close audio and update to application layer
+**
+** Returns          boolean
+**
+*******************************************************************************/
+void btif_multihf_close_update(void)
+{
+   int idx;
+   bdstr_t bdstr;
+
+   BTIF_TRACE_EVENT1("%s", __FUNCTION__);
+
+   for (idx = 0; idx < btif_max_hf_clients; ++idx)
+   {
+        if (((btif_hf_cb[idx].state == BTHF_CONNECTION_STATE_CONNECTED) ||
+            (btif_hf_cb[idx].state == BTHF_CONNECTION_STATE_SLC_CONNECTED))) {
+             BTIF_TRACE_IMP1("send Disconnect for : %s",
+                             bd2str(&btif_hf_cb[idx].connected_bda, &bdstr));
+             btif_hf_cb[idx].connected_timestamp.tv_sec = 0;
+             btif_hf_cb[idx].state = BTHF_CONNECTION_STATE_DISCONNECTED;
+             HAL_CBACK(bt_multi_hf_callbacks, connection_state_cb, btif_hf_cb[idx].state,
+                     &btif_hf_cb[idx].connected_bda);
+       }
+   }
 }
 
 /*******************************************************************************
