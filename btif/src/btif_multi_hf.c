@@ -1370,6 +1370,51 @@ static int get_remote_features(bt_bdaddr_t *bd_addr)
 
 /*******************************************************************************
 **
+** Function         btif_multihf_is_connected
+**
+** Description      Checks if hf is connected
+**
+** Returns          BOOLEAN
+**
+*******************************************************************************/
+BOOLEAN btif_multihf_is_connected(void)
+{
+    return is_connected(NULL);
+}
+
+
+/*******************************************************************************
+**
+** Function         btif_multihf_close_update
+**
+** Description      close audio and update to application layer
+**
+** Returns          boolean
+**
+*******************************************************************************/
+void btif_multihf_close_update(void)
+{
+   int idx;
+   bdstr_t bdstr;
+
+   BTIF_TRACE_EVENT1("%s", __FUNCTION__);
+
+   for (idx = 0; idx < btif_max_hf_clients; ++idx)
+   {
+        if (((btif_hf_cb[idx].state == BTHF_CONNECTION_STATE_CONNECTED) ||
+            (btif_hf_cb[idx].state == BTHF_CONNECTION_STATE_SLC_CONNECTED))) {
+             BTIF_TRACE_IMP1("send Disconnect for : %s",
+                             bd2str(&btif_hf_cb[idx].connected_bda, &bdstr));
+             btif_hf_cb[idx].connected_timestamp.tv_sec = 0;
+             btif_hf_cb[idx].state = BTHF_CONNECTION_STATE_DISCONNECTED;
+             HAL_CBACK(bt_multi_hf_callbacks, connection_state_cb, btif_hf_cb[idx].state,
+                     &btif_hf_cb[idx].connected_bda);
+       }
+   }
+}
+
+/*******************************************************************************
+**
 ** Function         btif_multihf_is_call_idle
 **
 ** Description      returns true if no call is in progress
