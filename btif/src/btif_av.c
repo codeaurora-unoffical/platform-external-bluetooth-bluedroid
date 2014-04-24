@@ -193,36 +193,9 @@ const char *dump_av_sm_event_name(btif_av_sm_event_t event)
         CASE_RETURN_STR(BTIF_AV_STOP_STREAM_REQ_EVT)
         CASE_RETURN_STR(BTIF_AV_SUSPEND_STREAM_REQ_EVT)
         CASE_RETURN_STR(BTIF_AV_RECONFIGURE_REQ_EVT)
-        CASE_RETURN_STR(BTIF_AV_REQUEST_AUDIO_FOCUS_EVT)
 
         default: return "UNKNOWN_EVENT";
    }
-}
-
-/*******************************************************************************
-**
-** Function         btif_av_request_audio_focus
-**
-** Description      send request to gain audio focus
-**
-** Returns          void
-**
-*******************************************************************************/
-void btif_av_request_audio_focus( BOOLEAN enable)
-{
-    btif_sm_state_t state;
-    state= btif_sm_get_state(btif_av_cb.sm_handle);
-    /* We shld be in started state */
-    if (state != BTIF_AV_STATE_STARTED)
-        return;
-    /* If we are in started state, suspend shld not have been initiated */
-    if ((btif_av_cb.flags & BTIF_AV_FLAG_REMOTE_SUSPEND )||
-        (btif_av_cb.flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING))
-        return;
-    if(enable)
-    {
-         btif_dispatch_sm_event(BTIF_AV_REQUEST_AUDIO_FOCUS_EVT, NULL, 0);
-    }
 }
 
 /****************************************************************************
@@ -626,12 +599,6 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data)
             break;
 
         case BTIF_AV_START_STREAM_REQ_EVT:
-            if (btif_av_cb.sep == SEP_SRC)
-            {
-                BTA_AvStart();
-                btif_av_cb.flags |= BTIF_AV_FLAG_PENDING_START;
-                break;
-            }
             status = btif_a2dp_setup_codec();
             if (status == BTIF_SUCCESS)
             {
@@ -684,16 +651,12 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data)
             /* remain in open state if status failed */
             if (p_av->start.status != BTA_AV_SUCCESS)
                 return FALSE;
-
-            if (btif_av_cb.sep == SEP_SRC)
-            {
-                btif_a2dp_set_rx_flush(FALSE); /*  remove flush state, ready for streaming*/
-            }
-
             /* change state to started, send acknowledgement if start is pending */
             if (btif_av_cb.flags & BTIF_AV_FLAG_PENDING_START) {
                 if (btif_av_cb.sep == SEP_SNK)
                     btif_a2dp_on_started(NULL, TRUE);
+                else if (btif_av_cb.sep == SEP_SRC)
+                    btif_a2dp_set_rx_flush(FALSE); /*  remove flush state, ready for streaming*/
                 /* pending start flag will be cleared when exit current state */
             }
             btif_sm_change_state(btif_av_cb.sm_handle, BTIF_AV_STATE_STARTED);
@@ -897,11 +860,6 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
                 btif_sm_change_state(btif_av_cb.sm_handle, BTIF_AV_STATE_OPENED);
 
             break;
-
-            case BTIF_AV_REQUEST_AUDIO_FOCUS_EVT:
-                HAL_CBACK(bt_av_callbacks, audio_focus_request_cb,
-                                       1, &(btif_av_cb.peer_bda));
-                break;
 
         case BTA_AV_CLOSE_EVT:
 
@@ -1230,37 +1188,6 @@ void suspend_sink()
         btif_dispatch_sm_event(BTIF_AV_SUSPEND_STREAM_REQ_EVT, NULL, 0);
 }
 
-/*******************************************************************************
-**
-** Function         resume_sink
-**
-** Description      Resumes stream  in case of A2DP Sink
-**
-** Returns          None
-**
-*******************************************************************************/
-void resume_sink()
-{
-    BTIF_TRACE_DEBUG0(" resume Stream called");
-    if (btif_av_cb.sep == SEP_SRC)
-        btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
-}
-
-/*******************************************************************************
-**
-** Function         audio_focus_status
-**
-** Description      Updates audio focus state
-**
-** Returns          None
-**
-*******************************************************************************/
-static void audio_focus_status(int state)
-{
-    BTIF_TRACE_DEBUG1(" Audio Focus granted %d",state);
-
-    btif_a2dp_set_audio_focus_state(state);
-}
 
 static void allow_connection(int is_valid)
 {
@@ -1314,8 +1241,6 @@ static const btav_interface_t bt_av_interface = {
     allow_connection,
     is_src,
     suspend_sink,
-    resume_sink,
-    audio_focus_status,
 };
 
 /*******************************************************************************
