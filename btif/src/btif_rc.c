@@ -66,6 +66,7 @@
 #define MAX_TRANSACTIONS_PER_SESSION 16
 #define MAX_CMD_QUEUE_LEN 11
 #define PLAY_STATUS_PLAYING 1
+#define ERR_PLAYER_NOT_ADDRESED 0x13
 
 #define CHECK_RC_CONNECTED                                                                  \
     BTIF_TRACE_DEBUG1("## %s ##", __FUNCTION__);                                            \
@@ -219,6 +220,7 @@ static rc_transaction_t* get_transaction_by_lbl(UINT8 label);
 static void handle_rc_metamsg_rsp(tBTA_AV_META_MSG *pmeta_msg);
 static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND* p_param, UINT8 ctype, UINT8 label);
 static void btif_rc_upstreams_rsp_evt(UINT16 event, tAVRC_RESPONSE *pavrc_resp, UINT8 ctype, UINT8 label);
+static bt_status_t set_addrplayer_rsp(btrc_status_t status_code);
 
 /*Added for Browsing Message Response */
 static void send_browsemsg_rsp (UINT8 rc_handle, UINT8 label,
@@ -241,7 +243,7 @@ static btrc_callbacks_t *bt_rc_callbacks = NULL;
 extern BOOLEAN btif_multihf_call_terminated_recently();
 extern BOOLEAN btif_hf_call_terminated_recently();
 extern BOOLEAN check_cod(const bt_bdaddr_t *remote_bdaddr, uint32_t cod);
-
+extern BOOLEAN btif_multihf_is_call_idle();
 
 /*****************************************************************************
 **  Functions
@@ -1379,6 +1381,10 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
         {
             btrc_status_t status_code = AVRC_STS_NO_ERROR;
             BTIF_TRACE_EVENT1("%s() AVRC_PDU_SET_ADDRESSED_PLAYER", __FUNCTION__);
+            if (!btif_multihf_is_call_idle()) {
+                set_addrplayer_rsp(ERR_PLAYER_NOT_ADDRESED); // send reject if call is in progress
+                return;
+            }
             if (btif_rc_cb.rc_connected == TRUE)
             {
                 FILL_PDU_QUEUE(IDX_SET_ADDRESS_PLAYER_RSP, ctype, label, TRUE);
