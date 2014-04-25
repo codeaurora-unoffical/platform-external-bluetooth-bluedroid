@@ -199,6 +199,9 @@ enum {
 #define MAX_SBC_HQ_FRAME_SIZE_48    115
 #define MAX_2MBPS_AVDTP_MTU         675
 
+#define MAX_SBC_MQ_FRAME_SIZE_44_1  83
+#define MAX_SBC_MQ_FRAME_SIZE_48    79
+
 #define A2DP_MEDIA_TASK_TASK_STR        ((INT8 *) "A2DP-MEDIA")
 static UINT32 a2dp_media_task_stack[(A2DP_MEDIA_TASK_STACK_SIZE + 3) / 4];
 
@@ -206,6 +209,8 @@ static UINT32 a2dp_media_task_stack[(A2DP_MEDIA_TASK_STACK_SIZE + 3) / 4];
 
 #define USEC_PER_SEC 1000000L
 #define TPUT_STATS_INTERVAL_US (3000*1000)
+
+BOOLEAN config_sbc_high_bitrate = TRUE;
 
 /*
  * CONGESTION COMPENSATION CTRL ::
@@ -705,9 +710,8 @@ static void btif_a2dp_data_cb(tUIPC_CH_ID ch_id, tUIPC_EVENT event)
 static UINT16 btif_media_task_get_sbc_rate(void)
 {
     UINT16 rate = DEFAULT_SBC_BITRATE;
-
     /* restrict bitrate if a2dp link is non-edr */
-    if (!btif_av_is_peer_edr())
+    if (!btif_av_is_peer_edr()|| config_sbc_high_bitrate == FALSE)
     {
         rate = BTIF_A2DP_NON_EDR_MAX_RATE;
         APPL_TRACE_DEBUG1("non-edr a2dp sink detected, restrict rate to %d", rate);
