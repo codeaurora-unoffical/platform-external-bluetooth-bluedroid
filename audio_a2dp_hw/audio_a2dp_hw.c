@@ -76,6 +76,11 @@ static int number =0;
 #define CTRL_CHAN_RETRY_COUNT 3
 #define USEC_PER_SEC 1000000L
 
+/* Due to Audio buffer equal to socket buffer size observed A2dp Chopiness
+   randomly because of socket write blocking for long time. Limiting the
+   out_write buffer length to 3072*/
+#define MAX_OUT_WRITE_LENGTH 3072
+
 #define CASE_RETURN_STR(const) case const: return #const;
 
 #define FNLOG()             ALOGV("%s", __FUNCTION__);
@@ -664,11 +669,8 @@ static int out_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 
 static size_t out_get_buffer_size(const struct audio_stream *stream)
 {
-    struct a2dp_stream_out *out = (struct a2dp_stream_out *)stream;
 
-    INFO("buffer_size : %d", out->buffer_sz);
-
-    return out->buffer_sz;
+    return MAX_OUT_WRITE_LENGTH;
 }
 
 static uint32_t out_get_channels(const struct audio_stream *stream)
@@ -1024,6 +1026,9 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     }
 
     INFO("success");
+    /* Delay to ensure Headset is in proper state when START is initiated
+       from DUT immediately after the connection due to ongoing music playback. */
+    usleep(250000);
     return 0;
 
 err_open:
