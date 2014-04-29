@@ -149,3 +149,41 @@ tAVCT_CCB *avct_ccb_by_idx(UINT8 idx)
     }
     return p_ccb;
 }
+
+
+/*******************************************************************************
+**
+** Function         avct_get_peer_addr_by_ccb
+**
+** Description      Return peer BD address on ccb index (or handle).
+**
+**
+** Returns          BD Address.
+**
+*******************************************************************************/
+BOOLEAN avct_get_peer_addr_by_ccb (UINT8 idx, BD_ADDR addr)
+{
+    tAVCT_CCB   *p_ccb;
+    BOOLEAN     value = FALSE;
+    p_ccb = avct_ccb_by_idx(idx);
+    if (p_ccb == NULL)
+    {
+        AVCT_TRACE_WARNING1("No ccb for idx %d", idx);
+    }
+    else
+    {
+        if (p_ccb->p_lcb != NULL)
+        {
+            memcpy(addr, p_ccb->p_lcb->peer_addr, BD_ADDR_LEN);
+            value = TRUE;
+        }
+        else
+        {
+            AVCT_TRACE_WARNING1("No lcb for idx %d", idx);
+        }
+    }
+    return value;
+}
+
+
+

@@ -73,6 +73,7 @@ const UINT16  bta_av_audio_flush_to[] = {
 
 /*
  * If the number of event IDs is changed in this array, BTA_AV_ NUM_RC_EVT_IDS   also needs to be changed.
+ * AVRCP 1.3 specific events to be added before AVCT_BROWSE_INCLUDED.
  */
 const UINT8  bta_av_meta_caps_evt_ids[] = {
     AVRC_EVT_PLAY_STATUS_CHANGE,
