@@ -193,7 +193,6 @@ typedef enum {
     RFC_TEST_WRITE_DATA
 }rfc_test_cmd_t;
 
-
 typedef struct {
     bt_bdaddr_t bdadd;
     uint8_t     scn; //Server Channel Number
