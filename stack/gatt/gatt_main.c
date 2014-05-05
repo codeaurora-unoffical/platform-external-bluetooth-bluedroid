@@ -148,17 +148,8 @@ BOOLEAN gatt_connect (BD_ADDR rem_bda, tGATT_TCB *p_tcb)
     if (gatt_get_ch_state(p_tcb) != GATT_CH_OPEN)
         gatt_set_ch_state(p_tcb, GATT_CH_CONN);
 
-    /* select the physical link for GATT connection */
-    if (BTM_UseLeLink(rem_bda))
-    {
-        p_tcb->att_lcid = L2CAP_ATT_CID;
-        gatt_ret = L2CA_ConnectFixedChnl (L2CAP_ATT_CID, rem_bda);
-    }
-    else
-    {
-        if ((p_tcb->att_lcid = L2CA_ConnectReq(BT_PSM_ATT, rem_bda)) != 0)
-            gatt_ret = TRUE;
-    }
+    p_tcb->att_lcid = L2CAP_ATT_CID;
+    gatt_ret = L2CA_ConnectFixedChnl (L2CAP_ATT_CID, rem_bda);
 
     return gatt_ret;
 }
