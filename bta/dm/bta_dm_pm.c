@@ -57,7 +57,6 @@ static void bta_dm_pm_ssr(BD_ADDR peer_addr);
 
 tBTA_DM_CONNECTED_SRVCS bta_dm_conn_srvcs;
 
-
 /*******************************************************************************
 **
 ** Function         bta_dm_init_pm
@@ -641,7 +640,20 @@ static void bta_dm_pm_ssr(BD_ADDR peer_addr)
                     continue;
                 APPL_TRACE_WARNING2("bta_dm_pm_ssr: Orignal Max Latency = %d, Remote Timeout = %d",
                     p_spec_cur->max_lat, p_spec_cur->min_rmt_to);
-                if (p_spec_cur->max_lat > BTA_HH_SSR_MAX_LATENCY_OPTIMAL)
+                if (p_spec_cur->max_lat == BTA_HH_SSR_MAX_LATENCY_ZERO)
+                {
+                    APPL_TRACE_WARNING0("bta_dm_pm_ssr: Max latency is 0, not sending"
+                        "SSR command as device is blacklisted");
+                    return;
+                }
+                else if (p_spec_cur->max_lat == BTA_HH_SSR_DISABLE_SSR)
+                {
+                    APPL_TRACE_WARNING0("bta_dm_pm_ssr: Need to disable SSR"
+                        "as device is blacklisted");
+                    BTM_SetSsrParams (peer_addr, 0, 0, 0);
+                    return;
+                }
+                else if (p_spec_cur->max_lat > BTA_HH_SSR_MAX_LATENCY_OPTIMAL)
                 {
                     p_spec_cur->max_lat = BTA_HH_SSR_MAX_LATENCY_OPTIMAL;
                 }
