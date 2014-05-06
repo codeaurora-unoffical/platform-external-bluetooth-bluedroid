@@ -1481,7 +1481,11 @@ and USER_HW_DISABLE_API macros */
 #endif
 
 #ifndef GATT_MAX_APPS
+#ifndef MAX_ACL_CONNECTIONS
 #define GATT_MAX_APPS            10 /* note: 2 apps used internally GATT and GAP */
+#else
+#define GATT_MAX_APPS            MAX_ACL_CONNECTIONS
+#endif
 #endif
 
 #ifndef GATT_MAX_CL_PROFILES
@@ -1489,7 +1493,11 @@ and USER_HW_DISABLE_API macros */
 #endif
 
 #ifndef GATT_MAX_PHY_CHANNEL
+#ifndef MAX_ACL_CONNECTIONS
 #define GATT_MAX_PHY_CHANNEL        7
+#else
+#define GATT_MAX_PHY_CHANNEL        MAX_ACL_CONNECTIONS
+#endif
 #endif
 
 /* Used for conformance testing ONLY */
@@ -2882,7 +2890,11 @@ Range: Minimum 12000 (12 secs) on BR/EDR when supporting PBF.
 #endif
 
 #ifndef HID_HOST_MAX_DEVICES
+#ifndef MAX_ACL_CONNECTIONS
 #define HID_HOST_MAX_DEVICES        7
+#else
+#define HID_HOST_MAX_DEVICES        MAX_ACL_CONNECTIONS
+#endif
 #endif
 
 #ifndef HID_HOST_MTU
