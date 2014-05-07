@@ -908,6 +908,28 @@ void smp_pair_terminate(tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
 }
 
 /*******************************************************************************
+** Function         smp_sec_req_terminate
+** Description      This function is called to send the pairing complete callback
+**                  and remove the connection if needed in case a slave initiated
+**                  security request is pending
+*******************************************************************************/
+void smp_sec_req_terminate(tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
+{
+    SMP_TRACE_DEBUG0 ("smp_sec_req_terminate ");
+    tBTM_SEC_DEV_REC *p_dev_rec = btm_find_dev (p_cb->pairing_bda);
+    if((p_cb->role == BTM_ROLE_SLAVE) &&
+       (p_dev_rec && p_dev_rec->sec_state == BTM_SEC_STATE_ENCRYPTING))
+    {
+        SMP_TRACE_DEBUG0 ("smp_sec_req_terminate while sending security req");
+        p_cb->status = SMP_SEC_REQ_TOUT;
+    }
+    else
+        p_cb->status = SMP_CONN_TOUT;
+
+    smp_proc_pairing_cmpl(p_cb);
+}
+
+/*******************************************************************************
 ** Function         smp_delay_terminate
 ** Description      This function is called when connection dropped when smp delay
 **                  timer is still active.
