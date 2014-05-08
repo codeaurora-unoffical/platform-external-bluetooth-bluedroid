@@ -50,6 +50,7 @@ static void SOCK_L2C_DisconnectInd (UINT16 lcid, BOOLEAN is_clear);
 static void SOCK_L2C_QoSViolationInd (BD_ADDR bd_addr);
 static void SOCK_L2C_BufDataInd (UINT16 lcid, BT_HDR *p_buf);
 static void SOCK_L2C_CongestionStatusInd (UINT16 lcid, BOOLEAN is_congested);
+static void SOCK_L2C_TxCompleteInd (UINT16 lcid, UINT16 sdu_sent);
 
 /*******************************************************************************
 **
@@ -73,7 +74,7 @@ UINT16 l2c_sock_if_init (UINT16 psm)
     p_l2c->pL2CA_QoSViolationInd_Cb  = SOCK_L2C_QoSViolationInd;
     p_l2c->pL2CA_DataInd_Cb          = SOCK_L2C_BufDataInd;
     p_l2c->pL2CA_CongestionStatus_Cb = SOCK_L2C_CongestionStatusInd;
-    p_l2c->pL2CA_TxComplete_Cb       = NULL;
+    p_l2c->pL2CA_TxComplete_Cb       = SOCK_L2C_TxCompleteInd;
 
     return L2CA_Register (psm, p_l2c);
 }
@@ -284,6 +285,30 @@ void SOCK_L2C_CongestionStatusInd (UINT16 lcid, BOOLEAN is_congested)
             else if (status != L2CAP_DW_SUCCESS)
                 break;
         }
+    }
+}
+
+/*******************************************************************************
+**
+** Function         SOCK_L2C_TxCompleteInd
+**
+** Description      This is a callback function called by L2CAP when
+**                  packets are sent or flushed.
+**
+*******************************************************************************/
+void SOCK_L2C_TxCompleteInd (UINT16 lcid, UINT16 sdu_sent)
+{
+    tL2C_SOCK_CB *p_cb = l2c_sock_find_scb_by_cid (lcid);
+
+    if(p_cb == NULL)
+        return;
+
+    L2C_SOCK_TRACE_DEBUG0 ("SOCK_L2C_TxCompleteInd ");
+
+    if(sdu_sent == 0xFFFF)
+    {
+        L2C_SOCK_TRACE_DEBUG0 ("SOCK_L2C_TxCompleteInd: L2C_SOCK_TX_EMPTY \n");
+        p_cb->p_sock_mgmt_cback(p_cb->inx, L2C_SOCK_TX_EMPTY);
     }
 }
 
