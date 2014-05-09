@@ -302,7 +302,7 @@ void l2cble_scanner_conn_comp (UINT16 handle, BD_ADDR bda, tBLE_ADDR_TYPE type,
     /* If we don't have one, create one. this is auto connection complete. */
     if (!p_lcb)
     {
-        p_lcb = l2cu_allocate_lcb (bda, FALSE);
+        p_lcb = l2cu_allocate_lcb (bda, FALSE, LT_BLE);
         if (!p_lcb)
         {
             btm_sec_disconnect (handle, HCI_ERR_NO_CONNECTION);
@@ -333,6 +333,7 @@ void l2cble_scanner_conn_comp (UINT16 handle, BD_ADDR bda, tBLE_ADDR_TYPE type,
     p_lcb->link_state = LST_CONNECTED;
     p_lcb->link_role  = HCI_ROLE_MASTER;
     p_lcb->is_ble_link = TRUE;
+    l2c_ble_link_adjust_allocation();
 
 #if (!defined(BTA_BLE_SKIP_CONN_UPD) || BTA_BLE_SKIP_CONN_UPD == FALSE)
     /* If there are any preferred connection parameters, set them now */
@@ -398,7 +399,7 @@ void l2cble_advertiser_conn_comp (UINT16 handle, BD_ADDR bda, tBLE_ADDR_TYPE typ
     /* If we don't have one, create one and accept the connection. */
     if (!p_lcb)
     {
-        p_lcb = l2cu_allocate_lcb (bda, FALSE);
+        p_lcb = l2cu_allocate_lcb (bda, FALSE, LT_BLE);
         if (!p_lcb)
         {
             btm_sec_disconnect (handle, HCI_ERR_NO_CONNECTION);
@@ -423,6 +424,7 @@ void l2cble_advertiser_conn_comp (UINT16 handle, BD_ADDR bda, tBLE_ADDR_TYPE typ
     p_lcb->link_state = LST_CONNECTED;
     p_lcb->link_role  = HCI_ROLE_SLAVE;
     p_lcb->is_ble_link = TRUE;
+    l2c_ble_link_adjust_allocation();
 
     /* Tell BTM Acl management about the link */
     p_dev_rec = btm_find_or_alloc_dev (bda);

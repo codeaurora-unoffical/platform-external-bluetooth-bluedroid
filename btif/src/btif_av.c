@@ -272,9 +272,8 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data)
 {
     tBTA_AV *p_bta_data;
 
-    BTIF_TRACE_DEBUG3("%s event:%s flags %x", __FUNCTION__,
+    BTIF_TRACE_IMP3("%s event:%s flags %x", __FUNCTION__,
                      dump_av_sm_event_name(event), btif_av_cb.flags);
-
     switch (event)
     {
         case BTIF_SM_ENTER_EVT:
@@ -408,7 +407,7 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data)
 
 static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data)
 {
-    BTIF_TRACE_DEBUG3("%s event:%s flags %x", __FUNCTION__,
+    BTIF_TRACE_IMP3("%s event:%s flags %x", __FUNCTION__,
                      dump_av_sm_event_name(event), btif_av_cb.flags);
 
     switch (event)
@@ -473,12 +472,26 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
         } break;
 
         case BTIF_AV_CONNECT_REQ_EVT:
+            // Check for device, if same device which moved to opening then ignore callback
+            if (memcmp ((bt_bdaddr_t*)p_data, &(btif_av_cb.peer_bda),
+                sizeof(btif_av_cb.peer_bda)) == 0)
+            {
+                BTIF_TRACE_WARNING0("Same device moved to Opening state,ignore Connect Req");
+                break;
+            }
             BTIF_TRACE_WARNING0("Moved from idle by Incoming Connection request");
             HAL_CBACK(bt_av_callbacks, connection_state_cb,
                         BTAV_CONNECTION_STATE_DISCONNECTED, (bt_bdaddr_t*)p_data);
 
             break;
         case BTA_AV_PENDING_EVT:
+            // Check for device, if same device which moved to opening then ignore callback
+            if (memcmp (((tBTA_AV*)p_data)->pend.bd_addr, &(btif_av_cb.peer_bda),
+                sizeof(btif_av_cb.peer_bda)) == 0)
+            {
+                BTIF_TRACE_WARNING0("Same device moved to Opening state,ignore Pending Req");
+                break;
+            }
             BTIF_TRACE_WARNING0("Moved from idle by outgoing Connection request");
             BTA_AvDisconnect(((tBTA_AV*)p_data)->pend.bd_addr);
             break;
@@ -508,7 +521,7 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
 
 static BOOLEAN btif_av_state_closing_handler(btif_sm_event_t event, void *p_data)
 {
-    BTIF_TRACE_DEBUG3("%s event:%s flags %x", __FUNCTION__,
+    BTIF_TRACE_IMP3("%s event:%s flags %x", __FUNCTION__,
                      dump_av_sm_event_name(event), btif_av_cb.flags);
 
     switch (event)
@@ -582,7 +595,7 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data)
     tBTA_AV *p_av = (tBTA_AV*)p_data;
     tBTIF_STATUS status = BTIF_SUCCESS;
 
-    BTIF_TRACE_DEBUG3("%s event:%s flags %x", __FUNCTION__,
+    BTIF_TRACE_IMP3("%s event:%s flags %x", __FUNCTION__,
                      dump_av_sm_event_name(event), btif_av_cb.flags);
 
     if ( (event == BTA_AV_REMOTE_CMD_EVT) && (btif_av_cb.flags & BTIF_AV_FLAG_REMOTE_SUSPEND) &&
@@ -615,6 +628,17 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data)
             {
                 BTA_AvStart();
                 btif_av_cb.flags |= BTIF_AV_FLAG_PENDING_START;
+            }
+            else if (status == BTIF_ERROR_SRV_AV_CP_NOT_SUPPORTED)
+            {
+#if defined(BTA_AV_DISCONNECT_IF_NO_SCMS_T) && (BTA_AV_DISCONNECT_IF_NO_SCMS_T == TRUE)
+                BTIF_TRACE_ERROR0("SCMST enabled, disconnect as remote does not support SCMST");
+                BTA_AvDisconnect(btif_av_cb.peer_bda.address);
+#else
+                BTIF_TRACE_WARNING0("SCMST enabled, connecting to non SCMST SEP");
+                BTA_AvStart();
+                btif_av_cb.flags |= BTIF_AV_FLAG_PENDING_START;
+#endif
             }
             else
             {
@@ -746,7 +770,7 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
 {
     tBTA_AV *p_av = (tBTA_AV*)p_data;
 
-    BTIF_TRACE_DEBUG3("%s event:%s flags %x", __FUNCTION__,
+    BTIF_TRACE_IMP3("%s event:%s flags %x", __FUNCTION__,
                      dump_av_sm_event_name(event), btif_av_cb.flags);
 
     switch (event)
