@@ -1682,6 +1682,12 @@ static void bta_jv_l2cap_client_cback(UINT16 sock_handle, UINT16 event)
         evt_data.l2c_cong.status = BTA_JV_SUCCESS;
         p_l2c_cb->p_cback(BTA_JV_L2CAP_CONG_EVT, &evt_data, p_l2c_cb->user_data);
     }
+    else if(event == L2C_SOCK_TX_EMPTY)
+    {
+        /* update power manager about idle status */
+        APPL_TRACE_DEBUG1("bta_jv_l2cap_client_cback:  L2C_SOCK_TX_EMPTY %d", event);
+        bta_jv_pm_conn_idle(p_l2c_cb->p_pm_cb);
+    }
     else
     {
         evt_data.l2c_close.handle = p_l2c_cb->handle;
@@ -1905,6 +1911,7 @@ static void bta_jv_l2cap_server_cback(UINT16 sock_handle, UINT16 event)
     tBTA_JV_L2C_CB  *p_l2c_cb = bta_jv_l2c_sock_to_cb(sock_handle);
     tBTA_JV     evt_data;
     int failed = TRUE;
+    UINT8 *p_bd_addr;
 
     if( !p_l2c_cb || !p_l2c_cb->p_cback)
     {
@@ -1916,7 +1923,18 @@ static void bta_jv_l2cap_server_cback(UINT16 sock_handle, UINT16 event)
     {
         evt_data.l2c_srv_open.status = BTA_JV_SUCCESS;
         evt_data.l2c_srv_open.handle = p_l2c_cb->handle;
-        bdcpy(evt_data.l2c_srv_open.rem_bda, p_l2c_cb->peer_bd_addr);
+
+        p_bd_addr = SOCK_L2C_ConnGetRemoteAddr(sock_handle);
+        if(p_bd_addr)
+        {
+            bdcpy(p_l2c_cb->peer_bd_addr, p_bd_addr);
+            bdcpy(evt_data.l2c_srv_open.rem_bda, p_bd_addr);
+        }
+        else
+        {
+            APPL_TRACE_ERROR0("bta_jv_l2cap_server_cback: Couldn't get the BD address");
+            return;
+        }
 
         tBTA_JV_L2C_CB *p_l2c_cb_new_listen  = bta_jv_add_listen_l2c(p_l2c_cb);
         if (p_l2c_cb_new_listen)
@@ -1944,6 +1962,14 @@ static void bta_jv_l2cap_server_cback(UINT16 sock_handle, UINT16 event)
         evt_data.l2c_cong.status = BTA_JV_SUCCESS;
         p_l2c_cb->p_cback(BTA_JV_L2CAP_CONG_EVT, &evt_data, p_l2c_cb->user_data);
     }
+    else if(event == L2C_SOCK_TX_EMPTY)
+    {
+        failed = FALSE;
+        /* update power manager about idle status */
+        APPL_TRACE_DEBUG1("bta_jv_l2cap_server_cback:  L2C_SOCK_TX_EMPTY %d", event);
+        bta_jv_pm_conn_idle(p_l2c_cb->p_pm_cb);
+    }
+
     if(failed)
     {
         evt_data.l2c_close.handle = p_l2c_cb->handle;
@@ -2138,7 +2164,6 @@ void bta_jv_l2cap_write(tBTA_JV_MSG *p_data)
     }
 
     ls->p_cb->p_cback(BTA_JV_L2CAP_WRITE_EVT, (tBTA_JV *)&evt_data, (void *)ls->req_id);
-    bta_jv_set_pm_conn_state(ls->p_cb->p_pm_cb, BTA_JV_CONN_IDLE);
 #endif
 }
 

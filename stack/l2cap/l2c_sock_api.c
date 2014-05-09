@@ -217,6 +217,45 @@ int SOCK_L2C_RemoveConnection (UINT16 sock_handle)
 
 /*******************************************************************************
 **
+** Function         SOCK_L2C_ConnGetRemoteAddr
+**
+** Description      This function is called to get the remote BD address
+**                  of a connection.
+**
+** Parameters:      handle      - Handle of the connection returned by
+**                                SOCK_L2C_CreateConnection
+**
+*******************************************************************************/
+UINT8 *SOCK_L2C_ConnGetRemoteAddr (UINT16 sock_handle)
+{
+
+    tL2C_SOCK_CB *p_scb;
+
+    L2C_SOCK_TRACE_DEBUG1("SOCK_L2C_ConnGetRemoteAddr sock_handle = %d", sock_handle);
+
+    /* Check if sock_handle is valid and with in the range */
+    if (sock_handle >= MAX_L2C_SOCK_CONNECTIONS)
+    {
+        return (L2C_SOCK_INVALID_HANDLE);
+    }
+
+    p_scb = l2c_sock_find_scb_by_handle(sock_handle);
+
+    if(p_scb)
+    {
+        L2C_SOCK_TRACE_DEBUG6("BDA :0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x\n", \
+                         p_scb->bd_addr[0],p_scb->bd_addr[1],p_scb->bd_addr[2],
+                         p_scb->bd_addr[3],p_scb->bd_addr[4],p_scb->bd_addr[5]);
+        return (p_scb->bd_addr);
+    }
+    else
+    {
+        return NULL;
+    }
+}
+
+/*******************************************************************************
+**
 ** Function         SOCK_L2C_SetDataCallback
 **
 ** Description      This function is when a data packet is received
