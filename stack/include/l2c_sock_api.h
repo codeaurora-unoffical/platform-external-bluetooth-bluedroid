@@ -73,6 +73,7 @@ typedef void (tL2C_SOCK_CBACK) (UINT16 sock_handle, UINT16 event);
 #define L2C_SOCK_INVALID_PSM            (L2C_SOCK_ERR_BASE + 9)
 #define L2C_SOCK_CONGESTED              (L2C_SOCK_ERR_BASE + 10)
 #define L2C_SOCK_UNCONGESTED            (L2C_SOCK_ERR_BASE + 11)
+#define L2C_SOCK_TX_EMPTY               (L2C_SOCK_ERR_BASE + 12)
 
 
 int SOCK_L2C_CreateConnection (UINT16 psm, BOOLEAN is_server, BD_ADDR bd_addr,
@@ -83,6 +84,8 @@ int SOCK_L2C_RemoveConnection (UINT16 handle);
 int SOCK_L2C_SetDataCallback (UINT16 sock_handle, tL2C_SOCK_DATA_CBACK *p_l2c_sock_cb);
 
 int SOCK_L2C_WriteData (UINT16 sock_handle, int* p_len);
+
+UINT8 *SOCK_L2C_ConnGetRemoteAddr (UINT16 sock_handle);
 
 void L2C_SOCK_Init (void);
 
