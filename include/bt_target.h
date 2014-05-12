@@ -1553,7 +1553,7 @@ and USER_HW_DISABLE_API macros */
 
 /* The maximum number of SDP records the server can support. */
 #ifndef SDP_MAX_RECORDS
-#define SDP_MAX_RECORDS             20
+#define SDP_MAX_RECORDS             25
 #endif
 
 /* The maximum number of attributes in each record. */
@@ -1848,11 +1848,12 @@ and USER_HW_DISABLE_API macros */
 #if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
 #define MAX_L2C_SOCK_CONNECTIONS              (8)
 #define OBX_OVER_L2C_MAX_MTU                  (65000)
-#define OBX_OVER_L2C_TX_WINDOW_SIZE           (63)
+#define OBX_OVER_L2C_TX_WINDOW_SIZE           (16)
 #define OBX_OVER_L2C_MAX_TX_B4_DISCNT         (20)
 #define OBX_OVER_L2C_RETX_TOUT                (2000)
 #define OBX_OVER_L2C_MONITOR_TOUT             (12000)
 #define OBX_OVER_L2C_MPS_SIZE                 (1008)
+#define OBX_OVER_L2C_DYNAMIC_POOL_ENABLED     (FALSE)
 #endif
 
 

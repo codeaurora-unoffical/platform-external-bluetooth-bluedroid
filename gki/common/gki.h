@@ -37,7 +37,7 @@
 #endif
 
 #ifndef GKI_BUF10_MAX
-#define GKI_BUF10_MAX           50
+#define GKI_BUF10_MAX           16
 #endif
 
 #else
