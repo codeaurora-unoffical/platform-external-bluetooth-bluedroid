@@ -978,7 +978,7 @@ void bta_av_rc_msg(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
             }
         }
         /* else if this is a pass thru response */
-        else if (p_data->rc_msg.msg.hdr.ctype >= AVRC_RSP_ACCEPT)
+        else if (p_data->rc_msg.msg.hdr.ctype >= AVRC_RSP_NOT_IMPL)
         {
             /* set up for callback */
             evt = BTA_AV_REMOTE_RSP_EVT;
