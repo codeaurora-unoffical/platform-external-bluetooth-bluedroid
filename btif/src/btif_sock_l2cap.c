@@ -84,6 +84,7 @@ typedef struct {
     int pending_sdp_request : 1;
     int doing_sdp_request : 1;
     int server : 1;
+    int client : 1;
     int connected : 1;
     int closing : 1;
 } flags_t;
@@ -145,6 +146,7 @@ static void init_l2c_slots()
     for(i = 0; i < MAX_L2C_SOCK_CHANNEL; i++)
     {
         l2c_slots[i].psm = -1;
+        l2c_slots[i].f.client = FALSE;
         l2c_slots[i].put_size_set = FALSE;
         l2c_slots[i].sdp_handle = 0;
         l2c_slots[i].l2c_handle = INVALID_L2C_HANDLE;
@@ -386,6 +388,7 @@ bt_status_t btsock_l2c_connect(const bt_bdaddr_t *bd_addr, const uint8_t* servic
     l2c_slot_t* ls = alloc_l2c_slot(bd_addr, NULL, service_uuid, channel, flags, FALSE);
     if(ls)
     {
+        ls->f.client = TRUE;
         if(is_uuid_empty(service_uuid))
         {
             APPL_TRACE_DEBUG1("connecting to l2cap channel:%d without service discovery", channel);
@@ -1040,18 +1043,14 @@ int bta_co_l2c_data_outgoing(void *user_data, UINT8* buf, UINT16 size)
     return ret;
 }
 
-static inline l2c_slot_t* find_l2c_slot_by_psm(int psm)
+static inline l2c_slot_t* find_client_l2c_slot_by_psm(int psm)
 {
     int i;
     if(psm > 0)
     {
-        /* travelse it from the last entry, as incase of
-         * server two entries will exist with the same psm
-         * and the later entry is valid
-         */
-        for(i = MAX_L2C_SOCK_CHANNEL-1; i >= 0; i--)
+        for(i = 0; i < MAX_L2C_SOCK_CHANNEL; i++)
         {
-            if(l2c_slots[i].psm == psm)
+            if((l2c_slots[i].f.client) && (l2c_slots[i].psm == psm))
             {
                 if(l2c_slots[i].id)
                     return &l2c_slots[i];
@@ -1074,7 +1073,7 @@ bt_status_t btsock_l2c_set_sockopt(int psm, btsock_option_type_t option_name,
                                         psm, option_value, option_len);
         return BT_STATUS_PARM_INVALID;
     }
-    l2c_slot_t* ls = find_l2c_slot_by_psm(psm);
+    l2c_slot_t* ls = find_client_l2c_slot_by_psm(psm);
     if((ls) && ((option_name == BTSOCK_OPT_SET_PUT_MTU)))
     {
        if( (*((UINT32 *)option_value) <= 0))

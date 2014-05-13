@@ -794,8 +794,8 @@ static void l2c_csm_config (tL2C_CCB *p_ccb, UINT16 event, void *p_data)
                 }
             }
         }
-
-        L2CAP_TRACE_API1 ("L2CAP - Calling Config_Rsp_Cb(), CID: 0x%04x", p_ccb->local_cid);
+        L2CAP_TRACE_WARNING5 ("L2CAP-peer_Config_Rsp,Local CID: 0x%04x,Remote CID: 0x%04x,PSM: %d,peer MTU present: %d,peer MTU: %d",
+                              p_ccb->local_cid,p_ccb->remote_cid,p_ccb->p_rcb->psm ,p_ccb->peer_cfg.mtu_present,p_ccb->peer_cfg.mtu);
         (*p_ccb->p_rcb->api.pL2CA_ConfigCfm_Cb)(p_ccb->local_cid, p_cfg);
         break;
 
@@ -875,6 +875,8 @@ static void l2c_csm_config (tL2C_CCB *p_ccb, UINT16 event, void *p_data)
         {
             l2c_link_check_send_pkts (p_ccb->p_lcb, NULL, NULL);
         }
+        L2CAP_TRACE_WARNING5 ("L2CAP-Upper layer Config_Rsp,Local CID: 0x%04x,Remote CID: 0x%04x,PSM: %d,our MTU present:%d,our MTU:%d",
+                              p_ccb->local_cid,p_ccb->remote_cid,p_ccb->p_rcb->psm,p_ccb->our_cfg.mtu_present,p_ccb->our_cfg.mtu);
         break;
 
     case L2CEVT_L2CA_CONFIG_RSP_NEG:               /* Upper layer config reject */
