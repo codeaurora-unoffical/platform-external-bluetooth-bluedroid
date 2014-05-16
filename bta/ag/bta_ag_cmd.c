@@ -807,10 +807,21 @@ void bta_ag_send_call_inds(tBTA_AG_SCB *p_scb, tBTA_AG_RES result)
     {
         call = BTA_AG_CALL_INACTIVE;
     }
-    else if (result == BTA_AG_IN_CALL_CONN_RES || result == BTA_AG_OUT_CALL_CONN_RES
-             || result == BTA_AG_IN_CALL_HELD_RES)
+    else if (result == BTA_AG_IN_CALL_CONN_RES || result == BTA_AG_IN_CALL_HELD_RES)
     {
         call = BTA_AG_CALL_ACTIVE;
+    }
+    else if (result == BTA_AG_OUT_CALL_CONN_RES)
+    {
+        call = BTA_AG_CALL_ACTIVE;
+        /* HS may be connected in an ongoing active/held
+        call. Another call setup may be ongoing. In such
+        case updating callsetup value based on BTA_AgResult
+        will cause multiple updates sent to remote. Update
+        callsetup value to actual p_scb->callsetup_ind */
+        callsetup = p_scb->callsetup_ind;
+        APPL_TRACE_DEBUG2("bta_ag_send_call_inds: res = %d callsetup = %d",
+                          result, callsetup);
     }
     else
     {
