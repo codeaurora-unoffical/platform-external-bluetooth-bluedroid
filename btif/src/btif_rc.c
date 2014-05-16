@@ -50,21 +50,25 @@
 //#define TEST_BROWSE_RESPONSE
 #define MAX_FOLDER_RSP_SUPPORT 3
 
-#define IDX_GET_PLAY_STATUS_RSP   0
-#define IDX_LIST_APP_ATTR_RSP     1
-#define IDX_LIST_APP_VALUE_RSP    2
-#define IDX_GET_CURR_APP_VAL_RSP  3
-#define IDX_SET_APP_VAL_RSP       4
-#define IDX_GET_APP_ATTR_TXT_RSP  5
-#define IDX_GET_APP_VAL_TXT_RSP   6
-#define IDX_GET_ELEMENT_ATTR_RSP  7
-#define IDX_GET_FOLDER_ITEMS_RSP  8
-#define IDX_SET_FOLDER_ITEM_RSP   9
+#define IDX_GET_PLAY_STATUS_RSP    0
+#define IDX_LIST_APP_ATTR_RSP      1
+#define IDX_LIST_APP_VALUE_RSP     2
+#define IDX_GET_CURR_APP_VAL_RSP   3
+#define IDX_SET_APP_VAL_RSP        4
+#define IDX_GET_APP_ATTR_TXT_RSP   5
+#define IDX_GET_APP_VAL_TXT_RSP    6
+#define IDX_GET_ELEMENT_ATTR_RSP   7
+#define IDX_GET_FOLDER_ITEMS_RSP   8
+#define IDX_SET_FOLDER_ITEM_RSP    9
 #define IDX_SET_ADDRESS_PLAYER_RSP 10
+#define IDX_SET_BROWSE_PLAYER_RSP  11
+#define IDX_CHANGE_PATH_RSP        12
+#define IDX_PLAY_ITEM_RSP          13
+#define IDX_GET_ITEM_ATTR_RSP      14
 #define MAX_VOLUME 128
 #define MAX_LABEL 16
 #define MAX_TRANSACTIONS_PER_SESSION 16
-#define MAX_CMD_QUEUE_LEN 11
+#define MAX_CMD_QUEUE_LEN 15
 #define PLAY_STATUS_PLAYING 1
 
 #define CHECK_RC_CONNECTED                                                                  \
@@ -810,6 +814,125 @@ void handle_rc_metamsg_cmd (tBTA_AV_META_MSG *pmeta_msg)
     }
 }
 
+/************************************************************************************
+*  Function                 handle_get_folder_item_mediaplyerlist_cmd
+*
+* - Argument:               tBTA_AV_BROWSE_MSG  structure containing  the received
+*                           browse message
+*                           tAVRC_COMMAND       structure containing the commands
+*                           to be updated
+*                           UINT8 event,        variable having value of event.
+*
+*  - Description:           Handler for get media player list command
+*
+************************************************************************************/
+UINT8 handle_get_folder_item_mediaplyerlist_cmd (tBTA_AV_BROWSE_MSG *pbrowse_msg,
+                                                        tAVRC_COMMAND *cmd, UINT8 *event)
+{
+    UINT8 *p_length, *start_item, *end_item;
+    UINT8 length, xx;
+    *event = pbrowse_msg->p_msg->browse.p_browse_data[0] ;
+    cmd->get_items.pdu = *event;
+    //Check length
+    p_length = &pbrowse_msg->p_msg->browse.p_browse_data[1];
+    BE_STREAM_TO_UINT16(length, p_length);
+    if (length != 10) //Refer to spec
+    {
+        BTIF_TRACE_ERROR1("GET_FOLDER_ITEMS: length error: =%d",length);
+        return TRUE;
+    }
+    else
+    {
+        start_item = &pbrowse_msg->p_msg->browse.p_browse_data[4];
+        BE_STREAM_TO_UINT32(cmd->get_items.start_item ,start_item);
+        BTIF_TRACE_EVENT1("pbrowse_msg start_item :%x",cmd->get_items.start_item);
+        end_item  =  &pbrowse_msg->p_msg->browse.p_browse_data[8];
+        BE_STREAM_TO_UINT32(cmd->get_items.end_item,end_item);
+        BTIF_TRACE_EVENT1("pbrowse_msg start_item :%x",cmd->get_items.end_item);
+        cmd->get_items.attr_count = 0xff; /* in MediaPlayerList we don't have attr_id */
+        //Update OPCODE
+        cmd->get_items.opcode  = AVRC_OP_BROWSE;
+        cmd->get_items.scope   = pbrowse_msg->p_msg->browse.p_browse_data[3] ;
+        cmd->get_items.status = AVRC_STS_NO_ERROR ;
+        for (xx = 0; xx < BTRC_MAX_ELEM_ATTR_SIZE ; xx++)
+        {
+            cmd->get_items.attrs[xx] = 0;
+        }
+        return FALSE;
+    }
+}
+
+/************************************************************************************
+*  Function                 handle_get_folder_item_filesystem_cmd
+*
+* - Argument:               tBTA_AV_BROWSE_MSG  structure containing  the received
+*                           browse message
+*                           tAVRC_COMMAND       structure containing the commands
+*                           to be updated
+*                           UINT8 event,        variable having value of event.
+*
+*  - Description:           Handler for get folder item command
+*
+************************************************************************************/
+UINT8 handle_get_folder_item_filesystem_cmd (tBTA_AV_BROWSE_MSG *pbrowse_msg, tAVRC_COMMAND *cmd,
+                                                 UINT8 *event)
+{
+    UINT8 *p_length, *start_item, *end_item, *p_data;
+    UINT8 length, attr_count = 0, xx;
+    *event = pbrowse_msg->p_msg->browse.p_browse_data[0] ;
+    cmd->get_items.pdu = *event;
+    //Check length
+    p_length = &pbrowse_msg->p_msg->browse.p_browse_data[1];
+    BE_STREAM_TO_UINT16(length, p_length);
+    attr_count = pbrowse_msg->p_msg->browse.p_browse_data[12];
+    BTIF_TRACE_ERROR1("GET_FOLDER_ITEMS: attr_count: =%d", attr_count);
+    switch (attr_count)
+    {
+        case 0xff:
+            if (length != 10)
+            {
+                BTIF_TRACE_ERROR1("GET_FOLDER_ITEMS: length error: =%d", length);
+                return TRUE;
+            }
+            break;
+        default:
+            if (length != ((attr_count * 4) + 10))
+            {
+                BTIF_TRACE_ERROR1("GET_FOLDER_ITEMS: length error: =%d", length);
+                return TRUE;
+            }
+    }
+
+    start_item = &pbrowse_msg->p_msg->browse.p_browse_data[4];
+    BE_STREAM_TO_UINT32(cmd->get_items.start_item ,start_item);
+    BTIF_TRACE_EVENT1("pbrowse_msg start_item :%x",cmd->get_items.start_item);
+    end_item  =  &pbrowse_msg->p_msg->browse.p_browse_data[8];
+    BE_STREAM_TO_UINT32(cmd->get_items.end_item,end_item);
+    BTIF_TRACE_EVENT1("pbrowse_msg start_item :%x",cmd->get_items.end_item);
+    cmd->get_items.attr_count = attr_count;
+    if (attr_count == 0)
+    {
+        for (xx = 0; xx < BTRC_MAX_ELEM_ATTR_SIZE; xx++)
+        {
+            cmd->get_items.attrs[xx] = xx + 1;
+        }
+    }
+    else if (attr_count == 0xff) /* no attribute requested */
+    {
+        BTIF_TRACE_DEBUG0("No attribute requested");
+    }
+    else
+    {
+        p_data = &pbrowse_msg->p_msg->browse.p_browse_data[13];
+        for (xx = 0; xx < attr_count; xx++)
+            BE_STREAM_TO_UINT32(cmd->get_items.attrs[xx], p_data)
+    }
+    //Update OPCODE
+    cmd->get_items.opcode  = AVRC_OP_BROWSE;
+    cmd->get_items.scope   = pbrowse_msg->p_msg->browse.p_browse_data[3] ;
+    cmd->get_items.status = AVRC_STS_NO_ERROR ;
+    return FALSE;
+}
 
 /************************************************************************************
 *  Function                 handle_rc_browsemsg_cmd
@@ -822,9 +945,10 @@ void handle_rc_metamsg_cmd (tBTA_AV_META_MSG *pmeta_msg)
 ************************************************************************************/
 void handle_rc_browsemsg_cmd (tBTA_AV_BROWSE_MSG *pbrowse_msg)
 {
-    UINT16 event,length;
+    UINT8 event;
+    UINT16 length;
     tAVRC_COMMAND cmd;
-    UINT8 *start_item, *p_length;
+    UINT8 *start_item, *p_length, *p_data;
     UINT8 *end_item;
     tAVRC_RESPONSE avrc_rsp;
     UINT8  dropmsg = TRUE;
@@ -836,34 +960,25 @@ void handle_rc_browsemsg_cmd (tBTA_AV_BROWSE_MSG *pbrowse_msg)
     switch(pbrowse_msg->p_msg->browse.p_browse_data[0])
     {
         case AVRC_PDU_GET_FOLDER_ITEMS:
-            event  = pbrowse_msg->p_msg->browse.p_browse_data[0] ;
-            cmd.get_items.pdu    = event;
-            //Check length
-            p_length = &pbrowse_msg->p_msg->browse.p_browse_data[1];
-            BE_STREAM_TO_UINT16(length, p_length);
-            if (length != 10) //Refer to spec
+        {
+            UINT8 scope = pbrowse_msg->p_msg->browse.p_browse_data[3];
+            switch (scope)
             {
-                BTIF_TRACE_ERROR1("GET_FOLDER_ITEMS: length error: =%d",length);
+                case AVRC_SCOPE_PLAYER_LIST:
+                    dropmsg = handle_get_folder_item_mediaplyerlist_cmd(pbrowse_msg, &cmd, &event);
+                break;
+                case AVRC_SCOPE_FILE_SYSTEM:
+                case AVRC_SCOPE_NOW_PLAYING:
+                    dropmsg = handle_get_folder_item_filesystem_cmd(pbrowse_msg, &cmd, &event);
+                break;
             }
-            else
+            if (dropmsg == FALSE)
             {
-                cmd.get_items.attr_count = pbrowse_msg->p_msg->browse.p_browse_data[12];
-                start_item = pbrowse_msg->p_msg->browse.p_browse_data+4;
-                BE_STREAM_TO_UINT32(cmd.get_items.start_item ,start_item);
-                BTIF_TRACE_EVENT1("pbrowse_msg start_item :%x",cmd.get_items.start_item);
-                end_item  =  pbrowse_msg->p_msg->browse.p_browse_data + 8;
-                BE_STREAM_TO_UINT32(cmd.get_items.end_item,end_item);
-                BTIF_TRACE_EVENT1("pbrowse_msg start_item :%x",cmd.get_items.end_item);
-                //Update OPCODE
-                cmd.get_items.opcode  = AVRC_OP_BROWSE;
-                cmd.get_items.scope   = pbrowse_msg->p_msg->browse.p_browse_data[3] ;
-                cmd.get_items.status = AVRC_STS_NO_ERROR ;
-                cmd.get_items.p_attr_list = NULL;
-                //Fill PDU to send Response
                 btif_rc_upstreams_evt(event,&cmd,0,pbrowse_msg->label);
-                dropmsg = FALSE;
             }
+        }
         break;
+
         case AVRC_PDU_SET_BROWSED_PLAYER:
             event  = pbrowse_msg->p_msg->browse.p_browse_data[0] ;
             cmd.br_player.pdu     = event;
@@ -872,7 +987,7 @@ void handle_rc_browsemsg_cmd (tBTA_AV_BROWSE_MSG *pbrowse_msg)
             BE_STREAM_TO_UINT16(length, p_length);
             if (length != 0x0002)
             {
-                BTIF_TRACE_ERROR1("SET_BROWSED_PLAYERlength error: = %d",length);
+                BTIF_TRACE_ERROR1("SET_BROWSED_PLAYERlength error: = %d", length);
             }
             else
             {
@@ -884,6 +999,77 @@ void handle_rc_browsemsg_cmd (tBTA_AV_BROWSE_MSG *pbrowse_msg)
             }
         break;
 
+        case AVRC_PDU_CHANGE_PATH:
+            event  = pbrowse_msg->p_msg->browse.p_browse_data[0] ;
+            cmd.chg_path.pdu = event;
+            p_data = &pbrowse_msg->p_msg->browse.p_browse_data[1];
+            BE_STREAM_TO_UINT16(length, p_data);
+            if (length != 11)
+            {
+                BTIF_TRACE_ERROR1("CHANGE_PATH length error: = %d",length);
+            }
+            else
+            {
+                p_data = &pbrowse_msg->p_msg->browse.p_browse_data[3];
+                BE_STREAM_TO_UINT16(cmd.chg_path.uid_counter, p_data);
+                cmd.chg_path.direction = pbrowse_msg->p_msg->browse.p_browse_data[5];
+                cmd.chg_path.opcode = AVRC_OP_BROWSE;
+                cmd.chg_path.status = AVRC_STS_NO_ERROR;
+                p_data = &pbrowse_msg->p_msg->browse.p_browse_data[6];
+                BE_STREAM_TO_UINT64(cmd.chg_path.folder_uid, p_data);
+                btif_rc_upstreams_evt(event, &cmd, 0, pbrowse_msg->label);
+                dropmsg = FALSE;
+            }
+        break;
+
+        case AVRC_PDU_GET_ITEM_ATTRIBUTES:
+        {
+            UINT16 packet_len;
+            UINT8  num_attr, index;
+            event  = pbrowse_msg->p_msg->browse.p_browse_data[0] ;
+            cmd.get_attrs.pdu = event;
+            p_data = &pbrowse_msg->p_msg->browse.p_browse_data[1];
+            BE_STREAM_TO_UINT16(packet_len, p_data);
+            p_data = &pbrowse_msg->p_msg->browse.p_browse_data[14];
+            BE_STREAM_TO_UINT8(num_attr, p_data);
+            if (packet_len != ((num_attr * 4) + 12))
+            {
+                BTIF_TRACE_ERROR1("Get Item Attributes length error: = %d",packet_len);
+            }
+            else
+            {
+                cmd.get_attrs.status = AVRC_STS_NO_ERROR;
+                cmd.get_attrs.opcode = AVRC_OP_BROWSE;
+                cmd.get_attrs.scope =  pbrowse_msg->p_msg->browse.p_browse_data[3];
+                p_data = &pbrowse_msg->p_msg->browse.p_browse_data[4];
+                BE_STREAM_TO_UINT64(cmd.get_attrs.uid, p_data);
+                p_data = &pbrowse_msg->p_msg->browse.p_browse_data[12];
+                BE_STREAM_TO_UINT16(cmd.get_attrs.uid_counter, p_data);
+                cmd.get_attrs.attr_count = num_attr;
+                if (num_attr == 0)
+                {
+                    /* remote requested all Attribute ID*/
+                    for (index = 0; index < BTRC_MAX_ELEM_ATTR_SIZE; index++)
+                    {
+                        cmd.get_attrs.attrs[index] = index + 1;
+                    }
+                }
+                else
+                {
+                    p_data = &pbrowse_msg->p_msg->browse.p_browse_data[15];
+                    BTIF_TRACE_IMP1("GetItemAttr num_attr: = %d", cmd.get_attrs.attr_count);
+                    for (index = 0; index < num_attr ; index++)
+                    {
+                        BE_STREAM_TO_UINT32(cmd.get_attrs.attrs[index], p_data);
+                        BTIF_TRACE_IMP1("GetItemAttr attrid: = %d", cmd.get_attrs.attrs[index]);
+                    }
+                }
+                btif_rc_upstreams_evt(event, &cmd, 0, pbrowse_msg->label);
+                dropmsg = FALSE;
+            }
+        }
+        break;
+
         default:
             BTIF_TRACE_ERROR0("pbrowse_msg ERROR");
         break;
@@ -893,12 +1079,11 @@ void handle_rc_browsemsg_cmd (tBTA_AV_BROWSE_MSG *pbrowse_msg)
         avrc_rsp.rsp.pdu    = pbrowse_msg->p_msg->browse.p_browse_data[0];
         avrc_rsp.rsp.status = AVRC_STS_BAD_CMD;
         avrc_rsp.rsp.opcode = AVRC_OP_BROWSE;
-        BTIF_TRACE_ERROR0("pbrowse_msg ERROR");
+        BTIF_TRACE_ERROR1("handle_rc_browsemsg_cmd: pbrowse_msg ERROR: %x", avrc_rsp.rsp.pdu);
         send_browsemsg_rsp(btif_rc_cb.rc_handle, pbrowse_msg->label, 0, &avrc_rsp);
     }
 
 }
-
 
 
 /***************************************************************************
@@ -974,6 +1159,7 @@ void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV *p_data)
             BTIF_TRACE_DEBUG2("BTA_AV_BROWSE_MSG_EVT  label:%d handle:%d", p_data->browse_msg.label,
                 p_data->browse_msg.rc_handle);
             handle_rc_browsemsg_cmd(&(p_data->browse_msg));
+            GKI_freebuf(p_data->browse_msg.p_msg);
         }
         break;
         default:
@@ -1485,13 +1671,12 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
         break;
         case AVRC_PDU_GET_FOLDER_ITEMS:
         {
-            //For testing purpose to cover Send path, initiate Send from here
             tAVRC_RESPONSE avrc_rsp;
-            btrc_getfolderitem_t getfolder ;
+            btrc_getfolderitem_t getfolder;
             btrc_browse_folderitem_t scope;
             UINT8 player[] = "MusicPlayer1";
             tAVRC_ITEM tem[1];
-            UINT8  index ;
+            UINT8  index, numAttr;
             BTIF_TRACE_EVENT1("%s()AVRC_PDU_GET_FOLDER_ITEMS", __FUNCTION__);
             FILL_PDU_QUEUE(IDX_GET_FOLDER_ITEMS_RSP,ctype, label, TRUE);
             BTIF_TRACE_EVENT1("rc_connected: %d",btif_rc_cb.rc_connected);
@@ -1500,47 +1685,126 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
                 getfolder.start_item = pavrc_cmd->get_items.start_item;
                 getfolder.end_item   = pavrc_cmd->get_items.end_item;
                 getfolder.size       = AVCT_GetBrowseMtu(btif_rc_cb.rc_handle);
+                getfolder.attr_count = pavrc_cmd->get_items.attr_count;
                 scope                = (btrc_browse_folderitem_t)pavrc_cmd->get_items.scope;
+                if (getfolder.attr_count == 255)
+                {
+                    numAttr = 0;
+                }
+                else
+                {
+                    if (getfolder.attr_count == 0)
+                    {
+                        numAttr = 7;
+                        for (index = 0; index < BTRC_MAX_ELEM_ATTR_SIZE; index++)
+                        {
+                            getfolder.attrs[index] = index + 1;
+                        }
+                    }
+                    else
+                    {
+                        numAttr = getfolder.attr_count;
+                        for (index = 0; index < numAttr; index++)
+                        {
+                            getfolder.attrs[index] = pavrc_cmd->get_items.attrs[index];
+                            BTIF_TRACE_ERROR2("getfolder[%d] = %d", index, getfolder.\
+                                                                        attrs[index]);
+                            BTIF_TRACE_ERROR2("pavrc_cmd->get_items.attrs[%d] = %d",\
+                                            index, pavrc_cmd->get_items.attrs[index]);
+                        }
+                    }
+                }
                 HAL_CBACK(bt_rc_callbacks, get_folderitems_cb, scope, &getfolder);
             }
         }
         break;
         case AVRC_PDU_SET_BROWSED_PLAYER:
         {
-            //For testing purpose to cover Send path, initiate Send from here
-            tAVRC_RESPONSE avrc_rsp;
-            UINT8 fd1[] = "AB";
-            UINT8 fd2[] = "CD";
-            tAVRC_NAME  name[2];
-            UINT8 index;
             BTIF_TRACE_EVENT1("%s() AVRC_PDU_SET_BROWSED_PLAYER", __FUNCTION__);
-            FILL_PDU_QUEUE(IDX_SET_FOLDER_ITEM_RSP,ctype, label, TRUE);
             if (btif_rc_cb.rc_connected == TRUE)
             {
-                index = IDX_SET_FOLDER_ITEM_RSP ;
-                avrc_rsp.br_player.opcode   = 0xFF;
-                avrc_rsp.br_player.pdu      = AVRC_PDU_SET_BROWSED_PLAYER;
-                avrc_rsp.br_player.num_items = 0x04;
-                avrc_rsp.br_player.folder_depth = 0x02;
-                avrc_rsp.br_player.p_folders = name ;
-                avrc_rsp.br_player.status    = 0x04;
-                avrc_rsp.br_player.uid_counter = 0x1357;
-                avrc_rsp.br_player.charset_id = 0x006A;
-                //for(i =0 ; i< avrc_rsp.br_player.folder_depth ; ++i)
+                FILL_PDU_QUEUE(IDX_SET_BROWSE_PLAYER_RSP, ctype, label, TRUE);
+                HAL_CBACK(bt_rc_callbacks, set_browsed_player_cb, pavrc_cmd->br_player.player_id);
+            }
+        }
+        break;
+        case AVRC_PDU_CHANGE_PATH:
+        {
+            BTIF_TRACE_EVENT1("%s() AVRC_PDU_CHANGE_PATH", __FUNCTION__);
+            if (btif_rc_cb.rc_connected == TRUE)
+            {
+                FILL_PDU_QUEUE(IDX_CHANGE_PATH_RSP, ctype, label, TRUE);
+                HAL_CBACK(bt_rc_callbacks, change_path_cb, pavrc_cmd->chg_path.direction, \
+                                                            pavrc_cmd->chg_path.folder_uid);
+            }
+        }
+        break;
+        case AVRC_PDU_GET_ITEM_ATTRIBUTES:
+        {
+            UINT8 num_attr =  pavrc_cmd->get_attrs.attr_count;
+            UINT8 index, num_attr_requested = 0;
+            BTIF_TRACE_EVENT1("%s() AVRC_PDU_GET_ITEM_ATTRIBUTES", __FUNCTION__);
+            btrc_media_attr_t element_attrs[BTRC_MAX_ELEM_ATTR_SIZE];
+            memset(&element_attrs, 0, sizeof(element_attrs));
+            if (num_attr == 0)
+            {
+                /* CT requests for all attributes */
+                for (index = 0; index < BTRC_MAX_ELEM_ATTR_SIZE; index++)
                 {
-                    name[0].str_len = strlen("AB");
-                    name[0].p_str   = fd1;
-                    name[1].str_len = strlen("CD");
-                    name[1].p_str   = fd2;
+                    element_attrs[index] = index + 1;
                 }
-                app_sendbrowsemsg(index ,&avrc_rsp);
+                num_attr_requested = 7; /* get all seven */
+            }
+            else if (num_attr == 0xFF)
+            {
+                /* 0xff indicates, no attributes requested - reject */
+                send_reject_response (btif_rc_cb.rc_handle, label, pavrc_cmd->pdu,
+                    AVRC_STS_BAD_PARAM);
+                return;
+            }
+            else
+            {
+                /* Attribute IDs from 1 to BTRC_MAX_ELEM_ATTR_SIZE are only valid,
+                 * hence HAL definition limits the attributes to BTRC_MAX_ELEM_ATTR_SIZE.
+                 * Fill only valid entries.
+                 */
+                for (index = 0; (index < num_attr) && (num_attr <= BTRC_MAX_ELEM_ATTR_SIZE); index++)
+                {
+                    if ((pavrc_cmd->get_attrs.attrs[index] > 0) &&
+                        (pavrc_cmd->get_attrs.attrs[index] <= BTRC_MAX_ELEM_ATTR_SIZE))
+                    {
+                        element_attrs[index] = pavrc_cmd->get_attrs.attrs[index];
+                        BTIF_TRACE_IMP2("element_attrs[%d]: %d", index, element_attrs[index]);
+                    }
+                }
+                num_attr_requested = index;
+                BTIF_TRACE_IMP1("num_attr_requested: %d", num_attr_requested);
+            }
+
+            if (btif_rc_cb.rc_connected == TRUE)
+            {
+                FILL_PDU_QUEUE(IDX_GET_ITEM_ATTR_RSP, ctype, label, TRUE);
+                HAL_CBACK(bt_rc_callbacks, get_item_attr_cb, pavrc_cmd->get_attrs.scope,
+                        pavrc_cmd->get_attrs.uid, num_attr_requested, element_attrs);
+            }
+        }
+        break;
+        case AVRC_PDU_PLAY_ITEM:
+        {
+            BTIF_TRACE_EVENT1("%s() AVRC_PDU_PLAY_ITEM", __FUNCTION__);
+            if (btif_rc_cb.rc_connected == TRUE)
+            {
+                FILL_PDU_QUEUE(IDX_PLAY_ITEM_RSP, ctype, label, TRUE);
+                HAL_CBACK(bt_rc_callbacks, play_item_cb, pavrc_cmd->play_item.scope,
+                        pavrc_cmd->play_item.uid);
             }
         }
         break;
         default:
         {
-            send_reject_response (btif_rc_cb.rc_handle, label, pavrc_cmd->pdu,
-                 (pavrc_cmd->pdu == AVRC_PDU_SEARCH)?AVRC_STS_SEARCH_NOT_SUP:AVRC_STS_BAD_CMD);
+            send_reject_response(btif_rc_cb.rc_handle, label, pavrc_cmd->pdu,
+                 (pavrc_cmd->pdu == AVRC_PDU_SEARCH)? AVRC_STS_SEARCH_NOT_SUP:
+                                                                AVRC_STS_BAD_CMD);
         }
         break;
     }
@@ -1901,7 +2165,8 @@ static bt_status_t get_element_attr_rsp(uint8_t num_attr, btrc_element_attr_val_
     }
     else
     {
-        for (i=0; i<num_attr; i++) {
+        for (i=0; i<num_attr; i++)
+        {
             element_attrs[i].attr_id = p_attrs[i].attr_id;
             element_attrs[i].name.charset_id = AVRC_CHARSET_ID_UTF8;
             element_attrs[i].name.str_len = (UINT16)strlen((char *)p_attrs[i].text);
@@ -1978,6 +2243,9 @@ static bt_status_t register_notification_rsp(btrc_event_id_t event_id,
         case BTRC_EVT_AVAILABLE_PLAYERS_CHANGED:
             avrc_rsp.reg_notif.param.evt  = 0x0a;
             break;
+        case BTRC_EVT_NOW_PLAYING_CONTENT_CHANGED:
+            avrc_rsp.reg_notif.param.evt  = 0x09;
+            break;
         default:
             BTIF_TRACE_WARNING2("%s : Unhandled event ID : 0x%x", __FUNCTION__, event_id);
             return BT_STATUS_UNHANDLED;
@@ -2022,7 +2290,8 @@ static bt_status_t get_folderitem_rsp(btrc_folder_list_entries_t *rsp)
     tAVRC_RESPONSE avrc_rsp;
     CHECK_RC_CONNECTED
     tAVRC_ITEM item[MAX_FOLDER_RSP_SUPPORT]; //Number of players that could be supported
-    UINT8  index, i ;
+    UINT8  index, i, xx, media_attr_cnt;
+    UINT8 *p_conversion;
 
     BTIF_TRACE_EVENT1("%s() AVRC_PDU_GET_FOLDER_ITEMS", __FUNCTION__);
     index                             = IDX_GET_FOLDER_ITEMS_RSP ;
@@ -2036,28 +2305,88 @@ static bt_status_t get_folderitem_rsp(btrc_folder_list_entries_t *rsp)
     for (i=0; (i < rsp->item_count && i < MAX_FOLDER_RSP_SUPPORT) ; ++i)
     {
         item[i].item_type = rsp->p_item_list[i].item_type;
-        BTIF_TRACE_EVENT1("item_type  =%d", rsp->p_item_list[i].item_type);
+        BTIF_TRACE_EVENT1("item_type  = %d", rsp->p_item_list[i].item_type);
         switch (item[i].item_type)
         {
             case AVRC_ITEM_PLAYER:
-                memcpy(item[i].u.player.features, rsp->p_item_list[i].player.features,
+                memcpy(item[i].u.player.features, rsp->p_item_list[i].u.player.features,
                             AVRC_FEATURE_MASK_SIZE);
-                item[i].u.player.major_type      =  rsp->p_item_list[i].player.major_type;
-                item[i].u.player.sub_type        =  rsp->p_item_list[i].player.sub_type;
-                item[i].u.player.play_status     =  rsp->p_item_list[i].player.play_status;
-                item[i].u.player.player_id       =  rsp->p_item_list[i].player.player_id;
-                item[i].u.player.name.charset_id =  rsp->p_item_list[i].player.name.charset_id;
-                item[i].u.player.name.str_len    =  rsp->p_item_list[i].player.name.str_len;
-                item[i].u.player.name.p_str      =  rsp->p_item_list[i].player.name.p_str;
+                item[i].u.player.major_type      =  rsp->p_item_list[i].u.player.major_type;
+                item[i].u.player.sub_type        =  rsp->p_item_list[i].u.player.sub_type;
+                item[i].u.player.play_status     =  rsp->p_item_list[i].u.player.play_status;
+                item[i].u.player.player_id       =  rsp->p_item_list[i].u.player.player_id;
+                item[i].u.player.name.charset_id =  rsp->p_item_list[i].u.player.name.charset_id;
+                item[i].u.player.name.str_len    =  rsp->p_item_list[i].u.player.name.str_len;
+                item[i].u.player.name.p_str      =  rsp->p_item_list[i].u.player.name.p_str;
                 ++avrc_rsp.get_items.item_count;
             break;
 
             case AVRC_ITEM_FOLDER:
-                return BT_STATUS_UNHANDLED;
+                item[i].u.folder.type            =  rsp->p_item_list[i].u.folder.type;
+                item[i].u.folder.playable        =  rsp->p_item_list[i].u.folder.playable;
+                {
+                    p_conversion = (UINT8*)&(rsp->p_item_list[i].u.folder.uid);
+                    for (xx = 0; xx < AVRC_UID_SIZE; xx++)
+                    {
+                        ((UINT8 *) item[i].u.folder.uid)[AVRC_UID_SIZE - (xx + 1)] = \
+                                                                        *p_conversion++;
+                    }
+                }
+
+                item[i].u.folder.name.charset_id =  rsp->p_item_list[i].u.folder.name.charset_id;
+                item[i].u.folder.name.str_len    =  rsp->p_item_list[i].u.folder.name.str_len;
+                item[i].u.folder.name.p_str      =  rsp->p_item_list[i].u.folder.name.p_str;
+                ++avrc_rsp.get_items.item_count;
             break;
 
             case AVRC_ITEM_MEDIA:
-                return BT_STATUS_UNHANDLED;
+                item[i].u.media.type             =  rsp->p_item_list[i].u.media.type;
+                {
+                    p_conversion = (UINT8*)&(rsp->p_item_list[i].u.media.uid);
+                    //BE_STREAM_TO_ARRAY(p_conversion, item[i].u.folder.uid, AVRC_UID_SIZE);
+                    for (xx = 0; xx < AVRC_UID_SIZE; xx++)
+                    {
+                        ((UINT8 *) item[i].u.folder.uid)[AVRC_UID_SIZE - (xx + 1)] = \
+                                                                        *p_conversion++;
+                    }
+                }
+                item[i].u.media.name.charset_id  =  rsp->p_item_list[i].u.media.name.charset_id;
+                item[i].u.media.name.str_len     =  rsp->p_item_list[i].u.media.name.str_len;
+                item[i].u.media.name.p_str       =  rsp->p_item_list[i].u.media.name.p_str;
+                media_attr_cnt                   =  rsp->p_item_list[i].u.media.attr_count;
+                item[i].u.media.attr_count       =  rsp->p_item_list[i].u.media.attr_count;
+                BTIF_TRACE_IMP1("attr count = %d", media_attr_cnt);
+                if (media_attr_cnt > 0)
+                {
+                    item[i].u.media.p_attr_list = \
+                    (tAVRC_ATTR_ENTRY *)GKI_getbuf((UINT16)(media_attr_cnt * \
+                                                        sizeof(tAVRC_ATTR_ENTRY)));
+                    if (GKI_get_buf_size(item[i].u.media.p_attr_list) == (UINT16)(\
+                                            media_attr_cnt * sizeof(tAVRC_ATTR_ENTRY)))
+                    {
+                        for (xx = 0; xx < media_attr_cnt; xx++)
+                        {
+                            item[i].u.media.p_attr_list[xx].attr_id = \
+                                rsp->p_item_list[i].u.media.p_attr_list[xx].attr_id;
+                            item[i].u.media.p_attr_list[xx].name.charset_id = \
+                                rsp->p_item_list[i].u.media.p_attr_list[xx].name.charset_id;
+                            item[i].u.media.p_attr_list[xx].name.str_len = \
+                                rsp->p_item_list[i].u.media.p_attr_list[xx].name.str_len;
+                            item[i].u.media.p_attr_list[xx].name.p_str = \
+                                rsp->p_item_list[i].u.media.p_attr_list[xx].name.p_str;
+                            BTIF_TRACE_IMP1("attr_id = %d", item[i].u.media.p_attr_list[xx].\
+                                attr_id);
+                            BTIF_TRACE_IMP1("str_len = %d", item[i].u.media.p_attr_list[xx].\
+                                name.str_len);
+                        }
+                    }
+                    else
+                    {
+                        BTIF_TRACE_ERROR0("Not enough buffer allocated to accomodate attributes");
+                        item[i].u.media.attr_count =  0;
+                    }
+                }
+                ++avrc_rsp.get_items.item_count;
             break;
 
             default:
@@ -2071,6 +2400,17 @@ static bt_status_t get_folderitem_rsp(btrc_folder_list_entries_t *rsp)
     }
     avrc_rsp.get_items.p_item_list = item;
     app_sendbrowsemsg(IDX_GET_FOLDER_ITEMS_RSP ,&avrc_rsp);
+    BTIF_TRACE_IMP0("free attr list");
+    for (i=0; (i < rsp->item_count && i < MAX_FOLDER_RSP_SUPPORT) ; ++i)
+    {
+        if (item[i].item_type == AVRC_ITEM_MEDIA)
+        {
+            if (rsp->p_item_list[i].u.media.attr_count > 0)
+            {
+                GKI_freebuf(item[i].u.media.p_attr_list);
+            }
+        }
+    }
     return BT_STATUS_SUCCESS;
 }
 
@@ -2093,6 +2433,129 @@ static bt_status_t set_addrplayer_rsp(btrc_status_t status_code)
     avrc_rsp.addr_player.pdu    = AVRC_PDU_SET_ADDRESSED_PLAYER;
     /* Send the response */
     SEND_METAMSG_RSP(IDX_SET_ADDRESS_PLAYER_RSP, &avrc_rsp);
+    return BT_STATUS_SUCCESS;
+}
+
+/**********************************************************************
+**
+** Function        set_browseplayer_rsp
+**
+** Description     Response to Set Browsed Player , PDU 0x70
+**
+** Return          status
+**
+*********************************************************************/
+
+static bt_status_t set_browseplayer_rsp(btrc_set_browsed_player_rsp_t *p_param)
+{
+    tAVRC_RESPONSE avrc_rsp;
+
+    CHECK_RC_CONNECTED
+    avrc_rsp.br_player.pdu = AVRC_PDU_SET_BROWSED_PLAYER;
+    avrc_rsp.br_player.folder_depth = p_param->folder_depth;
+    avrc_rsp.br_player.charset_id = p_param->charset_id;
+    avrc_rsp.br_player.num_items = p_param->num_items;
+    avrc_rsp.br_player.opcode = opcode_from_pdu(AVRC_PDU_SET_BROWSED_PLAYER);
+    avrc_rsp.br_player.status = p_param->status;
+    avrc_rsp.br_player.uid_counter = p_param->uid_counter;
+    avrc_rsp.br_player.p_folders = (tAVRC_NAME*)p_param->p_folders;
+    /* Send the response */
+    SEND_BROWSEMSG_RSP(IDX_SET_BROWSE_PLAYER_RSP, &avrc_rsp);
+    return BT_STATUS_SUCCESS;
+}
+
+/**********************************************************************
+**
+** Function        changepath_rsp
+**
+** Description     Response to Change Path , PDU 0x60
+**
+** Return          status
+**
+*********************************************************************/
+
+static bt_status_t changepath_rsp(uint8_t status_code, uint32_t item_count)
+{
+    tAVRC_RESPONSE avrc_rsp;
+
+    CHECK_RC_CONNECTED
+    avrc_rsp.chg_path.num_items = item_count;
+    avrc_rsp.chg_path.opcode = opcode_from_pdu(AVRC_PDU_CHANGE_PATH);
+    avrc_rsp.chg_path.pdu = AVRC_PDU_CHANGE_PATH;
+    avrc_rsp.chg_path.status = status_code;
+    /* Send the response */
+    SEND_BROWSEMSG_RSP(IDX_CHANGE_PATH_RSP, &avrc_rsp);
+    return BT_STATUS_SUCCESS;
+}
+
+/**********************************************************************
+**
+** Function        playitem_rsp
+**
+** Description     Response to Play Item , PDU 0x60
+**
+** Return          status
+**
+*********************************************************************/
+
+static bt_status_t playitem_rsp(uint8_t status_code)
+{
+    tAVRC_RESPONSE avrc_rsp;
+
+    CHECK_RC_CONNECTED
+    avrc_rsp.play_item.status = status_code;
+    avrc_rsp.play_item.opcode = opcode_from_pdu(AVRC_PDU_PLAY_ITEM);
+    avrc_rsp.play_item.pdu    = AVRC_PDU_PLAY_ITEM;
+    /* Send the response */
+    SEND_METAMSG_RSP(IDX_PLAY_ITEM_RSP, &avrc_rsp);
+    return BT_STATUS_SUCCESS;
+}
+
+/**********************************************************************
+**
+** Function        get_itemattr_rsp
+**
+** Description     Response to Get Item , PDU 0x60
+**
+** Return          status
+**
+*********************************************************************/
+
+static bt_status_t get_itemattr_rsp(uint8_t num_attr, btrc_element_attr_val_t *p_attrs)
+{
+    tAVRC_RESPONSE avrc_rsp;
+    UINT32 i;
+    uint8_t j;
+    tAVRC_ATTR_ENTRY element_attrs[BTRC_MAX_ELEM_ATTR_SIZE];
+
+    CHECK_RC_CONNECTED
+    memset(element_attrs, 0, sizeof(tAVRC_ATTR_ENTRY) * num_attr);
+
+    if (num_attr == 0)
+    {
+        avrc_rsp.get_attrs.status = AVRC_STS_INTERNAL_ERR;
+    }
+    else
+    {
+        for (i=0; i<num_attr; i++)
+        {
+            element_attrs[i].attr_id = p_attrs[i].attr_id;
+            element_attrs[i].name.charset_id = AVRC_CHARSET_ID_UTF8;
+            element_attrs[i].name.str_len = (UINT16)strlen((char *)p_attrs[i].text);
+            element_attrs[i].name.p_str = p_attrs[i].text;
+            BTIF_TRACE_DEBUG5("%s attr_id:0x%x, charset_id:0x%x, str_len:%d, str:%s",
+                __FUNCTION__, (unsigned int)element_attrs[i].attr_id,
+                element_attrs[i].name.charset_id, element_attrs[i].name.str_len,
+                element_attrs[i].name.p_str);
+        }
+        avrc_rsp.get_attrs.status = AVRC_STS_NO_ERROR;
+    }
+    avrc_rsp.get_attrs.attr_count = num_attr;
+    avrc_rsp.get_attrs.p_attr_list = element_attrs;
+    avrc_rsp.get_attrs.pdu = AVRC_PDU_GET_ITEM_ATTRIBUTES;
+    avrc_rsp.get_attrs.opcode = opcode_from_pdu(AVRC_PDU_GET_ITEM_ATTRIBUTES);
+    /* Send the response */
+    SEND_BROWSEMSG_RSP(IDX_GET_ITEM_ATTR_RSP, &avrc_rsp);
     return BT_STATUS_SUCCESS;
 }
 
@@ -2365,6 +2828,10 @@ static const btrc_interface_t bt_rc_interface = {
     set_volume,
     get_folderitem_rsp,
     set_addrplayer_rsp,
+    set_browseplayer_rsp,
+    changepath_rsp,
+    playitem_rsp,
+    get_itemattr_rsp,
     send_passthrough_cmd,
     cleanup,
 };
