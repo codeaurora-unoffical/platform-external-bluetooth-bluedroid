@@ -52,11 +52,12 @@
  * than 1.3 and falls back to 1.0, we would like to blacklist
  * and send AVRCP versio as 1.3.
  */
-static const UINT8 sdp_black_list_prefix[][3] = {{0x00, 0x1D, 0xBA}, /* JVC carkit */
-                                                 {0x64, 0xD4, 0xBD}, /* Honda handsfree carkit */
+static const UINT8 sdp_black_list_prefix[][3] = {{0x00, 0x1D, 0xBA},  /* JVC carkit */
+                                                 {0x64, 0xD4, 0xBD},  /* Honda handsfree carkit */
                                                  {0x00, 0x06, 0xF7},  /* Denso carkit */
                                                  {0x00, 0x1E, 0xB2},  /* AVN 3.0 Hyundai*/
-                                                 {0x00, 0x13, 0x7B}  /* BYOM Opel*/ };
+                                                 {0x00, 0x0E, 0x9F},  /* Porshe car kit */
+                                                 {0x00, 0x13, 0x7B}   /* BYOM Opel*/ };
 
 /********************************************************************************/
 /*              L O C A L    F U N C T I O N     P R O T O T Y P E S            */
@@ -114,7 +115,7 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
 
 /****************************************************************************
 **
-** Function         sdp_dev_blacklistted_for_avrcp15
+** Function         sdp_dev_blacklisted_for_avrcp15
 **
 ** Description      This function is called to check if Remote device
 **                  is blacklisted for Avrcp version.
@@ -122,7 +123,7 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
 ** Returns          BOOLEAN
 **
 *******************************************************************************/
-BOOLEAN sdp_dev_blacklistted_for_avrcp15 (BD_ADDR addr)
+BOOLEAN sdp_dev_blacklisted_for_avrcp15 (BD_ADDR addr)
 {
     int blacklistsize = 0;
     int i =0;
@@ -159,7 +160,7 @@ BOOLEAN sdp_fallback_avrcp_version (tSDP_ATTRIBUTE *p_attr, BD_ADDR remote_addre
         if (((p_attr->value_ptr[3] << 8) | (p_attr->value_ptr[4])) ==
                 UUID_SERVCLASS_AV_REMOTE_CONTROL)
         {
-            if (sdp_dev_blacklistted_for_avrcp15 (remote_address))
+            if (sdp_dev_blacklisted_for_avrcp15 (remote_address))
             {
                 p_attr->value_ptr[AVRCP_VERSION_POSITION] = 0x03; // Update AVRCP version as 1.3
                 SDP_TRACE_ERROR1("SDP Change AVRCP Version = 0x%x",

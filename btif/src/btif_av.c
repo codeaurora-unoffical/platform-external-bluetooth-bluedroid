@@ -303,7 +303,7 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data)
               */
              memcpy(&btif_av_cb.peer_bda, (bt_bdaddr_t*)p_data, sizeof(bt_bdaddr_t));
              BTA_AvOpen(btif_av_cb.peer_bda.address, btif_av_cb.bta_handle,
-                    TRUE, BTA_SEC_NONE);
+                    TRUE, BTA_SEC_AUTHENTICATE);
              btif_sm_change_state(btif_av_cb.sm_handle, BTIF_AV_STATE_OPENING);
              break;
 
@@ -1229,7 +1229,7 @@ static void allow_connection(int is_valid)
             if (is_valid)
             {
                 BTA_AvOpen(btif_av_cb.peer_bda.address, btif_av_cb.bta_handle,
-                       TRUE, BTA_SEC_NONE);
+                       TRUE, BTA_SEC_AUTHENTICATE);
             }
             else
             {
