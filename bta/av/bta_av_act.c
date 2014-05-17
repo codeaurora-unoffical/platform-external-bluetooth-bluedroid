@@ -892,19 +892,18 @@ tBTA_AV_EVT bta_av_proc_browse_cmd(tAVRC_RESPONSE  *p_rc_rsp, tBTA_AV_RC_MSG *p_
     tAVRC_MSG_BROWSE *p_browse = &p_msg->msg.browse;
 
     pdu = p_browse->p_browse_data[0];
-    APPL_TRACE_DEBUG1("bta_av_proc_browse_cmd browse cmd: %x",pdu);
+    APPL_TRACE_DEBUG1("bta_av_proc_browse_cmd browse cmd: %x", pdu);
     switch (pdu)
     {
         case AVRC_PDU_GET_FOLDER_ITEMS:
-            break;
-
         case AVRC_PDU_SET_BROWSED_PLAYER:
+        case AVRC_PDU_CHANGE_PATH:
+        case AVRC_PDU_GET_ITEM_ATTRIBUTES:
             break;
-
         default:
             evt = 0;
             p_rc_rsp->rsp.status = AVRC_STS_BAD_CMD;
-            APPL_TRACE_ERROR0("### Not supported cmd");
+            APPL_TRACE_ERROR1("### Not supported cmd: %x", pdu);
             break;
     }
     return evt;
