@@ -56,6 +56,9 @@ int set_sbc_bitrate(char *p_conf_name, char *p_conf_value);
 BD_NAME local_device_default_name = BTM_DEF_LOCAL_NAME;
 DEV_CLASS local_device_default_class = {0x40, 0x02, 0x0C};
 
+UINT16 le_scan_window = 0;
+UINT16 le_scan_interval = 0;
+
 /******************************************************************************
 **  Local type definitions
 ******************************************************************************/
@@ -240,6 +243,15 @@ void bte_load_conf(const char *p_path)
             {
                 ALOGW("bte_load_conf: missing value for name: %s", p_name);
                 continue;
+            }
+
+            if (strcmp("le_scan_window", (const char *)p_name) == 0) {
+                le_scan_window = atoi(p_value);
+                ALOGI("bte_load_conf: le_scan_window: %d", le_scan_window);
+            }
+            if (strcmp("le_scan_interval", (const char *)p_name) == 0) {
+                le_scan_interval = atoi(p_value);
+                ALOGI("bte_load_conf: le_scan_interval: %d", le_scan_interval);
             }
 
             name_matched = FALSE;
