@@ -552,7 +552,7 @@ const char * dump_rc_notification_event_id(UINT8 event_id)
         CASE_RETURN_STR(AVRC_EVT_SYSTEM_STATUS_CHANGE)
         CASE_RETURN_STR(AVRC_EVT_APP_SETTING_CHANGE)
         CASE_RETURN_STR(AVRC_EVT_VOLUME_CHANGE)
-
+        CASE_RETURN_STR(AVRC_EVT_NOW_PLAYING_CHANGE)
         default:
             return "Unhandled Event ID";
     }
@@ -577,6 +577,7 @@ const char*  dump_rc_pdu(UINT8 pdu)
         CASE_RETURN_STR(AVRC_PDU_ABORT_CONTINUATION_RSP)
         CASE_RETURN_STR(AVRC_PDU_SET_ABSOLUTE_VOLUME)
         CASE_RETURN_STR(AVRC_PDU_SET_ADDRESSED_PLAYER)
+        CASE_RETURN_STR(AVRC_PDU_CHANGE_PATH)
         default:
             return "Unknown PDU";
     }

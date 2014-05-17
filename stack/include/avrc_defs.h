@@ -1098,7 +1098,7 @@ typedef struct
     UINT32      start_item;
     UINT32      end_item;
     UINT8       attr_count;
-    UINT32      *p_attr_list;
+    UINT32      attrs[AVRC_MAX_ELEM_ATTR_SIZE];
 } tAVRC_GET_ITEMS_CMD;
 
 /* ChangePath */
@@ -1109,7 +1109,7 @@ typedef struct
     UINT8       opcode;         /* Op Code (assigned by AVRC_BldCommand according to pdu) */
     UINT16      uid_counter;
     UINT8       direction;
-    tAVRC_UID   folder_uid;
+    UINT64      folder_uid;
 } tAVRC_CHG_PATH_CMD;
 
 /* GetItemAttrs */
@@ -1119,10 +1119,10 @@ typedef struct
     tAVRC_STS   status;
     UINT8       opcode;         /* Op Code (assigned by AVRC_BldCommand according to pdu) */
     UINT8       scope;
-    tAVRC_UID   uid;
+    UINT64      uid;
     UINT16      uid_counter;
     UINT8       attr_count;
-    UINT32      *p_attr_list;
+    UINT32      attrs[AVRC_MAX_ELEM_ATTR_SIZE];
 } tAVRC_GET_ATTRS_CMD;
 
 /* Search */
@@ -1141,7 +1141,7 @@ typedef struct
     tAVRC_STS   status;
     UINT8       opcode;         /* Op Code (assigned by AVRC_BldCommand according to pdu) */
     UINT8       scope;
-    tAVRC_UID   uid;
+    UINT64      uid;
     UINT16      uid_counter;
 } tAVRC_PLAY_ITEM_CMD;
 
