@@ -717,6 +717,7 @@ static bt_status_t connect_int( bt_bdaddr_t *bd_addr , uint16_t uuid)
 {
     CHECK_BTHF_INIT();
     int i;
+
     for (i = 0; i < btif_max_hf_clients;)
     {
        if (((btif_hf_cb[i].state == BTHF_CONNECTION_STATE_CONNECTED) ||
@@ -725,6 +726,10 @@ static bt_status_t connect_int( bt_bdaddr_t *bd_addr , uint16_t uuid)
        else
            break;
     }
+
+    if (i == btif_max_hf_clients)
+        return BT_STATUS_BUSY;
+
     if (!is_connected(bd_addr))
     {
         btif_hf_cb[i].state = BTHF_CONNECTION_STATE_CONNECTING;
