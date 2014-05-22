@@ -151,9 +151,12 @@ void smp_rsp_timeout(TIMER_LIST_ENT *p_tle)
 {
     tSMP_CB   *p_cb = &smp_cb;
     UINT8 failure = SMP_RSP_TIMEOUT;
+    SMP_TRACE_EVENT2("smp_rsp_timeout state:%d, role=%d", p_cb->state, p_cb->role);
 
-    SMP_TRACE_EVENT1("smp_rsp_timeout state:%d", p_cb->state);
-
+    if(smp_get_state() == SMP_ST_SEC_REQ_PENDING && p_cb->role == BTM_ROLE_SLAVE)
+    {
+        failure = SMP_SEC_REQ_TOUT;
+    }
     if (smp_get_state() == SMP_ST_RELEASE_DELAY)
     {
         smp_sm_event(p_cb, SMP_RELEASE_DELAY_TOUT_EVT, NULL);
