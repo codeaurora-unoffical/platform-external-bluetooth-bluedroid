@@ -51,6 +51,7 @@ LOCAL_SRC_FILES += \
     ../btif/src/btif_profile_queue.c \
     ../btif/src/bluetoothTrack.cpp \
     ../btif/src/btif_gatt_qual.c \
+    ../btif/src/btif_smp.c \
     ../btif/src/btif_gap.c \
     ../btif/src/btif_l2cap.c \
     ../btif/src/btif_sdp.c \
