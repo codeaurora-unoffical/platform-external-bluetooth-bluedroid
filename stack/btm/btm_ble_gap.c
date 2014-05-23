@@ -60,6 +60,11 @@ static UINT8 btm_set_conn_mode_adv_init_addr(tBTM_BLE_INQ_CB *p_cb,
 static BOOLEAN btm_ble_start_adv(void);
 static tBTM_STATUS btm_ble_stop_adv(void);
 
+/* paramaters to set the scan window and interval sizes dynamically */
+extern UINT16    le_scan_window;
+extern UINT16    le_scan_interval;
+
+
 
 
 /*******************************************************************************
@@ -2555,6 +2560,12 @@ void btm_ble_init (void)
 
     /* for background connection, reset connection params to be undefined */
     p_cb->scan_int = p_cb->scan_win = BTM_BLE_CONN_PARAM_UNDEF;
+
+    /* load the sca parameters and scan window for configurable duty cycle */
+    if(le_scan_window != 0)
+        p_cb->inq_var.scan_window = le_scan_window;
+    if(le_scan_interval != 0)
+        p_cb->inq_var.scan_interval = le_scan_interval;
 
     p_cb->inq_var.evt_type = BTM_BLE_UNKNOWN_EVT;
     BTM_TRACE_EVENT0("calling read Tx Power from init fn");
