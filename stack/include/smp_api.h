@@ -63,6 +63,7 @@ typedef UINT8   tSMP_EVT;
 #define SMP_DIV_NOT_AVAIL           0x12
 #define SMP_FAIL                    0x13 /* unspecified failed reason */
 #define SMP_CONN_TOUT               0x14 /* unspecified failed reason */
+#define SMP_SEC_REQ_TOUT            0x15
 #define SMP_SUCCESS                 0
 
 typedef UINT8 tSMP_STATUS;

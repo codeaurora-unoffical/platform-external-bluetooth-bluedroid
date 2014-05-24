@@ -1193,6 +1193,19 @@ tBTM_STATUS btm_ble_set_encryption (BD_ADDR bd_addr, void *p_ref_data, UINT8 lin
                 }
                 break;
             }
+            else if(link_role == BTM_ROLE_SLAVE)
+            {
+                if(p_rec->sec_state == BTM_SEC_STATE_ENCRYPTING) {
+                    BTM_TRACE_DEBUG0 ("State is already encrypting::");
+                    cmd = BTM_CMD_STARTED;
+                }
+                else if (SMP_Pair(bd_addr) == SMP_STARTED)
+                {
+                    cmd = BTM_CMD_STARTED;
+                    p_rec->sec_state = BTM_SEC_STATE_ENCRYPTING;
+                }
+                break;
+            }
             /* if salve role then fall through to call SMP_Pair below which will send a
                sec_request to request the master to encrypt the link */
         case BTM_BLE_SEC_ENCRYPT_NO_MITM:
@@ -1654,10 +1667,12 @@ UINT8 btm_proc_smp_cback(tSMP_EVT event, BD_ADDR bd_addr, tSMP_EVT_DATA *p_data)
     tBTM_SEC_DEV_REC    *p_dev_rec = btm_find_dev (bd_addr);
     UINT8 res = 0;
 
-    BTM_TRACE_DEBUG3 ("btm_proc_smp_cback event = %d, state=%d btm_cb.pairing_bda[5]=0x%0x", event, btm_cb.pairing_state, btm_cb.pairing_bda[5]);
+    BTM_TRACE_DEBUG3 ("btm_proc_smp_cback event = %d, state=%d btm_cb.pairing_bda[5]=0x%0x",
+                        event, btm_cb.pairing_state, btm_cb.pairing_bda[5]);
 
     if (p_dev_rec != NULL)
     {
+        BTM_TRACE_DEBUG2("enc_state=%d, is_master=%d", p_dev_rec->sec_state, p_dev_rec->role_master);
         switch (event)
         {
             case SMP_IO_CAP_REQ_EVT:
@@ -1681,7 +1696,8 @@ UINT8 btm_proc_smp_cback(tSMP_EVT event, BD_ADDR bd_addr, tSMP_EVT_DATA *p_data)
                 p_dev_rec->sec_state = BTM_SEC_STATE_AUTHENTICATING;
                 /* fall through */
             case SMP_COMPLT_EVT:
-                if (btm_cb.api.p_le_callback)
+                if (btm_cb.api.p_le_callback &&
+                    !(p_data->cmplt.reason == SMP_SEC_REQ_TOUT && p_dev_rec->sec_state == BTM_SEC_STATE_ENCRYPTING && !p_dev_rec->role_master))
                 {
                     /* the callback function implementation may change the IO capability... */
                     BTM_TRACE_DEBUG1 ("btm_cb.api.p_le_callback=0x%x", btm_cb.api.p_le_callback );
@@ -1693,6 +1709,12 @@ UINT8 btm_proc_smp_cback(tSMP_EVT event, BD_ADDR bd_addr, tSMP_EVT_DATA *p_data)
                     BTM_TRACE_DEBUG2 ("evt=SMP_COMPLT_EVT before update sec_level=0x%x sec_flags=0x%x", p_data->cmplt.sec_level , p_dev_rec->sec_flags );
 
                     res = (p_data->cmplt.reason == SMP_SUCCESS) ? BTM_SUCCESS : BTM_ERR_PROCESSING;
+
+                    if(p_data->cmplt.reason == SMP_SEC_REQ_TOUT && p_dev_rec->sec_state == BTM_SEC_STATE_ENCRYPTING && !p_dev_rec->role_master)
+                    {
+                        res = BTM_DEVICE_TIMEOUT;
+                        p_dev_rec->sec_state = BTM_SEC_STATE_IDLE;
+                    }
 
                     BTM_TRACE_DEBUG3 ("after update result=%d sec_level=0x%x sec_flags=0x%x",
                                       res, p_data->cmplt.sec_level , p_dev_rec->sec_flags );
