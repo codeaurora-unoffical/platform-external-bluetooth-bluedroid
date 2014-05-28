@@ -2840,7 +2840,7 @@ static void btif_dm_ble_auth_cmpl_evt (tBTA_DM_AUTH_CMPL *p_auth_cmpl)
         state = BT_BOND_STATE_BONDED;
 
         btif_dm_save_ble_bonding_keys();
-        BTA_GATTC_Refresh(bd_addr.address);
+        BTA_GATTC_Refresh_No_Discovery(bd_addr.address);
         btif_dm_get_remote_services(&bd_addr);
     }
     else

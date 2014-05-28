@@ -116,6 +116,11 @@ typedef UINT8 tBTA_GATT_STATUS;
 #define BTA_GATTC_SRVC_CHG_EVT      15  /* service change event */
 #define BTA_GATTC_LISTEN_EVT        16  /* listen event */
 
+/* Cache refresh directives */
+#define BTA_GATTC_REFRESH_DISCOVERY     0  /* Cache Refresh with Service Discovery */
+#define BTA_GATTC_REFRESH_NO_DISCOVERY  1  /* Cache Refresh without Service Discovery */
+
+
 typedef UINT8 tBTA_GATTC_EVT;
 
 typedef tGATT_IF tBTA_GATTC_IF;
@@ -1004,6 +1009,19 @@ BTA_API extern void BTA_GATTC_ReadMultiple(UINT16 conn_id, tBTA_GATTC_MULTI *p_r
 **
 *******************************************************************************/
 BTA_API extern void BTA_GATTC_Refresh(BD_ADDR remote_bda);
+
+/*******************************************************************************
+**
+** Function         BTA_GATTC_Refresh_No_Discovery
+**
+** Description      Refresh the server cache of the remote device if not connected
+**
+** Parameters       remote_bda: remote device BD address.
+**
+** Returns          void
+**
+*******************************************************************************/
+BTA_API extern void BTA_GATTC_Refresh_No_Discovery(BD_ADDR remote_bda);
 
 
 /*******************************************************************************
