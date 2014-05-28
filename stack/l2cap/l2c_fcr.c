@@ -345,7 +345,7 @@ BT_HDR *l2c_fcr_clone_buf (BT_HDR *p_buf, UINT16 new_offset, UINT16 no_of_bytes,
     }
 
 #if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
-    if ((p_buf2 = (BT_HDR *)GKI_getbuf(no_of_bytes)) != NULL)
+    if ((p_buf2 = (BT_HDR *)GKI_getbuf(no_of_bytes + sizeof(BT_HDR) + new_offset)) != NULL)
 #else
     if ((p_buf2 = (BT_HDR *)GKI_getpoolbuf(pool)) != NULL)
 #endif
