@@ -1260,6 +1260,10 @@ void btif_a2dp_set_audio_focus_state(btif_media_AudioFocus_state state)
 {
     APPL_TRACE_EVENT1("## Audio_focus_state Rx %d ##", state);
     btif_media_cb.rx_audio_focus_gained = state;
+    if (btif_media_cb.rx_audio_focus_gained == BTIF_MEDIA_AUDIOFOCUS_LOSS)
+    {
+        btif_a2dp_set_rx_flush(TRUE);
+    }
 }
 
 /*****************************************************************************
@@ -1312,6 +1316,8 @@ static void btif_media_task_avk_handle_timer ( void )
     int num_sbc_frames;
     int num_frames_to_process;
 
+    APPL_TRACE_DEBUG2("btif_media_task_avk_handle_timer: rx_flush: %d, focus: %d", \
+        btif_media_cb.rx_flush, btif_media_cb.rx_audio_focus_gained);
     count = btif_media_cb.RxSbcQ.count;
     if (0 == count)
     {
@@ -1324,23 +1330,14 @@ static void btif_media_task_avk_handle_timer ( void )
             btif_media_flush_q(&(btif_media_cb.RxSbcQ));
             return;
         }
-        if (btif_media_cb.rx_audio_focus_gained == BTIF_MEDIA_AUDIOFOCUS_LOSS_TRANSIENT)
-        {
-            APPL_TRACE_DEBUG0("Received Transient Focus Loss, Ignoring");
-            return;
-        }
 
-        if (btif_media_cb.rx_audio_focus_gained == BTIF_MEDIA_AUDIOFOCUS_LOSS)
-        {
-            /* Send a Audio Focus Request */
-            btif_av_request_audio_focus(TRUE);
-            return;
-        }
         if (btif_media_cb.RxSbcQ.count > 3)
             num_frames_to_process = 2* btif_media_cb.frames_to_process;
         else
             num_frames_to_process = btif_media_cb.frames_to_process;
+
         APPL_TRACE_DEBUG0(" Process Frames + ");
+        APPL_TRACE_DEBUG1("Audio focus state: %d", btif_media_cb.rx_audio_focus_gained);
 
         do
         {
