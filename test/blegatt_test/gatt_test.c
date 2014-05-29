@@ -718,6 +718,17 @@ void check_return_status(bt_status_t status)
         bdt_log("HAL REQUEST SUCCESS");
     }
 }
+static void do_set_adv_params(char *p)
+{
+    bt_bdaddr_t bd_addr = {{0}};
+    int int_min = 0x0, int_max = 0x0, addr_type = 0;
+    int_max = get_int(&p, -1);
+    int_min = get_int(&p, -1);
+    if(int_max < int_min)
+        return;
+    if(FALSE == GetBdAddr(p, &bd_addr))    return;
+    sBtInterface->le_set_adv_params(int_min, int_max, &bd_addr, addr_type);
+}
 
 static void do_start_advertisment(char *p)
 {
@@ -832,7 +843,6 @@ static bt_callbacks_t bt_callbacks = {
     NULL, /* remote_device_properties_cb */
     NULL, /* device_found_cb */
     discovery_state_changed, /* discovery_state_changed_cb */
-    NULL,
     pin_request_cb, /* pin_request_cb  */
     ssp_request_cb, /* ssp_request_cb  */
     bond_state_changed_cb, /*bond_state_changed_cb */
@@ -1722,6 +1732,7 @@ const t_cmd console_cmd_list[] =
     //{ "smp_encrypt", do_smp_encrypt, "::", 0 },
     { "l2cap_send_data_cid", do_l2cap_send_data_cid, ":: BdAddr<00112233445566>, CID<>", 0 },
 
+    { "set_adv_parameters", do_set_adv_params, ":: int_max, int_min, BdAddr<00112233445566>", 0 },
     { "start_advertising", do_start_advertisment, ":: starts advertisment <mode> \
                                                       \n\t 0 - BLE_ADV_MODE_NONE \
                                                       \n\t 1 - BLE_ADV_IND_GENERAL_CONNECTABLE \
