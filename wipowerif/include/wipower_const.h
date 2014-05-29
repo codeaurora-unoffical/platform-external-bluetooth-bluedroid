@@ -43,6 +43,14 @@
 #define WP_HCI_EVENT_DATA     0x16
 #define WP_HCI_EVENT_POWER_ON 0x17
 
-void enable_power_apply(bool enable, bool on);
+/*
+ * enable: 0x00 disabled, 0x01 enabled: enable/disable detection command
+ * on: 0x00 power down  [event on PRU placed on to PTU]
+ *     0x01 power up    [event on PRU taken out of PTU]
+ * time_flag: if true then host advertises on 600ms and if false its for 30ms
+ * i.e. for PTU to short beacon on long beacon detection on charge complete or
+ * charge required.
+ */
+int enable_power_apply(bool enable, bool on, bool time_flag);
 
 #endif /*_WIPOWER_CONSTANTS_H_*/
