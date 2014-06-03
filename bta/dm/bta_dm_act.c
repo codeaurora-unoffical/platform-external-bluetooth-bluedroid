@@ -5522,7 +5522,8 @@ static void bta_dm_gatt_disc_complete(UINT16 conn_id, tBTA_GATT_STATUS status)
 {
     tBTA_DM_MSG *p_msg;
 
-    APPL_TRACE_DEBUG1("bta_dm_gatt_disc_complete conn_id = %d",conn_id);
+    APPL_TRACE_DEBUG3("bta_dm_gatt_disc_complete conn_id = %d, status=%d, uuid_to_search=%d",
+                       conn_id, status, bta_dm_search_cb.uuid_to_search);
 
     if (bta_dm_search_cb.uuid_to_search > 0) bta_dm_search_cb.uuid_to_search --;
 
@@ -5532,6 +5533,9 @@ static void bta_dm_gatt_disc_complete(UINT16 conn_id, tBTA_GATT_STATUS status)
     }
     else
     {
+#if BLE_INCLUDED == TRUE
+        L2CA_EnableUpdateBleConnParams(bta_dm_search_cb.peer_bdaddr, TRUE);
+#endif
         bta_dm_search_cb.uuid_to_search = 0;
 
         /* no more services to be discovered */
