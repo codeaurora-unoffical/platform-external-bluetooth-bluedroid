@@ -9,7 +9,7 @@ else
   bdroid_CFLAGS := -DHAS_NO_BDROID_BUILDCFG
 endif
 
-ifneq ($(call is-board-platform-in-list,msm8960 msm8930 apq8064),true)
+ifneq ($(call is-board-platform-in-list,msm8930 apq8064),true)
  ifeq ($(TARGET_USE_SBC_DECODER),true)
   bdroid_CFLAGS += -DBTA_AVK_INCLUDED
  endif
