@@ -197,7 +197,19 @@ void l2cu_release_lcb (tL2C_LCB *p_lcb)
 
 #if (BLE_INCLUDED == TRUE)
     p_lcb->is_ble_link = FALSE;
-    l2cb.is_ble_connecting = FALSE;
+    /*reset ble connecting flag only if the addr matches*/
+    if(!memcmp(l2cb.ble_connecting_bda,p_lcb->remote_bd_addr, BD_ADDR_LEN))
+    {
+        l2cb.is_ble_connecting = FALSE;
+    }
+    else
+    {
+        L2CAP_TRACE_DEBUG4("l2cu_release_lcb: disconnected bda: %08x%04x does not match LE connecting bda:%08x%04x",
+                            (p_lcb->remote_bd_addr[0]<<24)+(p_lcb->remote_bd_addr[1]<<16)+(p_lcb->remote_bd_addr[2]<<8)+(p_lcb->remote_bd_addr[3]),
+                            (p_lcb->remote_bd_addr[4]<<8)+(p_lcb->remote_bd_addr[5]),
+                            (l2cb.ble_connecting_bda[0]<<24)+(l2cb.ble_connecting_bda[1]<<16)+(l2cb.ble_connecting_bda[2]<<8)+l2cb.ble_connecting_bda[3],
+                            (l2cb.ble_connecting_bda[4]<<8)+l2cb.ble_connecting_bda[5]);
+    }
 #endif
 
 #if (L2CAP_NUM_FIXED_CHNLS > 0)
