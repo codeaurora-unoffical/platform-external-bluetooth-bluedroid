@@ -46,6 +46,7 @@ static BOOLEAN l2c_link_send_to_lower (tL2C_LCB *p_lcb, BT_HDR *p_buf);
 #define L2C_LINK_SEND_BLE_ACL_DATA(x)  HCI_BLE_ACL_DATA_TO_LOWER((x))
 #endif
 
+#define HI_PRI_LINK_QUOTA 2 //Mininum ACL buffer quota for high priority link
 /*******************************************************************************
 **
 ** Function         l2c_link_hci_conn_req
@@ -860,6 +861,14 @@ void l2c_link_adjust_allocation (void)
     while ( (num_hipri_links * high_pri_link_quota + low_quota) > controller_xmit_quota )
         high_pri_link_quota--;
 
+    /*Adjust high pri link with min 3 buffers*/
+    if(num_hipri_links > 0)
+    {
+      if(high_pri_link_quota < HI_PRI_LINK_QUOTA)
+      {
+        high_pri_link_quota  = HI_PRI_LINK_QUOTA;
+      }
+    }
     /* Work out the xmit quota and buffer quota high and low priorities */
     hi_quota  = num_hipri_links * high_pri_link_quota;
     low_quota = (hi_quota < controller_xmit_quota) ? controller_xmit_quota - hi_quota : 1;
