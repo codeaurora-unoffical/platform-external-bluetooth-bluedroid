@@ -343,8 +343,17 @@ tBTM_STATUS BTM_BleObserve_With_Filter(BOOLEAN start, UINT8 duration, tBTA_DM_BL
     }
     else if (p_inq->proc_mode == BTM_BLE_OBSERVE)
     {
-        btm_cb.btm_inq_vars.inq_active &= ~BTM_LE_OBSERVE_ACTIVE;
-        btm_ble_stop_scan();
+        if(btm_cb.btm_inq_vars.scan_type == INQ_GENERAL)
+        {
+            //Dont stop the scan. Just nullify the cbs
+            btm_cb.btm_inq_vars.p_inq_ble_results_cb = NULL;
+            btm_cb.btm_inq_vars.p_inq_ble_cmpl_cb = NULL;
+        }
+        else if (p_inq->proc_mode == BTM_BLE_OBSERVE)
+        {
+            btm_cb.btm_inq_vars.inq_active &= ~BTM_LE_OBSERVE_ACTIVE;
+            btm_ble_stop_scan();
+        }
     }
 
     BTM_TRACE_EVENT0 ("BTM_BleObserve_With_Filter exit\n");

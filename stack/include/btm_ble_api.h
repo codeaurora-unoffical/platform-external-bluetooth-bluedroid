@@ -217,6 +217,7 @@ typedef struct
 #define BTM_BLE_AD_BIT_APPEARANCE      (0x0001 << 11)
 #define BTM_BLE_AD_BIT_PUBLIC_ADDR     (0x0001 << 12)
 #define BTM_BLE_AD_BIT_RANDOM_ADDR     (0x0001 << 13)
+#define BTM_BLE_AD_BIT_PROPRIETARY (0x0001 << 15)
 
 #define BTM_BLE_AD_BIT_VS_DATA         (0x0001 << 15)
 
