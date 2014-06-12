@@ -807,26 +807,16 @@ void bta_ag_send_call_inds(tBTA_AG_SCB *p_scb, tBTA_AG_RES result)
     {
         call = BTA_AG_CALL_INACTIVE;
     }
-    else if (result == BTA_AG_IN_CALL_CONN_RES || result == BTA_AG_IN_CALL_HELD_RES)
+    else if (result == BTA_AG_IN_CALL_CONN_RES || result == BTA_AG_OUT_CALL_CONN_RES
+             || result == BTA_AG_IN_CALL_HELD_RES)
     {
         call = BTA_AG_CALL_ACTIVE;
-    }
-    else if (result == BTA_AG_OUT_CALL_CONN_RES)
-    {
-        call = BTA_AG_CALL_ACTIVE;
-        /* HS may be connected in an ongoing active/held
-        call. Another call setup may be ongoing. In such
-        case updating callsetup value based on BTA_AgResult
-        will cause multiple updates sent to remote. Update
-        callsetup value to actual p_scb->callsetup_ind */
-        callsetup = p_scb->callsetup_ind;
-        APPL_TRACE_DEBUG2("bta_ag_send_call_inds: res = %d callsetup = %d",
-                          result, callsetup);
     }
     else
     {
         call = p_scb->call_ind;
     }
+
 
     /* Send indicator function tracks if the values have actually changed */
     bta_ag_send_ind(p_scb, BTA_AG_IND_CALL, call, FALSE);
@@ -1573,6 +1563,22 @@ void bta_ag_hfp_result(tBTA_AG_SCB *p_scb, tBTA_AG_API_RESULT *p_result)
                 !(p_scb->features & BTA_AG_FEAT_NOSCO))
             {
                 bta_ag_sco_open(p_scb, (tBTA_AG_DATA *) p_result);
+            }
+            break;
+
+        case BTA_AG_MULTI_CALL_RES:
+            /* open sco at SLC for this three way call */
+            APPL_TRACE_DEBUG0("Headset Connected in three way call");
+            if (!(p_scb->features & BTA_AG_FEAT_NOSCO))
+                {
+                if (p_result->data.audio_handle == bta_ag_scb_to_idx(p_scb))
+                {
+                    bta_ag_sco_open(p_scb, (tBTA_AG_DATA *) p_result);
+                }
+                else if (p_result->data.audio_handle == BTA_AG_HANDLE_NONE)
+                {
+                    bta_ag_sco_close(p_scb, (tBTA_AG_DATA *) p_result);
+                }
             }
             break;
 
