@@ -1262,6 +1262,18 @@ BTA_API extern void BTA_DmSendBleConnUpdate (BD_ADDR remote_addr, UINT16 interva
 
 /*******************************************************************************
 **
+** Function         BTA_DmSetBleTxPowerLevel
+**
+** Description      This function sets LE Tx power level
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+BTA_API extern void BTA_DmSetBleTxPowerLevel (UINT8 tx_power_level);
+
+/*******************************************************************************
+**
 ** Function         BTA_DmSetAfhChannels
 **
 ** Description      This function sets the AFH first and

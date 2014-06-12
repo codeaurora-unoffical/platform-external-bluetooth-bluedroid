@@ -458,4 +458,16 @@ bt_status_t btif_send_le_conn_update(bt_bdaddr_t *remote_bda, uint16_t interval_
                                      uint16_t interval_max, uint16_t latency,
                                      uint16_t supervision_timeout);
 
+/*******************************************************************************
+**
+** Function         btif_set_le_tx_power_level
+**
+** Description      Set LE Tx Power Level
+**
+**
+** Returns          bt_status_t
+**
+*******************************************************************************/
+bt_status_t btif_set_le_tx_power_level(uint8_t tx_power_level);
+
 #endif /* BTIF_API_H */

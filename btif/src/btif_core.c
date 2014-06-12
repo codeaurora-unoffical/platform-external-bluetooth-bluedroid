@@ -1607,6 +1607,24 @@ bt_status_t btif_send_le_conn_update(bt_bdaddr_t *remote_addr,
                            supervision_timeout);
     return BT_STATUS_SUCCESS;
 }
+
+/*******************************************************************************
+**
+** Function         btif_set_le_tx_power_level
+**
+** Description      sets BLE Tx power level
+**
+** Returns          bt_status_t
+**
+*******************************************************************************/
+bt_status_t btif_set_le_tx_power_level(uint8_t tx_power_level)
+{
+    if (!btif_is_enabled())
+        return BT_STATUS_NOT_READY;
+    BTIF_TRACE_EVENT0("btif_set_le_tx_power_level");
+    BTA_DmSetBleTxPowerLevel(tx_power_level);
+    return BT_STATUS_SUCCESS;
+}
 /*******************************************************************************
 **
 ** Function         btif_set_le_adv_params

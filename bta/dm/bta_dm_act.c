@@ -485,6 +485,21 @@ void bta_dm_ble_send_conn_update (tBTA_DM_MSG *p_data)
 
 /*******************************************************************************
 **
+** Function         bta_dm_ble_set_tx_power_level
+**
+** Description      This function sets LE TX power level
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+void bta_dm_ble_set_tx_power_level (tBTA_DM_MSG *p_data)
+{
+    BTM_BleSetTxPowerLevel(p_data->ble_set_tx_pwr_level.tx_power_level);
+}
+
+/*******************************************************************************
+**
 ** Function         bta_dm_disable
 **
 ** Description      Disables the BT device manager
