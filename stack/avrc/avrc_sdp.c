@@ -265,6 +265,10 @@ UINT16 AVRC_AddRecord(UINT16 service_uuid, char *p_service_name,
 
     /* add profile descriptor list   */
 #if SDP_AVRCP_1_5 == TRUE
+    /* additional protocol list to include browsing channel */
+    result &= SDP_AddAdditionProtoLists( sdp_handle, AVRC_NUM_ADDL_PROTO_ELEMS,
+                                    (tSDP_PROTO_LIST_ELEM *)avrc_add_proto_list);
+
     result &= SDP_AddProfileDescriptorList(sdp_handle, UUID_SERVCLASS_AV_REMOTE_CONTROL, AVRC_REV_1_5);
 #else
 #if SDP_AVRCP_1_4 == TRUE
