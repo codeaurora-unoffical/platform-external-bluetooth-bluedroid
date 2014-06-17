@@ -84,7 +84,7 @@ int hci_btsnoop_fd = -1;
 static int local_ext_parser_fd = -1;
 static void local_ext_parser_thread(void* param);
 static void local_ext_parser_detached(void);
-static pthread_t local_parser_thread_id;
+static pthread_t local_parser_thread_id = 0;
 static int s_listen_local = -1;
 static int local_parser_active = 0;
 
@@ -289,7 +289,7 @@ static int btsnoop_log_close(void)
         hci_btsnoop_fd = -1;
         return 1;
     }
-    if (local_parser_active == 1)
+    if (local_parser_active == 1 && local_parser_thread_id > 0)
     {
         ALOGD("Stopping Ext dump process :");
         pthread_kill(local_parser_thread_id, SIGUSR2);
@@ -297,6 +297,7 @@ static int btsnoop_log_close(void)
         local_ext_parser_detached();
         property_set("bluetooth.startbtsnoop", "false");
         local_parser_active = 0;
+        local_parser_thread_id = 0;
     }
     return 0;
 #else
@@ -529,7 +530,7 @@ static int local_ext_parser_accept(void)
     return conn_sk;
 }
 
-static pthread_t thread_id;
+static pthread_t thread_id = 0;
 static int s_listen = -1;
 static int ext_parser_fd = -1;
 static long int gmt_offset;
@@ -888,10 +889,18 @@ void btsnoop_close(void)
 void btsnoop_cleanup (void)
 {
 #if defined(BTSNOOP_EXT_PARSER_INCLUDED) && (BTSNOOP_EXT_PARSER_INCLUDED == TRUE)
-    ALOGD("btsnoop_cleanup");
-    pthread_kill(thread_id, SIGUSR2);
-    pthread_join(thread_id, NULL);
-    ext_parser_detached();
+    if (thread_id > 0)
+    {
+        ALOGD("btsnoop_cleanup");
+        pthread_kill(thread_id, SIGUSR2);
+        pthread_join(thread_id, NULL);
+        ext_parser_detached();
+        thread_id = 0;
+    }
+    else
+    {
+        ALOGD("btsnoop_cleanup failed");
+    }
 #endif
 }
 
