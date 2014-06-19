@@ -61,11 +61,8 @@ const UINT16  bta_av_audio_flush_to[] = {
 /* Note: if AVRC_SUPF_TG_GROUP_NAVI is set, bta_av_cfg.avrc_group should be TRUE */
 #if AVRC_METADATA_INCLUDED == TRUE
 
-#if AVCT_BROWSE_INCLUDED == TRUE
-#define BTA_AV_RC_SUPF_TG       (AVRC_SUPF_TG_CAT1 | AVRC_SUPF_TG_BROWSE | AVRC_SUPF_TG_APP_SETTINGS)
-#else
+/* Note: AVRC_SUPF_TG_BROWSE, to be Or'd only when VFS browsing support is present*/
 #define BTA_AV_RC_SUPF_TG       (AVRC_SUPF_TG_CAT1 | AVRC_SUPF_TG_APP_SETTINGS)
-#endif
 
 #else
 #define BTA_AV_RC_SUPF_TG       (AVRC_SUPF_TG_CAT1)
