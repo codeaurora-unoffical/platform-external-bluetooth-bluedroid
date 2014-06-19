@@ -871,6 +871,7 @@ void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV *p_data)
             BTIF_TRACE_DEBUG2("BTA_AV_BROWSE_MSG_EVT  label:%d handle:%d", p_data->browse_msg.label,
                 p_data->browse_msg.rc_handle);
             handle_rc_browsemsg_cmd(&(p_data->browse_msg));
+            GKI_freebuf(p_data->browse_msg.p_msg);
         }
         break;
         default:
