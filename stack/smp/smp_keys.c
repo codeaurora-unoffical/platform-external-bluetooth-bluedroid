@@ -52,6 +52,9 @@ static void smp_calculate_comfirm_cont(tSMP_CB *p_cb, tSMP_ENC *p);
 static void smp_process_confirm(tSMP_CB *p_cb, tSMP_ENC *p);
 static void smp_process_compare(tSMP_CB *p_cb, tSMP_ENC *p);
 static void smp_process_ediv(tSMP_CB *p_cb, tSMP_ENC *p);
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+static void smp_generate_mackey(tSMP_CB *p_cb, tSMP_INT_DATA *p_data, UINT8 counter);
+#endif
 
 static const tSMP_ACT smp_encrypt_action[] =
 {
@@ -233,6 +236,15 @@ void smp_generate_stk (tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
 
     SMP_TRACE_DEBUG ("smp_generate_stk ");
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    if(p_cb->is_secure)
+    {
+        /*simply compute the ltk*/
+        smp_compute_sc_ltk(p_cb, p_data);
+    }
+    else
+    {
+#endif
     memset(p, 0, BT_OCTET16_LEN);
     if (p_cb->role == HCI_ROLE_MASTER)
     {
@@ -255,6 +267,9 @@ void smp_generate_stk (tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
     {
         smp_process_stk(p_cb, &output);
     }
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    }
+#endif
 
 }
 /*******************************************************************************
@@ -273,11 +288,912 @@ void smp_generate_confirm (tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
     UNUSED(p_data);
 
     SMP_TRACE_DEBUG ("smp_generate_confirm");
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    if(p_cb->is_secure)
+    {
+        smp_generate_nonce(p_cb, p_data);
+        return;
+    }
+#endif
     p_cb->rand_enc_proc = SMP_GEN_SRAND_MRAND;
     /* generate MRand or SRand */
     if (!btsnd_hcic_ble_rand((void *)smp_rand_back))
         smp_rand_back(NULL);
 }
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+
+/*******************************************************************************
+**
+** Function         smp_generate_nonce
+**
+** Description      This function is called to generate random number
+**                  for LE SC.
+**
+** Returns          void
+**
+*******************************************************************************/
+void smp_generate_nonce (tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
+{
+    SMP_TRACE_DEBUG("%s", __FUNCTION__);
+    p_cb->rand_enc_proc = SMP_GEN_SRAND_MRAND;
+    /* generate MRand or SRand */
+    if (!btsnd_hcic_ble_rand((void *)smp_rand_back))
+        smp_rand_back(NULL);
+}
+
+/*******************************************************************************
+**
+** Function         smp_generate_oob_confirm
+**
+** Description      This function is called to generate OOB confirm and
+**                  rand values for LE SC.
+**
+** Returns          void
+**
+*******************************************************************************/
+void smp_generate_oob_confirm (tSMP_CB *p_cb)
+{
+    SMP_TRACE_DEBUG("%s", __FUNCTION__);
+    UINT8 *p = NULL;
+    BT_OCTET64 pk;
+    UINT8 *p_start, *p_out;
+    UINT8 z = 0x00;
+    tSMP_KEY    key;
+
+    UINT8 *loc_pubx = pk;// + 32;
+
+    if((p = (UINT8 *)GKI_getbuf((SMP_ENCRYT_DATA_SIZE*6))) == NULL)
+    {
+        SMP_TRACE_ERROR("%s: error allocating buffer", __FUNCTION__);
+        return;
+    }
+    memset(p, 0, SMP_ENCRYT_DATA_SIZE * 6);
+    p_start = p;
+    BTM_GetDevicePubKey ( pk );
+    /*align the X cord of own public key */
+    REVERSE_ARRAY_TO_STREAM(p, loc_pubx, SMP_ENCRYT_DATA_SIZE * 2);
+    /*align the X cord of own public key */
+    REVERSE_ARRAY_TO_STREAM(p, loc_pubx, SMP_ENCRYT_DATA_SIZE * 2);
+    /*align the nonce*/
+    REVERSE_ARRAY_TO_STREAM(p, p_cb->rand, SMP_ENCRYT_DATA_SIZE);
+
+    aes_f4(p_start, p_start + SMP_ENCRYT_DATA_SIZE * 2,
+           p_start + SMP_ENCRYT_DATA_SIZE * 4, &z, p_start + SMP_ENCRYT_DATA_SIZE * 5);
+    p_out = p_start + (SMP_ENCRYT_DATA_SIZE * 5);
+    REVERSE_STREAM_TO_ARRAY (p_cb->confirm, p_out, SMP_ENCRYT_DATA_SIZE);
+
+    smp_debug_print_nbyte_little_endian(p_cb->confirm, (const UINT8 *)"------oob confirm value-----", 16);
+    smp_debug_print_nbyte_little_endian(p_cb->rand, (const UINT8 *)"------oob rand value-----", 16);
+    memcpy(p_cb->loob, p_cb->rand, SMP_ENCRYT_DATA_SIZE);
+    GKI_freebuf(p_start);
+}
+
+/*******************************************************************************
+**
+** Function         smp_generate_sc_confirm
+**
+** Description      This function is called to generate confirm
+**                  value for LE SC.
+**
+** Returns          void
+**
+*******************************************************************************/
+void smp_generate_sc_confirm (tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
+{
+    SMP_TRACE_DEBUG("%s", __FUNCTION__);
+    UINT8 *p = NULL;
+    BT_OCTET64 pk;
+    UINT8 *p_start, *p_out, *p_tk;
+    UINT8 z = 0x00;
+    tSMP_KEY    key;
+    UINT32      tk;
+
+    p_tk = p_cb->tk;
+
+    UINT8 *loc_pubx = pk;// + 32;
+    UINT8 *rem_pubx = p_cb->rem_pub_key;// + 32;
+
+    STREAM_TO_UINT32(tk, p_tk);/*passkey entry*/
+    SMP_TRACE_DEBUG("%s, passkey entry is %d", __FUNCTION__, tk);
+    //z |= ((tk >> (SMP_SEC_REPEAT_COUNT - p_cb->confirm_counter -1)) & 1);
+    z |= ((tk >> (p_cb->confirm_counter)) & 1);
+    if(p_cb->model == SMP_MODEL_PASSKEY || p_cb->model == SMP_MODEL_KEY_NOTIF)
+        z |= 0x80;
+
+    SMP_TRACE_DEBUG("%s, z is 0x%0x", __FUNCTION__, z);
+
+    if((p = (UINT8 *)GKI_getbuf((SMP_ENCRYT_DATA_SIZE*6))) == NULL)
+    {
+        SMP_TRACE_ERROR("%s: error allocating buffer", __FUNCTION__);
+        return;
+    }
+    memset(p, 0, SMP_ENCRYT_DATA_SIZE * 6);
+    p_start = p;
+    BTM_GetDevicePubKey ( pk );
+    /*align the X cord of own public key */
+    REVERSE_ARRAY_TO_STREAM(p, loc_pubx, SMP_ENCRYT_DATA_SIZE * 2);
+    /*align the X cord of remote public key */
+    REVERSE_ARRAY_TO_STREAM(p, rem_pubx, SMP_ENCRYT_DATA_SIZE * 2);
+    /*align the nonce*/
+    REVERSE_ARRAY_TO_STREAM(p, p_cb->rand, SMP_ENCRYT_DATA_SIZE);
+
+    aes_f4(p_start, p_start + SMP_ENCRYT_DATA_SIZE * 2,
+           p_start + SMP_ENCRYT_DATA_SIZE * 4, &z, p_start + SMP_ENCRYT_DATA_SIZE * 5);
+    p_out = p_start + (SMP_ENCRYT_DATA_SIZE * 5);
+    REVERSE_STREAM_TO_ARRAY (p_cb->confirm, p_out, SMP_ENCRYT_DATA_SIZE);
+
+    /*this below check might not be needed at all . EVALUATE*/
+    if(p_cb->role == HCI_ROLE_SLAVE ||
+       (p_cb->model == SMP_MODEL_PASSKEY || p_cb->model == SMP_MODEL_KEY_NOTIF))
+    {
+        key.key_type = SMP_KEY_TYPE_SC_CFM;
+        key.p_data = p_cb->confirm;
+        smp_sm_event(p_cb, SMP_KEY_READY_EVT, &key);
+    }
+
+    GKI_freebuf(p_start);
+}
+
+
+/*******************************************************************************
+**
+** Function         smp_verify_oob_confirm
+**
+** Description      This function is called to verify the value of OOB
+**                  confirm for LE SC.
+**
+** Returns          BOOLEAN
+**
+*******************************************************************************/
+BOOLEAN smp_verify_oob_confirm (tSMP_CB *p_cb)
+{
+    SMP_TRACE_DEBUG("%s", __FUNCTION__);
+    UINT8 *p = NULL;
+    UINT8 *p_start, *p_out;
+    UINT8 z = 0x00;
+    UINT8   result;
+
+    result = FALSE;
+    BT_OCTET16 rem_confirm; /*calculated value by local host*/
+
+    UINT8 *rem_pubx = p_cb->rem_pub_key;// + 32;
+
+    if((p = (UINT8 *)GKI_getbuf((SMP_ENCRYT_DATA_SIZE*6))) == NULL)
+    {
+        SMP_TRACE_ERROR("%s: error allocating buffer", __FUNCTION__);
+        return result;
+    }
+    memset(p, 0, SMP_ENCRYT_DATA_SIZE * 6);
+    p_start = p;
+    /*align the X cord of rem public key */
+    REVERSE_ARRAY_TO_STREAM(p, rem_pubx, SMP_ENCRYT_DATA_SIZE * 2);
+    /*align the X cord of remote public key */
+    REVERSE_ARRAY_TO_STREAM(p, rem_pubx, SMP_ENCRYT_DATA_SIZE * 2);
+    /*align the remote nonce*/
+    REVERSE_ARRAY_TO_STREAM(p, p_cb->rrand, SMP_ENCRYT_DATA_SIZE);
+
+    aes_f4(p_start, p_start + SMP_ENCRYT_DATA_SIZE * 2,
+           p_start + SMP_ENCRYT_DATA_SIZE * 4, &z, p_start + SMP_ENCRYT_DATA_SIZE * 5);
+    p_out = p_start + (SMP_ENCRYT_DATA_SIZE * 5);
+    REVERSE_STREAM_TO_ARRAY (rem_confirm, p_out, SMP_ENCRYT_DATA_SIZE);
+
+    if(!memcmp(rem_confirm, p_cb->rconfirm, BT_OCTET16_LEN))
+    {
+        SMP_TRACE_DEBUG("%s: oob confirm value matches", __FUNCTION__);
+        result =  TRUE;
+    }
+    else
+    {
+        SMP_TRACE_DEBUG("%s: oob confirm value failed to match", __FUNCTION__);
+        result = FALSE;
+    }
+    GKI_freebuf(p_start);
+    return result;
+}
+
+
+
+/*******************************************************************************
+**
+** Function         smp_verify_sc_confirm
+**
+** Description      This function is called to verify the confirm
+**                  for LE SC.
+**
+** Returns          void
+**
+*******************************************************************************/
+void smp_verify_sc_confirm (tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
+{
+    SMP_TRACE_DEBUG("%s", __FUNCTION__);
+    UINT8 *p = NULL;
+    BT_OCTET64 pk;
+    UINT8 *p_start, *p_out, *p_tk;
+    UINT8 z = 0x00;
+    UINT8   reason;
+    BT_OCTET16 rem_confirm; /*calculated value by local host*/
+    UINT32 tk;
+    p_tk = p_cb->tk;
+
+    STREAM_TO_UINT32(tk, p_tk);/*passkey entry*/
+    SMP_TRACE_DEBUG("%s, passkey entry is %d", __FUNCTION__, tk);
+    //z |= ((tk >> (SMP_SEC_REPEAT_COUNT - p_cb->confirm_counter -1)) & 1);
+    z |= ((tk >> (p_cb->confirm_counter)) & 1);
+    if(p_cb->model == SMP_MODEL_PASSKEY || p_cb->model == SMP_MODEL_KEY_NOTIF)
+        z |= 0x80;
+
+    UINT8 *loc_pubx = pk;// + 32;
+    UINT8 *rem_pubx = p_cb->rem_pub_key;// + 32;
+
+    if((p = (UINT8 *)GKI_getbuf((SMP_ENCRYT_DATA_SIZE*6))) == NULL)
+    {
+        SMP_TRACE_ERROR("%s: error allocating buffer", __FUNCTION__);
+        return;
+    }
+    memset(p, 0, SMP_ENCRYT_DATA_SIZE * 6);
+    p_start = p;
+    BTM_GetDevicePubKey ( pk );
+    /*align the X cord of rem public key */
+    REVERSE_ARRAY_TO_STREAM(p, rem_pubx, SMP_ENCRYT_DATA_SIZE * 2);
+    /*align the X cord of remote public key */
+    REVERSE_ARRAY_TO_STREAM(p, loc_pubx, SMP_ENCRYT_DATA_SIZE * 2);
+    /*align the remote nonce*/
+    REVERSE_ARRAY_TO_STREAM(p, p_cb->rrand, SMP_ENCRYT_DATA_SIZE);
+
+    aes_f4(p_start, p_start + SMP_ENCRYT_DATA_SIZE * 2,
+           p_start + SMP_ENCRYT_DATA_SIZE * 4, &z, p_start + SMP_ENCRYT_DATA_SIZE * 5);
+    p_out = p_start + (SMP_ENCRYT_DATA_SIZE * 5);
+    REVERSE_STREAM_TO_ARRAY (rem_confirm, p_out, SMP_ENCRYT_DATA_SIZE);
+
+    if(!memcmp(rem_confirm, p_cb->rconfirm, BT_OCTET16_LEN) &&
+       ( p_cb->model == SMP_MODEL_ENC_ONLY || p_cb->model == SMP_MODEL_NUM_COMP))
+    {
+        SMP_TRACE_DEBUG("%s, confirm value matches", __FUNCTION__);
+        if(p_cb->role == HCI_ROLE_MASTER && p_cb->dhk_recvd)
+        {
+            smp_sm_event(p_cb, SMP_DH_KEY_EVT, NULL);
+        }
+        else if (p_cb->role == HCI_ROLE_MASTER && !p_cb->dhk_recvd)
+        {
+            SMP_TRACE_DEBUG("%s, DHKey has not been recvd yet", __FUNCTION__);
+            p_cb->cb_evt = SMP_DHKEY_REQ_EVT;
+        }
+    }
+    else if(!memcmp(rem_confirm, p_cb->rconfirm, BT_OCTET16_LEN) &&
+            (p_cb->model == SMP_MODEL_KEY_NOTIF || p_cb->model == SMP_MODEL_PASSKEY))
+    {
+        SMP_TRACE_DEBUG("%s, confirm value matches and model is entry input, counter=%d", __FUNCTION__, p_cb->confirm_counter);
+        if(p_cb->confirm_counter < SMP_SEC_REPEAT_COUNT - 1)
+        {
+            /*repeat the process*/
+             p_cb->flags &= ~SMP_PAIR_FLAGS_CMD_CONFIRM;
+             p_cb->confirm_counter ++;
+             SMP_TRACE_DEBUG("%s, confirm value matches, sending repeat evt, counter=%d",__FUNCTION__, p_cb->confirm_counter);
+             smp_sm_event(p_cb, SMP_CONFIRM_REPEAT_EVT, NULL);
+        }
+        else
+        {
+            if(p_cb->dhk_recvd)
+            {
+                smp_sm_event(p_cb, SMP_DH_KEY_EVT, NULL);
+            }
+            else
+            {
+                SMP_TRACE_DEBUG("%s, DHKey has not been recvd yet", __FUNCTION__);
+                p_cb->cb_evt = SMP_DHKEY_REQ_EVT;
+            }
+        }
+    }
+    else if(p_cb->model == SMP_MODEL_OOB)
+    {
+        if(p_cb->dhk_recvd)
+        {
+            smp_sm_event(p_cb, SMP_DH_KEY_EVT, NULL);
+        }
+        else
+        {
+            SMP_TRACE_DEBUG("%s, DHKey has not been recvd yet", __FUNCTION__);
+            p_cb->cb_evt = SMP_DHKEY_REQ_EVT;
+        }
+    }
+    else
+    {
+        reason = p_cb->failure = SMP_CONFIRM_VALUE_ERR;
+        smp_sm_event(p_cb, SMP_AUTH_CMPL_EVT, &reason);
+    }
+
+    GKI_freebuf(p_start);
+}
+
+/*******************************************************************************
+**
+** Function         smp_generate_verifier
+**
+** Description      This function is called to generate verifier passkey
+**                  for LE SC numeric comparison.
+**
+** Returns          void
+**
+*******************************************************************************/
+void smp_generate_verifier (tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
+{
+    SMP_TRACE_DEBUG("%s", __FUNCTION__);
+    UINT8 *p = NULL;
+    BT_OCTET64 pk;
+    UINT8 *p_start;
+    UINT8   reason;
+
+    UINT8 *loc_pubx = pk;// + 32;
+    UINT8 *rem_pubx = p_cb->rem_pub_key;// + 32;
+    UINT8 p_out[4]; /*save the output of g2*/
+    UINT32 verifier;
+
+    if((p = (UINT8 *)GKI_getbuf((SMP_ENCRYT_DATA_SIZE*6))) == NULL)
+    {
+        SMP_TRACE_ERROR("%s: error allocating buffer", __FUNCTION__);
+        return;
+    }
+    memset(p, 0, SMP_ENCRYT_DATA_SIZE * 6);
+    p_start = p;
+    BTM_GetDevicePubKey ( pk );
+
+    /*g2(pub_init(32), pub_resp(32), rand_init(32), rand_resp(32))*/
+    /*align the X cord of rem public key */
+    REVERSE_ARRAY_TO_STREAM(p, loc_pubx, SMP_ENCRYT_DATA_SIZE * 2);
+
+    /*align the X cord of local public key */
+    REVERSE_ARRAY_TO_STREAM(p, rem_pubx, SMP_ENCRYT_DATA_SIZE * 2);
+
+    /*align the local nonce*/
+    REVERSE_ARRAY_TO_STREAM(p, p_cb->rand, SMP_ENCRYT_DATA_SIZE);
+
+    /*align the remote nonce*/
+    REVERSE_ARRAY_TO_STREAM(p, p_cb->rrand, SMP_ENCRYT_DATA_SIZE);
+
+    if(p_cb->role == HCI_ROLE_MASTER)
+    {
+        aes_g2(p_start, p_start + SMP_ENCRYT_DATA_SIZE*2,
+               p_start + SMP_ENCRYT_DATA_SIZE*4, p_start + SMP_ENCRYT_DATA_SIZE*5,
+               p_out);
+    }
+    else
+    {
+        aes_g2(p_start + SMP_ENCRYT_DATA_SIZE*2, p_start,
+               p_start + SMP_ENCRYT_DATA_SIZE*5, p_start + SMP_ENCRYT_DATA_SIZE*4,
+               p_out);
+    }
+    smp_debug_print_nbyte_little_endian(p_out, (const UINT8 *)"------remote commit_value-----", 4);
+    verifier = (((UINT32)(*p_out) << 24) + ((UINT32)(*(p_out + 1)) << 16) +
+                ((UINT32)(*(p_out + 2)) << 8) + ((UINT32)(*(p_out + 3))));
+    SMP_TRACE_DEBUG("%s: verifier before trunc = %d", __FUNCTION__, verifier);
+    verifier = verifier % (1000000);
+    SMP_TRACE_DEBUG("%s: verifier = %d", __FUNCTION__, verifier);
+
+    /*send verifier to APIs for confirm*/
+    p_cb->cb_evt = SMP_PASSKEY_CONFIRM_EVT;
+    SMP_TRACE_DEBUG("%s: model=%d", __FUNCTION__, p_cb->model);
+    if (p_cb->p_callback && p_cb->model == SMP_MODEL_NUM_COMP)
+    {
+        (*p_cb->p_callback)(SMP_PASSKEY_CONFIRM_EVT, p_cb->pairing_bda, (tSMP_EVT_DATA *)&verifier);
+    }
+    else /*if(p_cb->model == SMP_MODEL_ENC_ONLY)*/
+    {
+        SMP_SecurityGrant(p_cb->pairing_bda, SMP_SUCCESS);
+    }
+    GKI_freebuf(p_start);
+}
+
+/*******************************************************************************
+**
+** Function         smp_generate_mackey
+**
+** Description      This function is called to generate mackey
+**                  and LTK for LE SC.
+**
+** Returns          void
+**
+*******************************************************************************/
+void smp_generate_mackey(tSMP_CB *p_cb, tSMP_INT_DATA *p_data, UINT8 counter)
+{
+    SMP_TRACE_DEBUG("%s, counter=%d", __FUNCTION__, counter);
+    /*f5(counter=0, dhkey, n1, n2, a1, a2, length=256)*/
+    BD_ADDR remote_bda;
+    UINT8 *p_out, *p;
+    UINT8 *p_start;
+    tBLE_ADDR_TYPE addr_type = 0;
+    UINT8 p_keyID[] = {0x62, 0x74, 0x6c, 0x65};/*btle*/
+    if (!BTM_ReadRemoteConnectionAddr(p_cb->pairing_bda, remote_bda, &addr_type))
+    {
+        SMP_TRACE_ERROR("%s: can not generate macKey for unknown device", __FUNCTION__);
+        return;
+    }
+    //p_cb->local_bda, p_cb->addr_type
+    if((p = (UINT8 *)GKI_getbuf((SMP_ENCRYT_DATA_SIZE*6))) == NULL)
+    {
+        SMP_TRACE_ERROR("%s: error allocating buffer", __FUNCTION__);
+        return;
+    }
+    memset(p, 0, SMP_ENCRYT_DATA_SIZE * 6);
+    p_start = p;
+    REVERSE_ARRAY_TO_STREAM(p, p_cb->dhkey, SMP_ENCRYT_DATA_SIZE * 2);/*dhkey*/
+    REVERSE_ARRAY_TO_STREAM(p, p_cb->rand, SMP_ENCRYT_DATA_SIZE);/*rand*/
+    REVERSE_ARRAY_TO_STREAM(p, p_cb->rrand, SMP_ENCRYT_DATA_SIZE);/*rrand*/
+    *(p)++ = p_cb->addr_type;/*loc addr type*/
+    BDADDR_TO_STREAM_BIGEND(p, p_cb->local_bda);/*loc addr*/
+    *(p)++ = addr_type;/*rem addr type*/
+    BDADDR_TO_STREAM_BIGEND(p, remote_bda);/*rem addr*/
+
+    if(p_cb->role == HCI_ROLE_MASTER)
+    {
+        aes_f5_v2(counter, p_start, p_start + SMP_ENCRYT_DATA_SIZE*2,
+                  p_start + SMP_ENCRYT_DATA_SIZE*3, p_keyID, p_start + SMP_ENCRYT_DATA_SIZE*4,
+                  p_start + (SMP_ENCRYT_DATA_SIZE*4 + 7), p_start + SMP_ENCRYT_DATA_SIZE*5);
+    }
+    else
+    {
+        aes_f5_v2(counter, p_start, p_start + SMP_ENCRYT_DATA_SIZE*3,
+                  p_start + SMP_ENCRYT_DATA_SIZE*2, p_keyID, p_start + (SMP_ENCRYT_DATA_SIZE*4 + 7),
+                  p_start + SMP_ENCRYT_DATA_SIZE*4, p_start + SMP_ENCRYT_DATA_SIZE*5);
+    }
+    p_out = p_start + SMP_ENCRYT_DATA_SIZE*5;
+
+    smp_debug_print_nbyte_little_endian(p_out, (const UINT8 *)"------MAC KEY/ LTK------", 16);
+
+    /*save mackey/ltk in little endian format*/
+    if(counter == 0)
+    {
+        REVERSE_STREAM_TO_ARRAY (p_cb->mackey, p_out, SMP_ENCRYT_DATA_SIZE);
+    }
+    else if(counter == 1)
+    {
+        REVERSE_STREAM_TO_ARRAY (p_cb->ltk, p_out, SMP_ENCRYT_DATA_SIZE);
+    }
+
+    p_cb->flags |= SMP_PAIR_FLAGS_MACKEY_COMP;
+
+    GKI_freebuf(p_start);
+}
+
+/*******************************************************************************
+**
+** Function         smp_compute_commit
+**
+** Description      This function is called to generate DHKEY check
+**                  for LE SC.
+**
+** Returns          void
+**
+*******************************************************************************/
+void smp_compute_commit (tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
+{
+    SMP_TRACE_DEBUG("%s", __FUNCTION__);
+    UINT8 *p = NULL;
+    UINT8 *p_start, *p_out, *p_tk, *p_roob;
+    UINT8   reason;
+    UINT8 zero_block[SMP_ENCRYT_DATA_SIZE] = {0};
+    UINT8 iocap[3];
+    tBLE_ADDR_TYPE addr_type = 0;
+    tSMP_KEY    key;
+    BD_ADDR remote_bda;
+    p_tk = p_cb->tk;
+
+    if(p_cb->model == SMP_MODEL_PASSKEY || p_cb->model == SMP_MODEL_KEY_NOTIF)
+    {
+        REVERSE_STREAM_TO_ARRAY(zero_block, p_tk, SMP_ENCRYT_DATA_SIZE);
+        //memcpy(zero_block, p_tk, SMP_ENCRYT_DATA_SIZE);
+    }
+    else if(p_cb->model == SMP_MODEL_OOB)
+    {
+        p_roob = p_cb->roob;
+        REVERSE_STREAM_TO_ARRAY(zero_block, p_roob, SMP_ENCRYT_DATA_SIZE);
+    }
+
+    if (!BTM_ReadRemoteConnectionAddr(p_cb->pairing_bda, remote_bda, &addr_type))
+    {
+        SMP_TRACE_ERROR("%s: can not generate commit for unknown device", __FUNCTION__);
+        return;
+    }
+
+    BTM_ReadConnectionAddr( p_cb->pairing_bda, p_cb->local_bda, &p_cb->addr_type);
+
+    UINT8 res= *(UINT8 *)p_data;
+    if (res != SMP_SUCCESS)
+    {
+        p_cb->cb_evt=0;
+        reason = p_cb->failure = SMP_NUM_COMP_FAIL;
+        SMP_TRACE_DEBUG("%s: confirm evt not YES", __FUNCTION__);
+        smp_sm_event(p_cb, SMP_AUTH_CMPL_EVT, &reason);
+        return;
+    }
+    /*generate the mackey first*/
+    if(p_cb->flags & SMP_PAIR_FLAGS_MACKEY_COMP) /*mackey already computed*/
+    {
+        SMP_TRACE_DEBUG("%s: MacKey already computed", __FUNCTION__);
+    }
+    else
+    {
+        smp_generate_mackey(p_cb, p_data, 0);
+    }
+
+    if((p = (UINT8 *)GKI_getbuf((SMP_ENCRYT_DATA_SIZE*5))) == NULL)
+    {
+        SMP_TRACE_ERROR("%s: error allocating buffer", __FUNCTION__);
+        return;
+    }
+    memset(p, 0, SMP_ENCRYT_DATA_SIZE * 5);
+    p_start = p;
+    REVERSE_ARRAY_TO_STREAM(p, p_cb->mackey, SMP_ENCRYT_DATA_SIZE);/*mackey*/
+    REVERSE_ARRAY_TO_STREAM(p, p_cb->rand, SMP_ENCRYT_DATA_SIZE);/*rand*/
+    REVERSE_ARRAY_TO_STREAM(p, p_cb->rrand, SMP_ENCRYT_DATA_SIZE);/*rrand*/
+    *p = p_cb->addr_type;/*loc addr type*/
+    p++;
+    BDADDR_TO_STREAM_BIGEND(p, p_cb->local_bda);/*loc addr*/
+    *p = addr_type;/*rem addr type*/
+    p++;
+    BDADDR_TO_STREAM_BIGEND(p, remote_bda);/*rem addr*/
+
+    iocap[0] = p_cb->loc_auth_req;
+    iocap[1] = p_cb->loc_oob_flag;
+    iocap[2] = p_cb->loc_io_caps;
+
+    aes_f6(p_start, p_start + SMP_ENCRYT_DATA_SIZE,
+           p_start + SMP_ENCRYT_DATA_SIZE*2, zero_block, iocap,
+           p_start + SMP_ENCRYT_DATA_SIZE*3, p_start + (SMP_ENCRYT_DATA_SIZE*3 + 7),
+           p_start + SMP_ENCRYT_DATA_SIZE*4);
+    p_out = p_start + SMP_ENCRYT_DATA_SIZE*4;
+    smp_debug_print_nbyte_little_endian(p_start, (const UINT8 *)"----mackey-------", 16);
+    smp_debug_print_nbyte_little_endian(p_start + SMP_ENCRYT_DATA_SIZE, (const UINT8 *)"----rand-------", 16);
+    smp_debug_print_nbyte_little_endian(p_start + SMP_ENCRYT_DATA_SIZE*2, (const UINT8 *)"----rrand-------", 16);
+    smp_debug_print_nbyte_little_endian(p_start + SMP_ENCRYT_DATA_SIZE*3, (const UINT8 *)"----localbda-------", 7);
+    smp_debug_print_nbyte_little_endian(p_start + (SMP_ENCRYT_DATA_SIZE*3 + 7), (const UINT8 *)"----rembda-------", 7);
+    smp_debug_print_nbyte_little_endian(iocap, (const UINT8 *)"----loc iocap-------", 3);
+    smp_debug_print_nbyte_little_endian(zero_block, (const UINT8 *)"------zero_block-----", 16);
+    smp_debug_print_nbyte_little_endian(p_out, (const UINT8 *)"------commit_value-----", 16);
+
+    /*save mackey in little endian format*/
+    REVERSE_STREAM_TO_ARRAY (p_cb->commit, p_out, SMP_ENCRYT_DATA_SIZE);
+
+    /*if slave and commit already verified, send the commit*/
+    if(p_cb->role == HCI_ROLE_SLAVE && p_cb->flags & SMP_PAIR_FLAGS_CMD_COMMIT)
+    {
+        key.key_type = SMP_KEY_TYPE_COMMIT;
+        key.p_data = p_cb->commit;
+        smp_sm_event(p_cb, SMP_KEY_READY_EVT, &key);
+    }
+
+    GKI_freebuf(p_start);
+}
+
+
+/*******************************************************************************
+**
+** Function         smp_process_commit
+**
+** Description      This function is called to verify DHKEY check
+**                  from remote for LE SC.
+**
+** Returns          void
+**
+*******************************************************************************/
+void smp_process_commit (tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
+{
+    SMP_TRACE_DEBUG("%s", __FUNCTION__);
+    UINT8 *p = NULL;
+    UINT8 *p_start, *p_out, *p_tk, *p_loob;
+    UINT8   reason;
+    UINT8 zero_block[SMP_ENCRYT_DATA_SIZE] = {0};
+    UINT8 iocap[3];
+    tBLE_ADDR_TYPE addr_type = 0;
+    BD_ADDR remote_bda;
+    UINT8 *p_key = (UINT8 *)p_data;
+    BT_OCTET16 rcommit_loc; /*locally calculated remote commit val*/
+    tSMP_KEY    key;
+
+    p_tk = p_cb->tk;
+
+    if(p_cb->model == SMP_MODEL_PASSKEY || p_cb->model == SMP_MODEL_KEY_NOTIF)
+    {
+        REVERSE_STREAM_TO_ARRAY(zero_block, p_tk, SMP_ENCRYT_DATA_SIZE);
+        //memcpy(zero_block, p_tk, SMP_ENCRYT_DATA_SIZE);
+    }
+    else if (p_cb->model == SMP_MODEL_OOB && p_cb->peer_oob_flag)
+    {
+        p_loob = p_cb->loob;
+        REVERSE_STREAM_TO_ARRAY(zero_block, p_loob, SMP_ENCRYT_DATA_SIZE);
+    }
+
+    /*save the remote commit first*/
+    if(p_key != NULL)
+    {
+        STREAM_TO_ARRAY(p_cb->rcommit, p_key, BT_OCTET16_LEN);
+    }
+    p_cb->flags |= SMP_PAIR_FLAGS_CMD_COMMIT;/* remote commit received*/
+
+    /*now calculate the remote commit based on own params*/
+
+    if (!BTM_ReadRemoteConnectionAddr(p_cb->pairing_bda, remote_bda, &addr_type))
+    {
+        SMP_TRACE_ERROR("%s: can not generate commit for unknown device", __FUNCTION__);
+        return;
+    }
+
+    BTM_ReadConnectionAddr( p_cb->pairing_bda, p_cb->local_bda, &p_cb->addr_type);
+
+    UINT8 res= *(UINT8 *)p_data;
+    /*generate the mackey first*/
+    if(p_cb->flags & SMP_PAIR_FLAGS_MACKEY_COMP) /*mackey already computed*/
+    {
+        SMP_TRACE_DEBUG("%s: MacKey already computed", __FUNCTION__);
+    }
+    else
+    {
+        smp_generate_mackey(p_cb, p_data, 0);
+    }
+
+    if((p = (UINT8 *)GKI_getbuf((SMP_ENCRYT_DATA_SIZE*5))) == NULL)
+    {
+        SMP_TRACE_ERROR("%s: error allocating buffer", __FUNCTION__);
+        return;
+    }
+    memset(p, 0, SMP_ENCRYT_DATA_SIZE * 5);
+    p_start = p;
+    REVERSE_ARRAY_TO_STREAM(p, p_cb->mackey, SMP_ENCRYT_DATA_SIZE);/*mackey*/
+    REVERSE_ARRAY_TO_STREAM(p, p_cb->rand, SMP_ENCRYT_DATA_SIZE);/*rand*/
+    REVERSE_ARRAY_TO_STREAM(p, p_cb->rrand, SMP_ENCRYT_DATA_SIZE);/*rrand*/
+    *p = p_cb->addr_type;/*loc addr type*/
+    p++;
+    BDADDR_TO_STREAM_BIGEND(p, p_cb->local_bda);/*loc addr*/
+    *p = addr_type;/*rem addr type*/
+    p++;
+    BDADDR_TO_STREAM_BIGEND(p, remote_bda);/*rem addr*/
+
+    iocap[0] = p_cb->peer_auth_req;
+    iocap[1] = p_cb->peer_oob_flag;
+    iocap[2] = p_cb->peer_io_caps;
+
+    aes_f6(p_start, p_start + SMP_ENCRYT_DATA_SIZE*2,
+           p_start + SMP_ENCRYT_DATA_SIZE, zero_block, iocap,
+           p_start + (SMP_ENCRYT_DATA_SIZE*3 + 7), p_start + SMP_ENCRYT_DATA_SIZE*3,
+           p_start + SMP_ENCRYT_DATA_SIZE*4);
+    p_out = p_start + SMP_ENCRYT_DATA_SIZE*4;
+    smp_debug_print_nbyte_little_endian(p_start, (const UINT8 *)"----mackey-------", 16);
+    smp_debug_print_nbyte_little_endian(p_start + SMP_ENCRYT_DATA_SIZE, (const UINT8 *)"----rand-------", 16);
+    smp_debug_print_nbyte_little_endian(p_start + SMP_ENCRYT_DATA_SIZE*2, (const UINT8 *)"----rrand-------", 16);
+    smp_debug_print_nbyte_little_endian(p_start + SMP_ENCRYT_DATA_SIZE*3, (const UINT8 *)"----localbda-------", 7);
+    smp_debug_print_nbyte_little_endian(p_start + (SMP_ENCRYT_DATA_SIZE*3 + 7), (const UINT8 *)"----rembda-------", 7);
+    smp_debug_print_nbyte_little_endian(iocap, (const UINT8 *)"----rem iocap-------", 3);
+    smp_debug_print_nbyte_little_endian(zero_block, (const UINT8 *)"------zero_block-----", 16);
+
+    smp_debug_print_nbyte_little_endian(p_out, (const UINT8 *)"------remote commit_value-----", 16);
+
+    /*save remote commit in little endian format*/
+    REVERSE_STREAM_TO_ARRAY (rcommit_loc, p_out, SMP_ENCRYT_DATA_SIZE);
+
+    /*compare the remote commit value for verification*/
+    if(!memcmp(p_cb->rcommit, rcommit_loc, BT_OCTET16_LEN))
+    {
+        SMP_TRACE_DEBUG("%s: commit value verified", __FUNCTION__);
+        if(p_cb->role == HCI_ROLE_SLAVE && p_cb->state == SMP_ST_COMMIT)
+        {
+            key.key_type = SMP_KEY_TYPE_COMMIT;
+            key.p_data = p_cb->commit;
+            smp_sm_event(p_cb, SMP_KEY_READY_EVT, &key);
+        }
+        if(p_cb->role == HCI_ROLE_MASTER)
+        {
+            /*make sure the key dist is in sync with slave*/
+            p_cb->loc_i_key = p_cb->peer_i_key;
+            p_cb->loc_r_key = p_cb->peer_r_key;
+            smp_sm_event(p_cb, SMP_ENC_REQ_EVT, NULL);/*request LTK generation*/
+        }
+    }
+    else
+    {
+        SMP_TRACE_ERROR("%s: commit value doesnt match", __FUNCTION__);
+        reason = p_cb->failure = SMP_DHKEY_CHECK_FAIL;
+        p_cb->flags &= ~SMP_PAIR_FLAGS_CMD_COMMIT;
+        smp_sm_event(p_cb, SMP_AUTH_CMPL_EVT, &reason);
+    }
+
+    GKI_freebuf(p_start);
+}
+
+/*******************************************************************************
+**
+** Function         smp_derive_LTK
+**
+** Description      This function is called to derive LTK from linkkey
+**                  for LE SC.
+**
+** Returns          void
+**
+*******************************************************************************/
+void smp_derive_LTK(tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
+{
+    SMP_TRACE_DEBUG("%s", __FUNCTION__);
+    UINT8 reason;
+    UINT8 *p = NULL;
+    tBTM_SEC_DEV_REC *p_dev_rec = btm_find_dev(p_cb->pairing_bda);
+    if(p_dev_rec == NULL ||  !(p_dev_rec->sec_flags &  BTM_SEC_LINK_KEY_KNOWN))
+    {
+        reason = p_cb->failure = SMP_FAIL;
+        SMP_TRACE_ERROR("%s: link key not found", __FUNCTION__);
+        smp_sm_event(p_cb, SMP_AUTH_CMPL_EVT, &reason);
+        return;
+    }
+    else
+    {
+        memcpy(p_cb->link_key, p_dev_rec->link_key, LINK_KEY_LEN);
+    }
+
+    UINT8 tmp[] = {0x74, 0x6D, 0x70, 0x32};
+    UINT8 lebr[] = {0x62, 0x72, 0x6C, 0x65};
+    UINT8 *p_iltk;
+    UINT8 *p_linkkey, *p_start;
+
+    tBTM_LE_PENC_KEYS   le_key_peer;
+    tBTM_LE_LENC_KEYS   le_key_loc;
+
+    if((p = (UINT8 *)GKI_getbuf((SMP_ENCRYT_DATA_SIZE*3))) == NULL)
+    {
+        SMP_TRACE_ERROR("%s: error allocating buffer", __FUNCTION__);
+        return;
+    }
+    memset(p, 0, SMP_ENCRYT_DATA_SIZE * 3);
+    p_start = p;
+    ARRAY_TO_STREAM(p, p_cb->link_key, SMP_ENCRYT_DATA_SIZE);/*linkkey need not be reversed*/
+    aes_cmac(tmp, p_start, 4, p+SMP_ENCRYT_DATA_SIZE);
+    p_iltk = p+SMP_ENCRYT_DATA_SIZE;
+
+    /*generate the ltk now*/
+    aes_cmac(lebr, p_iltk, 4, p+(2*SMP_ENCRYT_DATA_SIZE));
+    p_linkkey = p + (2*SMP_ENCRYT_DATA_SIZE);/*derived LTK*/
+
+    smp_debug_print_nbyte_little_endian(p_linkkey, (const UINT8 *)"------LTK derived-----", 16);
+    /*save linkkey in little endian format*/
+    REVERSE_STREAM_TO_ARRAY (p_cb->ltk, p_linkkey, SMP_ENCRYT_DATA_SIZE);
+
+    /*set the sec_level*/
+    if(p_cb->is_secure)
+    {
+        p_cb->sec_level |= SMP_SEC_LE_SECURE;
+    }
+    if(p_dev_rec->link_key_type == HCI_LKEY_TYPE_AUTH_COMB_P256 || p_dev_rec->link_key_type == HCI_LKEY_TYPE_AUTH_COMB)
+    {
+        p_cb->sec_level |= SMP_SEC_AUTHENTICATED;
+    }
+    else
+    {
+        p_cb->sec_level |= SMP_SEC_UNAUTHENTICATE;
+    }
+    BTM_TRACE_DEBUG("%s sec_level = 0x%x", __FUNCTION__, p_cb->sec_level);
+
+    /*save the peer key*/
+    le_key_peer.key_size  = p_cb->loc_enc_size;
+    le_key_peer.sec_level = p_cb->sec_level;
+    le_key_peer.ediv = 0;
+    memset(le_key_peer.rand, 0, BT_OCTET8_LEN );
+    memcpy(le_key_peer.ltk, p_cb->ltk, BT_OCTET16_LEN);
+    btm_sec_save_le_key(p_cb->pairing_bda, BTM_LE_KEY_PENC, (tBTM_LE_KEY_VALUE *)&le_key_peer, TRUE);
+
+    /*save the local key (same as penc)*/
+    le_key_loc.div =  p_cb->div;
+    le_key_loc.key_size = p_cb->loc_enc_size;
+    le_key_loc.sec_level = p_cb->sec_level;
+    btm_sec_save_le_key(p_cb->pairing_bda, BTM_LE_KEY_LENC, (tBTM_LE_KEY_VALUE *)&le_key_loc, TRUE);
+
+    /*LTK and link key is assumed exchanged here*/
+    p_cb->loc_i_key &= ~SMP_SEC_KEY_TYPE_LINK;
+    p_cb->loc_r_key &= ~SMP_SEC_KEY_TYPE_LINK;
+
+    /*adjust the key distr map accordingly*/
+    p_cb->loc_i_key &= ~SMP_SEC_KEY_TYPE_ENC;
+    p_cb->loc_r_key &= ~SMP_SEC_KEY_TYPE_ENC;
+    GKI_freebuf(p_start);
+}
+
+/*******************************************************************************
+**
+** Function         smp_derive_link_key
+**
+** Description      This function is called to derive linkkey from LTK
+**                  for LE SC.
+**
+** Returns          void
+**
+*******************************************************************************/
+static void smp_derive_link_key(tSMP_CB *p_cb)
+{
+    SMP_TRACE_DEBUG("%s", __FUNCTION__);
+    UINT8 *p = NULL;
+    UINT8 tmp[] = {0x74, 0x6D, 0x70, 0x31};
+    UINT8 lebr[] = {0x6C, 0x65, 0x62, 0x72};
+    UINT8 *p_iltk;
+    UINT8 *p_linkkey, *p_start;
+    if((p = (UINT8 *)GKI_getbuf((SMP_ENCRYT_DATA_SIZE*3))) == NULL)
+    {
+        SMP_TRACE_ERROR("%s: error allocating buffer", __FUNCTION__);
+        return;
+    }
+    memset(p, 0, SMP_ENCRYT_DATA_SIZE * 3);
+    p_start = p;
+    REVERSE_ARRAY_TO_STREAM(p, p_cb->ltk, SMP_ENCRYT_DATA_SIZE);/*ltk*/
+    aes_cmac(tmp, p_start, 4, p+SMP_ENCRYT_DATA_SIZE);
+    p_iltk = p+SMP_ENCRYT_DATA_SIZE;
+
+    /*generate the link now*/
+    aes_cmac(lebr, p_iltk, 4, p+(2*SMP_ENCRYT_DATA_SIZE));
+    p_linkkey = p + (2*SMP_ENCRYT_DATA_SIZE);
+
+    smp_debug_print_nbyte_little_endian(p_linkkey, (const UINT8 *)"------Br-EDR linkkey-----", 16);
+    /*save linkkey in little endian format*/
+    //REVERSE_STREAM_TO_ARRAY (p_cb->link_key, p_linkkey, SMP_ENCRYT_DATA_SIZE);
+    /*do not save linkkey in little endian format as link key is reversed again by BREDR enc*/
+    memcpy(p_cb->link_key, p_linkkey, SMP_ENCRYT_DATA_SIZE);
+    GKI_freebuf(p_start);
+}
+
+/*******************************************************************************
+**
+** Function         smp_compute_sc_ltk
+**
+** Description      This function is called to generate LTK and derive
+**                  linkkey for LE SC.
+**
+** Returns          void
+**
+*******************************************************************************/
+void smp_compute_sc_ltk (tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
+{
+    SMP_TRACE_DEBUG("%s", __FUNCTION__);
+    tSMP_KEY    key;
+    tBTM_LE_LENC_KEYS   le_key_loc;
+    tBTM_LE_PENC_KEYS   le_key_peer;
+    smp_generate_mackey(p_cb, p_data, 1);
+    if((p_cb->loc_i_key & SMP_SEC_KEY_TYPE_LINK) && (p_cb->loc_r_key & SMP_SEC_KEY_TYPE_LINK))
+    {
+        SMP_TRACE_DEBUG("%s, Also generate the BR/EDR link key here", __FUNCTION__);
+        smp_derive_link_key(p_cb);
+    }
+    p_cb->loc_i_key &= ~SMP_SEC_KEY_TYPE_LINK;
+    p_cb->loc_r_key &= ~SMP_SEC_KEY_TYPE_LINK;
+    /*send key ready evt for encryption setup*/
+    key.key_type = SMP_KEY_TYPE_LTK;
+    key.p_data =  p_cb->ltk;
+    smp_sm_event(p_cb, SMP_KEY_READY_EVT, &key);
+}
+
+/*******************************************************************************
+**
+** Function         smp_generate_rpa
+**
+** Description      This function is called to generate RPA for derived LTK
+**                  for LE SC if a new node needs to be created.
+**
+** Returns          void
+**
+*******************************************************************************/
+void smp_generate_rpa(tSMP_CB* p_cb, BT_OCTET16 rem_irk)
+{
+    tSMP_ENC    output;
+    SMP_TRACE_DEBUG("%s", __FUNCTION__);
+
+    p_cb->rand[2] &= (~BLE_RESOLVE_ADDR_MASK);
+    p_cb->rand[2] |= BLE_RESOLVE_ADDR_MSB;
+
+    p_cb->private_addr[2] = p_cb->rand[0];
+    p_cb->private_addr[1] = p_cb->rand[1];
+    p_cb->private_addr[0] = p_cb->rand[2];
+
+    if (SMP_Encrypt(rem_irk, BT_OCTET16_LEN, p_cb->rand, 3, &output))
+    {
+        p_cb->private_addr[5] = output.param_buf[0];
+        p_cb->private_addr[4] = output.param_buf[1];
+        p_cb->private_addr[3] = output.param_buf[2];
+    }
+}
+#endif
 /*******************************************************************************
 **
 ** Function         smp_genenrate_rand_cont
@@ -662,6 +1578,14 @@ void smp_generate_compare (tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
     UNUSED(p_data);
 
     SMP_TRACE_DEBUG ("smp_generate_compare ");
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    if(p_cb->is_secure) /*for secure connections*/
+    {
+        smp_verify_sc_confirm(p_cb, p_data);
+        return;
+    }
+#endif
     p_cb->rand_enc_proc = SMP_GEN_COMPARE;
 
     smp_debug_print_nbyte_little_endian ((UINT8 *)p_cb->rrand,  (const UINT8 *)"peer rand", 16);
@@ -903,7 +1827,37 @@ static void smp_rand_back(tBTM_RAND_ENC *p)
 
             case SMP_GEN_SRAND_MRAND_CONT:
                 memcpy((void *)&p_cb->rand[8], p->param_buf, p->param_len);
-                smp_genenrate_confirm(p_cb, NULL);
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+                if(smp_get_state() == SMP_ST_IDLE)/*OOB generation*/
+                {
+                    smp_generate_oob_confirm(p_cb);
+                    break;
+                }
+                if(p_cb->is_secure && p_cb->model == SMP_MODEL_OOB &&  p_cb->role == HCI_ROLE_SLAVE)
+                {
+                    /*send a dummy init evt if it is already recvd*/
+                    if(p_cb->flags & SMP_PAIR_FLAGS_CMD_INIT)
+                    {
+                        smp_set_state(SMP_ST_WAIT_NONCE);
+                        smp_sm_event(p_cb, SMP_RAND_EVT, NULL);
+                    }
+                }
+                else if(p_cb->is_secure &&
+                   (p_cb->role == HCI_ROLE_SLAVE || p_cb->model == SMP_MODEL_PASSKEY || p_cb->model == SMP_MODEL_KEY_NOTIF))
+                {
+                    smp_generate_sc_confirm(p_cb, NULL);
+                }
+                else if(p_cb->is_secure && p_cb->role == HCI_ROLE_MASTER)
+                {
+                    smp_send_init(p_cb, NULL);
+                }
+                if(!p_cb->is_secure)
+                {
+#endif
+                    smp_genenrate_confirm(p_cb, NULL);
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+                }
+#endif
                 break;
 
             case SMP_GEN_DIV_LTK:

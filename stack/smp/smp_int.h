@@ -32,12 +32,22 @@
 #define SMP_MODEL_PASSKEY   1
 #define SMP_MODEL_OOB       2
 #define SMP_MODEL_KEY_NOTIF 3
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define SMP_MODEL_NUM_COMP  4
+#define SMP_MODEL_MAX       5
+#else
 #define SMP_MODEL_MAX       4
+#endif
+
 typedef UINT8   tSMP_ASSO_MODEL;
 
 
 #ifndef SMP_MAX_CONN
     #define SMP_MAX_CONN    2
+#endif
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define SMP_SEC_REPEAT_COUNT    20
 #endif
 
 #define SMP_WAIT_FOR_RSP_TOUT			30
@@ -54,7 +64,17 @@ typedef UINT8   tSMP_ASSO_MODEL;
 #define SMP_OPCODE_ID_ADDR                0x09
 #define SMP_OPCODE_SIGN_INFO              0x0A
 #define SMP_OPCODE_SEC_REQ                0x0B
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define SMP_OPCODE_PUBLIC_KEY             0x0C
+#define SMP_OPCODE_DHKEY_CHECK            0x0D
+#define SMP_OPCODE_KEYPRESS_NOT           0x0E
+#endif
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define SMP_OPCODE_MAX                    (SMP_OPCODE_KEYPRESS_NOT + 1)
+#else
 #define SMP_OPCODE_MAX                    (SMP_OPCODE_SEC_REQ + 1)
+#endif
 
 /* SMP events */
 #define SMP_PAIRING_REQ_EVT             SMP_OPCODE_PAIRING_REQ
@@ -69,7 +89,18 @@ typedef UINT8   tSMP_ASSO_MODEL;
 #define SMP_SIGN_INFO_EVT               SMP_OPCODE_SIGN_INFO
 #define SMP_SECURITY_REQ_EVT            SMP_OPCODE_SEC_REQ
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define SMP_REMOTE_PUBLIC_KEY_EVT       SMP_OPCODE_PUBLIC_KEY
+#define SMP_REMOTE_DHKEY_EVT            SMP_OPCODE_DHKEY_CHECK
+#define SMP_KEY_PRESS_NOT_EVT           SMP_OPCODE_KEYPRESS_NOT
+#endif
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define SMP_SELF_DEF_EVT                SMP_OPCODE_KEYPRESS_NOT
+#else
 #define SMP_SELF_DEF_EVT                SMP_SECURITY_REQ_EVT
+#endif
+
 #define SMP_KEY_READY_EVT               (SMP_SELF_DEF_EVT + 1)
 #define SMP_ENCRYPTED_EVT               (SMP_SELF_DEF_EVT + 2)
 #define SMP_L2CAP_CONN_EVT              (SMP_SELF_DEF_EVT + 3)
@@ -83,11 +114,20 @@ typedef UINT8   tSMP_ASSO_MODEL;
 #define SMP_DISCARD_SEC_REQ_EVT         (SMP_SELF_DEF_EVT + 11)
 #define SMP_RELEASE_DELAY_EVT           (SMP_SELF_DEF_EVT + 12)
 #define SMP_RELEASE_DELAY_TOUT_EVT      (SMP_SELF_DEF_EVT + 13)
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define SMP_DH_KEY_EVT                  (SMP_SELF_DEF_EVT + 14)
+#define SMP_API_PASSKEY_CONF_EVT        (SMP_SELF_DEF_EVT + 15)
+#define SMP_INIT_SECURE_CONN_EVT        (SMP_SELF_DEF_EVT + 16)
+#define SMP_PUB_KEY_SENT_EVT            (SMP_SELF_DEF_EVT + 17)
+#define SMP_CONFIRM_REPEAT_EVT          (SMP_SELF_DEF_EVT + 18)
+#define SMP_LOCAL_KEYPRESS_EVT          (SMP_SELF_DEF_EVT + 19)
+#endif
 typedef UINT8 tSMP_EVENT;
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define SMP_MAX_EVT         SMP_LOCAL_KEYPRESS_EVT + 1
+#else
 #define SMP_MAX_EVT         SMP_RELEASE_DELAY_TOUT_EVT + 1
-
-/* auumption it's only using the low 8 bits, if bigger than that, need to expand it to be 16 bits */
-#define SMP_SEC_KEY_MASK                    0x00ff
+#endif
 
 /* SMP pairing state */
 enum
@@ -102,6 +142,13 @@ enum
     SMP_ST_ENC_PENDING,
     SMP_ST_BOND_PENDING,
     SMP_ST_RELEASE_DELAY,
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    SMP_ST_WAIT_PUB_KEY,
+    SMP_ST_WAIT_NONCE,
+    SMP_ST_WAIT_SC_CONFIRM,
+    SMP_ST_COMMIT,
+    SMP_ST_DERIVE_LTK,
+#endif
     SMP_ST_MAX
 };
 typedef UINT8 tSMP_STATE;
@@ -127,6 +174,11 @@ enum
     SMP_KEY_TYPE_CMP,
     SMP_KEY_TYPE_STK,
     SMP_KEY_TYPE_LTK
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    ,
+    SMP_KEY_TYPE_COMMIT,
+    SMP_KEY_TYPE_SC_CFM
+#endif
 };
 typedef struct
 {
@@ -146,6 +198,9 @@ typedef union
 #define SMP_PAIR_FLAGS_PEER_STARTED_DD         (1 << 1)
 #define SMP_PAIR_FLAGS_CMD_CONFIRM             (1 << SMP_OPCODE_CONFIRM) /* 1 << 3 */
 #define SMP_PAIR_FLAG_ENC_AFTER_PAIR           (1 << 4)
+#define SMP_PAIR_FLAGS_CMD_COMMIT              (1 << 5)
+#define SMP_PAIR_FLAGS_MACKEY_COMP             (1 << 6)
+#define SMP_PAIR_FLAGS_CMD_INIT                (1 << 7)
 
 /* check if authentication requirement need MITM protection */
 #define SMP_NO_MITM_REQUIRED(x)  (((x) & SMP_AUTH_YN_BIT) == 0)
@@ -204,6 +259,23 @@ typedef struct
     BOOLEAN         discard_sec_req;
     UINT8           rcvd_cmd_code;
     UINT8           rcvd_cmd_len;
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    BOOLEAN         is_secure;
+    BT_OCTET32      dhkey;
+    BOOLEAN         dhk_recvd;
+    BT_OCTET64      rem_pub_key;
+    BT_OCTET16      mackey;
+    BT_OCTET16      commit;
+    BT_OCTET16      rcommit;
+    tSMP_ASSO_MODEL model;
+    UINT8           confirm_counter;
+    UINT8           notification;
+    BT_OCTET16      link_key;
+    BT_OCTET16      loob;
+    BT_OCTET16      roob;
+    BOOLEAN         smp_bredr;
+    BD_ADDR         private_addr;
+#endif
 #if SMP_CONFORMANCE_TESTING == TRUE
     BOOLEAN         enable_test_confirm_val;
     BT_OCTET16      test_confirm;
@@ -319,6 +391,26 @@ extern void smp_genenrate_rand_cont(tSMP_CB *p_cb, tSMP_INT_DATA *p_data);
 extern void smp_set_state(tSMP_STATE state);
 extern tSMP_STATE smp_get_state(void);
 extern void smp_reject_unexp_pair_req(BD_ADDR bd_addr);
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+extern void smp_generate_dhkey (tSMP_CB *p_cb, tSMP_INT_DATA *p_data);
+extern void smp_send_public_key (tSMP_CB *p_cb, tSMP_INT_DATA *p_data);
+extern void smp_proc_public_key (tSMP_CB *p_cb, tSMP_INT_DATA *p_data);
+extern void smp_generate_nonce (tSMP_CB *p_cb, tSMP_INT_DATA *p_data);
+extern void smp_generate_sc_confirm (tSMP_CB *p_cb, tSMP_INT_DATA *p_data);
+extern void smp_verify_sc_confirm (tSMP_CB *p_cb, tSMP_INT_DATA *p_data);
+extern void smp_generate_verifier (tSMP_CB *p_cb, tSMP_INT_DATA *p_data);
+extern void smp_compute_commit (tSMP_CB *p_cb, tSMP_INT_DATA *p_data);
+extern void smp_compute_sc_ltk (tSMP_CB *p_cb, tSMP_INT_DATA *p_data);
+extern void smp_send_commit (tSMP_CB *p_cb, tSMP_INT_DATA *p_data);
+extern void smp_process_commit (tSMP_CB *p_cb, tSMP_INT_DATA *p_data);
+extern void smp_model_spec_action (tSMP_CB *p_cb, tSMP_INT_DATA *p_data);
+extern void smp_send_keypress_notification (tSMP_CB *p_cb, tSMP_INT_DATA *p_data);
+extern void smp_proc_keypress_notification (tSMP_CB *p_cb, tSMP_INT_DATA *p_data);
+extern BOOLEAN smp_verify_oob_confirm (tSMP_CB *p_cb);
+extern void smp_derive_LTK(tSMP_CB *p_cb, tSMP_INT_DATA *p_data);
+extern void smp_generate_rpa(tSMP_CB *p_cb, BT_OCTET16 rem_irk);
+#endif
 
 #endif /* SMP_INT_H */
 

@@ -1237,6 +1237,11 @@ bt_status_t btif_storage_add_ble_local_key(char *key,
         case BTIF_DM_LE_LOCAL_KEY_ER:
             name = "LE_LOCAL_KEY_ER";
             break;
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+        case BTIF_DM_LE_LOCAL_KEY_PUB:
+            name = "LE_LOCAL_KEY_PUB";
+            break;
+#endif
         default:
             return BT_STATUS_FAIL;
     }
@@ -1275,6 +1280,11 @@ bt_status_t btif_storage_get_ble_local_key(UINT8 key_type,
         case BTIF_DM_LE_LOCAL_KEY_ER:
             name = "LE_LOCAL_KEY_ER";
             break;
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+        case BTIF_DM_LE_LOCAL_KEY_PUB:
+            name = "LE_LOCAL_KEY_PUB";
+            break;
+#endif
         default:
             return BT_STATUS_FAIL;
     }
@@ -1322,7 +1332,7 @@ bt_status_t btif_in_fetch_bonded_ble_device(char *remote_bd_addr,int add, btif_b
 
     if(!btif_config_get_int("Remote", remote_bd_addr,"DevType", &device_type))
         return BT_STATUS_FAIL;
-    if(device_type == BT_DEVICE_TYPE_BLE)
+    if(device_type == BT_DEVICE_TYPE_BLE || device_type == BT_DEVICE_TYPE_DUMO)
     {
             BTIF_TRACE_DEBUG("%s %s found a BLE device", __FUNCTION__,remote_bd_addr);
             str2bd(remote_bd_addr, &bd_addr);
@@ -1342,7 +1352,7 @@ bt_status_t btif_in_fetch_bonded_ble_device(char *remote_bd_addr,int add, btif_b
                 {
                     if (!is_device_added)
                     {
-                        BTA_DmAddBleDevice(bta_bd_addr, addr_type, BT_DEVICE_TYPE_BLE);
+                        BTA_DmAddBleDevice(bta_bd_addr, addr_type, device_type);
                         is_device_added = TRUE;
                     }
                     p = (tBTA_LE_KEY_VALUE *)buf;
@@ -1372,7 +1382,7 @@ bt_status_t btif_in_fetch_bonded_ble_device(char *remote_bd_addr,int add, btif_b
                 {
                     if (!is_device_added)
                     {
-                        BTA_DmAddBleDevice(bta_bd_addr, addr_type, BT_DEVICE_TYPE_BLE);
+                        BTA_DmAddBleDevice(bta_bd_addr, addr_type, device_type);
                         is_device_added = TRUE;
                     }
                     p = (tBTA_LE_KEY_VALUE *)buf;
@@ -1403,7 +1413,7 @@ bt_status_t btif_in_fetch_bonded_ble_device(char *remote_bd_addr,int add, btif_b
                 {
                     if (!is_device_added)
                     {
-                        BTA_DmAddBleDevice(bta_bd_addr, addr_type, BT_DEVICE_TYPE_BLE);
+                        BTA_DmAddBleDevice(bta_bd_addr, addr_type, device_type);
                         is_device_added = TRUE;
                     }
 
@@ -1430,7 +1440,7 @@ bt_status_t btif_in_fetch_bonded_ble_device(char *remote_bd_addr,int add, btif_b
                 {
                     if (!is_device_added)
                     {
-                        BTA_DmAddBleDevice(bta_bd_addr, addr_type, BT_DEVICE_TYPE_BLE);
+                        BTA_DmAddBleDevice(bta_bd_addr, addr_type, device_type);
                         is_device_added = TRUE;
                     }
                     p = (tBTA_LE_KEY_VALUE *)buf;
@@ -1453,7 +1463,7 @@ bt_status_t btif_in_fetch_bonded_ble_device(char *remote_bd_addr,int add, btif_b
                 {
                     if (!is_device_added)
                     {
-                        BTA_DmAddBleDevice(bta_bd_addr, addr_type, BT_DEVICE_TYPE_BLE);
+                        BTA_DmAddBleDevice(bta_bd_addr, addr_type, device_type);
                         is_device_added = TRUE;
                     }
                     p = (tBTA_LE_KEY_VALUE *)buf;

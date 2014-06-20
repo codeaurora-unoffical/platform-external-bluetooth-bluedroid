@@ -44,8 +44,25 @@
 extern BOOLEAN AES_CMAC ( BT_OCTET16 key, UINT8 *input, UINT16 length, UINT16 tlen, UINT8 *p_signature);
 extern void smp_link_encrypted(BD_ADDR bda, UINT8 encr_enable);
 extern BOOLEAN smp_proc_ltk_request(BD_ADDR bda);
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+extern void smp_process_dhkey(BT_OCTET32 dhk);
+#endif /*LE SEC CONN*/
 #endif
 extern void gatt_notify_enc_cmpl(BD_ADDR bd_addr);
+
+/*sample little endian keys for testing*/
+/*sample public key for debug mode*/
+UINT8 sample_pub[] = {
+                       0x8a, 0xd2, 0x89, 0x15, 0xd0, 0x8e, 0x1c, 0x74,
+                       0x24, 0x30, 0xed, 0x8f, 0xc2, 0x45, 0x63, 0x76,
+                       0x5c, 0x15, 0x52, 0x5a, 0xbf, 0x9a, 0x32, 0x63,
+                       0x6d, 0xeb, 0x2a, 0x65, 0x49, 0x9c, 0x80, 0xdc,
+                       0xe5, 0x9d, 0x35, 0x0e, 0x48, 0x01, 0x03, 0xcc,
+                       0xdb, 0xfd, 0xf4, 0xac, 0x11, 0x91, 0xf4, 0xef,
+                       0xb9, 0xa5, 0xf9, 0xe9, 0xa7, 0x83, 0x2c, 0x5e,
+                       0x2c, 0xbe, 0x97, 0xf2, 0xd2, 0x03, 0xb0, 0x20
+                   };
+
 /*******************************************************************************/
 /* External Function to be called by other modules                             */
 /*******************************************************************************/
@@ -217,6 +234,11 @@ void BTM_BleLoadLocalKeys(UINT8 key_type, tBTM_BLE_LOCAL_KEYS *p_key)
             case BTM_BLE_KEY_TYPE_ER:
                 memcpy(p_devcb->er, p_key->er, sizeof(BT_OCTET16));
                 break;
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+            case BTM_BLE_KEY_TYPE_PUBLIC:
+                memcpy(p_devcb->le_pub_key, p_key->le_pub_key, sizeof(BT_OCTET64));
+                break;
+#endif
 
             default:
                 BTM_TRACE_ERROR("unknow local key type: %d", key_type);
@@ -900,10 +922,16 @@ void btm_sec_save_le_key(BD_ADDR bd_addr, tBTM_LE_KEY_TYPE key_type, tBTM_LE_KEY
                 p_rec->ble.keys.key_size = p_keys->penc_key.key_size;
                 p_rec->ble.key_type |= BTM_LE_KEY_PENC;
                 p_rec->sec_flags |= BTM_SEC_LE_LINK_KEY_KNOWN;
-                if (p_keys->penc_key.sec_level == SMP_SEC_AUTHENTICATED)
+                if (p_keys->penc_key.sec_level & SMP_SEC_AUTHENTICATED)
                     p_rec->sec_flags |= BTM_SEC_LE_LINK_KEY_AUTHED;
                 else
                     p_rec->sec_flags &= ~BTM_SEC_LE_LINK_KEY_AUTHED;
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+                if(p_keys->penc_key.sec_level & SMP_SEC_LE_SECURE)
+                {
+                    p_rec->sec_flags |= BTM_SEC_LE_CONN;
+                }
+#endif
                 BTM_TRACE_DEBUG("BTM_LE_KEY_PENC key_type=0x%x sec_flags=0x%x sec_leve=0x%x",
                                  p_rec->ble.key_type,
                                  p_rec->sec_flags,
@@ -929,7 +957,7 @@ void btm_sec_save_le_key(BD_ADDR bd_addr, tBTM_LE_KEY_TYPE key_type, tBTM_LE_KEY
                 p_rec->ble.keys.counter  = p_keys->pcsrk_key.counter;
                 p_rec->ble.key_type |= BTM_LE_KEY_PCSRK;
                 p_rec->sec_flags |=  BTM_SEC_LE_LINK_KEY_KNOWN;
-                if ( p_keys->pcsrk_key.sec_level== SMP_SEC_AUTHENTICATED)
+                if ( p_keys->pcsrk_key.sec_level & SMP_SEC_AUTHENTICATED)
                     p_rec->sec_flags |= BTM_SEC_LE_LINK_KEY_AUTHED;
                 else
                     p_rec->sec_flags &= ~BTM_SEC_LE_LINK_KEY_AUTHED;
@@ -965,7 +993,16 @@ void btm_sec_save_le_key(BD_ADDR bd_addr, tBTM_LE_KEY_TYPE key_type, tBTM_LE_KEY
                                  p_rec->ble.keys.local_csrk_sec_level,
                                  p_rec->ble.keys.local_counter );
                 break;
-
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+            case BTM_LE_KEY_DERIVED:
+                memcpy(p_rec->link_key, p_keys->bredr_key.link_key, BT_OCTET16_LEN);
+                p_rec->link_key_type = p_keys->bredr_key.link_key_type;
+                p_rec->pin_key_len = p_keys->bredr_key.pin_key_len;
+                p_rec->sec_flags |= BTM_SEC_LINK_KEY_KNOWN;
+                //p_rec->ble.key_type |= BTM_LE_KEY_DERIVED;
+                BTM_TRACE_DEBUG("%s: saved derived link key", __FUNCTION__);
+                break;
+#endif
             default:
                 BTM_TRACE_WARNING("btm_sec_save_le_key (Bad key_type 0x%02x)", key_type);
                 return;
@@ -1069,12 +1106,16 @@ void btm_ble_link_sec_check(BD_ADDR bd_addr, tBTM_LE_AUTH_REQ auth_req, tBTM_BLE
     else
     {
         req_sec_level = BTM_LE_SEC_UNAUTHENTICATE;
-        if ((auth_req == (BTM_LE_AUTH_REQ_BOND|BTM_LE_AUTH_REQ_MITM)) ||
-            (auth_req == (BTM_LE_AUTH_REQ_MITM)) )
+        if((auth_req & BTM_LE_AUTH_REQ_MITM) && (auth_req <= BTM_LE_AUTH_REQ_MASK))
         {
             req_sec_level = BTM_LE_SEC_AUTHENTICATED;
         }
-
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+        if(auth_req & BTM_LE_AUTH_REQ_SECURE)
+        {
+            req_sec_level |= BTM_LE_SEC_SECURE;
+        }
+#endif
         BTM_TRACE_DEBUG ("dev_rec sec_flags=0x%x", p_dev_rec->sec_flags);
 
         /* currently encrpted  */
@@ -1084,6 +1125,13 @@ void btm_ble_link_sec_check(BD_ADDR bd_addr, tBTM_LE_AUTH_REQ auth_req, tBTM_BLE
                 cur_sec_level = BTM_LE_SEC_AUTHENTICATED;
             else
                 cur_sec_level = BTM_LE_SEC_UNAUTHENTICATE;
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+            if(p_dev_rec->sec_flags & BTM_SEC_LE_CONN)
+            {
+                cur_sec_level |= BTM_LE_SEC_SECURE;
+            }
+#endif
         }
         else /* unencrypted link */
         {
@@ -1424,6 +1472,26 @@ void btm_ble_ltk_request_reply(BD_ADDR bda,  BOOLEAN use_stk, BT_OCTET16 stk)
     p_cb->key_size = p_rec->ble.keys.key_size;
 
     BTM_TRACE_ERROR("key size = %d", p_rec->ble.keys.key_size);
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    if((p_rec->ble.keys.sec_level & SMP_SEC_LE_SECURE))
+    {
+        if(p_rec->ble.key_type & BTM_LE_KEY_PENC)
+        {
+            BTM_TRACE_DEBUG("btm_ble_ltk_request_reply: conn is le_secure");
+            btsnd_hcic_ble_ltk_req_reply(btm_cb.enc_handle, p_rec->ble.keys.ltk);
+            return;
+        }
+        else
+        {
+            BTM_TRACE_DEBUG ("LTK request failed - send negative reply");
+            btsnd_hcic_ble_ltk_req_neg_reply(p_cb->enc_handle);
+            if (p_rec)
+                btm_ble_link_encrypted(p_rec->bd_addr, 0, BTM_ERR_PROCESSING);
+        }
+    }
+#endif
+
     if (use_stk)
     {
         btsnd_hcic_ble_ltk_req_reply(btm_cb.enc_handle, stk);
@@ -1786,9 +1854,29 @@ UINT8 btm_proc_smp_cback(tSMP_EVT event, BD_ADDR bd_addr, tSMP_EVT_DATA *p_data)
             case SMP_IO_CAP_REQ_EVT:
                 btm_ble_io_capabilities_req(p_dev_rec, (tBTM_LE_IO_REQ *)&p_data->io_req);
                 break;
-
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+            case SMP_DERIVE_LTK_EVT:
+                BTM_TRACE_DEBUG ("%s SMP_DERIVE_LTK_EVT: sec_flag=%d, key_type=%d", __FUNCTION__, p_dev_rec->sec_flags, p_dev_rec->ble.key_type);
+                if(btm_cb.api.p_le_callback && p_data->cmplt.reason != SMP_NO_CROSS_TX)
+                {
+                    (*btm_cb.api.p_le_callback) (event, bd_addr, (tBTM_LE_EVT_DATA *)p_data);
+                    /*remove the LE sec flags from this rec as a new node will be created*/
+                    /*shld not remove keys if new RPA is not created or create_rpa is false
+                    That case can occur if no IRK is received from the remote */
+                    if(p_dev_rec->ble.key_type &  BTM_LE_KEY_PID) /*a separate RPA for LE*/
+                    {
+                        p_dev_rec->sec_flags &= ~BTM_SEC_LE_LINK_KEY_KNOWN;
+                        p_dev_rec->sec_flags &= ~BTM_SEC_LE_LINK_KEY_AUTHED;
+                        p_dev_rec->ble.key_type = 0;
+                    }
+                }
+                break;
+#endif
             case SMP_PASSKEY_REQ_EVT:
             case SMP_PASSKEY_NOTIF_EVT:
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+            case SMP_PASSKEY_CONFIRM_EVT:
+#endif
             case SMP_OOB_REQ_EVT:
                 p_dev_rec->sec_flags |= BTM_SEC_LE_AUTHENTICATED;
 
@@ -2099,7 +2187,12 @@ static void btm_notify_new_key(UINT8 key_type)
                 BTM_TRACE_DEBUG ("BTM_BLE_KEY_TYPE_ER");
                 p_locak_keys = (tBTM_BLE_LOCAL_KEYS *)&btm_cb.devcb.er;
                 break;
-
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+            case BTM_BLE_KEY_TYPE_PUBLIC:
+                BTM_TRACE_DEBUG ("BTM_BLE_KEY_TYPE_PUBLIC");
+                p_locak_keys = (tBTM_BLE_LOCAL_KEYS *)&btm_cb.devcb.le_pub_key;
+                break;
+#endif
             default:
                 BTM_TRACE_ERROR("unknown key type: %d", key_type);
                 break;
@@ -2325,6 +2418,118 @@ void btm_ble_reset_id( void )
         BTM_TRACE_DEBUG("Generating IR failed.");
     }
 }
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+
+/*******************************************************************************
+**
+** Function         btm_ble_generate_public_key
+**
+** Description      This function is called to generate new pub key
+**
+** Returns          void
+**
+*******************************************************************************/
+void btm_ble_generate_public_key( void )
+{
+    tBTM_DEVCB *p_devcb = &btm_cb.devcb;
+    BTM_TRACE_DEBUG("%s", __FUNCTION__);
+    SMP_Generate_OOB_Confirm();
+    if(btsnd_hcic_ble_generate_pub_key() == FALSE)
+    {
+        BTM_TRACE_ERROR("%s: failed HCI command", __FUNCTION__);
+    }
+
+    /*sample code to be removed*/
+    memcpy(p_devcb->le_pub_key, sample_pub, BT_OCTET64_LEN);
+}
+
+/*******************************************************************************
+**
+** Function         btm_ble_proc_public_key
+**
+** Description      This function is called to save the local public key
+**
+** Returns          void
+**
+*******************************************************************************/
+void btm_ble_proc_public_key(UINT8 *p, UINT16 evt_len)
+{
+    tBTM_DEVCB *p_devcb = &btm_cb.devcb;
+    UINT8 status;
+    BTM_TRACE_DEBUG("%s", __FUNCTION__);
+    STREAM_TO_UINT8   (status, p);
+    if(status == 0) /*success*/
+    {
+        STREAM_TO_ARRAY(p_devcb->le_pub_key, p, BT_OCTET64_LEN);
+        btm_notify_new_key(BTM_BLE_KEY_TYPE_PUBLIC);
+    }
+    else
+    {
+        BTM_TRACE_ERROR("%s: error generating public key", __FUNCTION__);
+    }
+}
+
+/*******************************************************************************
+**
+** Function         btm_ble_proc_dhkey
+**
+** Description      This function is called to save the DHKey
+**
+** Returns          void
+**
+*******************************************************************************/
+void btm_ble_proc_dhkey(UINT8 *p, UINT16 evt_len)
+{
+    UINT8 status;
+    BT_OCTET32 dhk;
+    BTM_TRACE_DEBUG("%s", __FUNCTION__);
+    STREAM_TO_UINT8   (status, p);
+    if(status == 0) /*success*/
+    {
+        STREAM_TO_ARRAY(dhk, p, BT_OCTET32_LEN);
+        smp_process_dhkey(dhk);
+    }
+    else
+    {
+        BTM_TRACE_ERROR("%s: error generating dh key", __FUNCTION__);
+    }
+}
+
+/*******************************************************************************
+**
+** Function         BTM_GetDevicePubKey
+**
+** Description      This function is called to get the local pubkey
+**
+** Returns          void
+**
+*******************************************************************************/
+void BTM_GetDevicePubKey ( BT_OCTET64 pk)
+{
+     BTM_TRACE_DEBUG ("%s", __FUNCTION__);
+     memcpy(pk, btm_cb.devcb.le_pub_key, BT_OCTET64_LEN);
+}
+
+/*******************************************************************************
+**
+** Function         btm_ble_generate_dhkey
+**
+** Description      This function is called to generate DHKey
+**
+** Returns          void
+**
+*******************************************************************************/
+void btm_ble_generate_dhkey(BT_OCTET64 rem_pk)
+{
+     BTM_TRACE_DEBUG ("%s", __FUNCTION__);
+     if(btsnd_hcic_ble_generate_dhkey(rem_pk) == FALSE)
+     {
+        BTM_TRACE_ERROR("%s: failed HCI command", __FUNCTION__);
+     }
+}
+
+#endif
 
     #if BTM_BLE_CONFORMANCE_TESTING == TRUE
 /*******************************************************************************

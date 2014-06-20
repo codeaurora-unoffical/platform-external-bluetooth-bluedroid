@@ -649,6 +649,11 @@ typedef UINT8 tBTA_SIG_STRENGTH_MASK;
 #define BTA_DM_LE_FEATURES_READ         25      /* Cotroller specific LE features are read */
 #define BTA_DM_ENER_INFO_READ           26      /* Energy info read */
 #define BTA_DM_REM_NAME_EVT             27      /* Remote name event */
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define BTA_DM_BLE_PASSKEY_CONFIRM_EVT  28      /* SMP passkey confirmation event */
+#define BTA_DM_BLE_LOCAL_PK_EVT         29      /* BLE Local pub key evt */
+#define BTA_DM_BLE_DERIVE_LTK_EVT       30      /* BLE derive ltk complete */
+#endif
 typedef UINT8 tBTA_DM_SEC_EVT;
 
 /* Structure associated with BTA_DM_ENABLE_EVT */
@@ -708,6 +713,9 @@ typedef struct
 #define BTA_LE_KEY_LENC      BTM_LE_KEY_LENC        /* master role security information:div */
 #define BTA_LE_KEY_LID       BTM_LE_KEY_LID         /* master device ID key */
 #define BTA_LE_KEY_LCSRK     BTM_LE_KEY_LCSRK        /* local CSRK has been deliver to peer */
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define BTA_LE_KEY_DERIVED     BTM_LE_KEY_DERIVED
+#endif
 typedef UINT8 tBTA_LE_KEY_TYPE; /* can be used as a bit mask */
 
 
@@ -728,6 +736,9 @@ typedef union
 
 #define BTA_BLE_LOCAL_KEY_TYPE_ID         1
 #define BTA_BLE_LOCAL_KEY_TYPE_ER         2
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define BTA_BLE_LOCAL_KEY_TYPE_PUB        4
+#endif
 typedef UINT8 tBTA_DM_BLE_LOCAL_KEY_MASK;
 
 typedef struct
@@ -923,6 +934,18 @@ typedef struct
     UINT32          passkey;        /* the numeric value for comparison. If just_works, do not show this number to UI */
 } tBTA_DM_SP_KEY_NOTIF;
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+/* Structure associated with BTA_DM_SP_KEY_CONFIRM_EVT */
+typedef struct
+{
+    /* Note: First 3 data members must be, bd_addr, dev_class, and bd_name in order */
+    BD_ADDR         bd_addr;        /* peer address */
+    DEV_CLASS       dev_class;      /* peer CoD */
+    BD_NAME         bd_name;        /* peer device name */
+    UINT32          passkey;        /* the numeric value for comparison. If just_works, do not show this number to UI */
+} tBTA_DM_SP_KEY_CONFIRM;
+#endif
+
 /* Structure associated with BTA_DM_SP_RMT_OOB_EVT */
 typedef struct
 {
@@ -952,6 +975,9 @@ typedef union
     tBTA_DM_BUSY_LEVEL  busy_level;     /* System busy level */
     tBTA_DM_SP_CFM_REQ  cfm_req;        /* user confirm request */
     tBTA_DM_SP_KEY_NOTIF key_notif;     /* passkey notification */
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    tBTA_DM_SP_KEY_CONFIRM key_confirm;     /* passkey confirmation */
+#endif
     tBTA_DM_SP_RMT_OOB  rmt_oob;        /* remote oob */
     tBTA_DM_BOND_CANCEL_CMPL bond_cancel_cmpl; /* Bond Cancel Complete indication */
     tBTA_DM_SP_KEY_PRESS   key_press;   /* key press notification event */
@@ -960,6 +986,9 @@ typedef union
     tBTA_DM_BLE_KEY      ble_key;        /* BLE SMP keys used when pairing */
     tBTA_BLE_LOCAL_ID_KEYS  ble_id_keys;  /* IR event */
     BT_OCTET16              ble_er;       /* ER event data */
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    BT_OCTET64              le_pub_key;
+#endif
 } tBTA_DM_SEC;
 
 /* Security callback */
@@ -1688,6 +1717,9 @@ BTA_API extern void BTA_DmBondCancel(BD_ADDR bd_addr);
 BTA_API extern void BTA_DmPinReply(BD_ADDR bd_addr, BOOLEAN accept, UINT8 pin_len,
                                    UINT8 *p_pin);
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+BTA_API extern void BTA_DmKeyNotification(BD_ADDR bd_addr,  UINT8 notification);
+#endif
 /*******************************************************************************
 **
 ** Function         BTA_DmLinkPolicy

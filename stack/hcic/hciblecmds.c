@@ -411,6 +411,49 @@ BOOLEAN btsnd_hcic_ble_read_white_list_size (void)
     return (TRUE);
 }
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+BOOLEAN btsnd_hcic_ble_generate_pub_key (void)
+{
+    BT_HDR *p;
+    UINT8 *pp;
+
+    if ((p = HCI_GET_CMD_BUF(HCIC_PARAM_SIZE_READ_CMD)) == NULL)
+        return (FALSE);
+
+    pp = (UINT8 *)(p + 1);
+
+    p->len    = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_READ_CMD;
+    p->offset = 0;
+
+    UINT16_TO_STREAM (pp,  HCI_BLE_READ_PUBLIC_KEY);
+    UINT8_TO_STREAM  (pp,  HCIC_PARAM_SIZE_READ_CMD);
+
+    btu_hcif_send_cmd (LOCAL_BR_EDR_CONTROLLER_ID,  p);
+    return (TRUE);
+}
+
+BOOLEAN btsnd_hcic_ble_generate_dhkey (BT_OCTET64 pub_key)
+{
+    BT_HDR *p;
+    UINT8 *pp;
+
+    if ((p = HCI_GET_CMD_BUF(HCIC_PARAM_SIZE_GEN_DHKEY_SIZE)) == NULL)
+        return (FALSE);
+
+    pp = (UINT8 *)(p + 1);
+
+    p->len    = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_GEN_DHKEY_SIZE;
+    p->offset = 0;
+
+    UINT16_TO_STREAM (pp,  HCI_BLE_GENERATE_DHKEY);
+    UINT8_TO_STREAM  (pp,  HCIC_PARAM_SIZE_GEN_DHKEY_SIZE);
+    ARRAY_TO_STREAM  (pp,  pub_key,  BT_OCTET64_LEN);
+
+    btu_hcif_send_cmd (LOCAL_BR_EDR_CONTROLLER_ID,  p);
+    return (TRUE);
+}
+#endif
+
 BOOLEAN btsnd_hcic_ble_clear_white_list (void)
 {
     BT_HDR *p;

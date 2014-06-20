@@ -319,6 +319,7 @@ static void bta_dm_sys_hw_cback( tBTA_SYS_HW_EVT status )
 #if BLE_INCLUDED == TRUE
     UINT8                   key_mask = 0;
     BT_OCTET16              er;
+    BT_OCTET64              pub_key;
     tBTA_BLE_LOCAL_ID_KEYS  id_key;
     tBT_UUID                app_uuid = {LEN_UUID_128,{0}};
 #endif
@@ -369,6 +370,9 @@ static void bta_dm_sys_hw_cback( tBTA_SYS_HW_EVT status )
 #if (defined BLE_INCLUDED && BLE_INCLUDED == TRUE)
         /* load BLE local information: ID keys, ER if available */
         bta_dm_co_ble_load_local_keys(&key_mask, er, &id_key);
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+        bta_dm_co_ble_load_pub_key(&key_mask,pub_key);
+#endif
 
         if (key_mask & BTA_BLE_LOCAL_KEY_TYPE_ER)
         {
@@ -378,6 +382,12 @@ static void bta_dm_sys_hw_cback( tBTA_SYS_HW_EVT status )
         {
             BTM_BleLoadLocalKeys(BTA_BLE_LOCAL_KEY_TYPE_ID, (tBTM_BLE_LOCAL_KEYS *)&id_key);
         }
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+        if(key_mask & BTA_BLE_LOCAL_KEY_TYPE_PUB)
+        {
+            BTM_BleLoadLocalKeys(BTA_BLE_LOCAL_KEY_TYPE_PUB, (tBTM_BLE_LOCAL_KEYS *)&pub_key);
+        }
+#endif
 #if ((defined BTA_GATT_INCLUDED) && (BTA_GATT_INCLUDED == TRUE))
         bta_dm_search_cb.conn_id = BTA_GATT_INVALID_CONN_ID;
 #endif
@@ -970,6 +980,13 @@ void bta_dm_pin_reply (tBTA_DM_MSG *p_data)
 
 }
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+void bta_dm_send_key_press_notify(tBTA_DM_MSG *p_data)
+{
+    APPL_TRACE_EVENT("%s: %d", __FUNCTION__, p_data->key_notify.notification);
+    BTM_KeyNotify (p_data->key_notify.bd_addr, p_data->key_notify.notification);
+}
+#endif
 /*******************************************************************************
 **
 ** Function         bta_dm_link_policy
@@ -1212,6 +1229,29 @@ void bta_dm_ci_rmt_oob_act(tBTA_DM_MSG *p_data)
     BTM_RemoteOobDataReply(res, p_data->ci_rmt_oob.bd_addr,
         p_data->ci_rmt_oob.c, p_data->ci_rmt_oob.r );
 }
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+/*******************************************************************************
+**
+** Function         bta_dm_ci_ble_rmt_oob_act
+**
+** Description      respond to the OOB data request for the remote device from BTM
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+void bta_dm_ci_ble_rmt_oob_act(tBTA_DM_MSG *p_data)
+{
+    tBTM_STATUS res = BTM_NOT_AUTHORIZED;
+
+    if(p_data->ci_rmt_oob.accept == TRUE)
+        res = BTM_SUCCESS;
+    BTM_LERemoteOobDataReply(res, p_data->ci_rmt_oob.bd_addr,
+        p_data->ci_rmt_oob.c, p_data->ci_rmt_oob.r );
+}
+#endif
+
 #endif /* BTM_OOB_INCLUDED */
 
 /*******************************************************************************
@@ -5144,6 +5184,36 @@ static UINT8 bta_dm_ble_smp_cback (tBTM_LE_EVT event, BD_ADDR bda, tBTM_LE_EVT_D
            sec_event.key_notif.passkey = p_data->key_notif;
            bta_dm_cb.p_sec_cback(BTA_DM_BLE_PASSKEY_NOTIF_EVT, &sec_event);
            break;
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+        case BTM_LE_KEY_CONFIRM_EVT:
+            bdcpy(sec_event.key_confirm.bd_addr, bda);
+            p_name = BTM_SecReadDevName(bda);
+            if (p_name != NULL)
+            {
+                BCM_STRNCPY_S((char*)sec_event.key_confirm.bd_name,
+                               sizeof(BD_NAME), p_name, (BD_NAME_LEN));
+            }
+            else
+            {
+                sec_event.key_notif.bd_name[0] = 0;
+            }
+           sec_event.key_confirm.passkey = p_data->key_notif;
+           bta_dm_cb.p_sec_cback(BTA_DM_BLE_PASSKEY_CONFIRM_EVT, &sec_event);
+           break;
+
+        case BTM_LE_DERIVE_LTK_EVT:
+           bdcpy(sec_event.auth_cmpl.bd_addr, bda);
+           if (p_data->complt.reason != 0)
+           {
+               sec_event.auth_cmpl.fail_reason = BTA_DM_AUTH_CONVERT_SMP_CODE(((UINT8)p_data->complt.reason));
+           }
+           else
+           {
+               sec_event.auth_cmpl.success = TRUE;
+           }
+           bta_dm_cb.p_sec_cback(BTA_DM_BLE_DERIVE_LTK_EVT, &sec_event);
+            break;
+#endif
 
         case BTM_LE_KEY_REQ_EVT:
             bdcpy(sec_event.ble_req.bd_addr, bda);
@@ -5169,6 +5239,12 @@ static UINT8 bta_dm_ble_smp_cback (tBTM_LE_EVT event, BD_ADDR bda, tBTM_LE_EVT_D
                 memcpy( &(sec_event.ble_key.key_value.pid_key.static_addr),
                         &(p_data->key.p_key_value->pid_key.static_addr),
                         sizeof (BD_ADDR));
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+                memcpy( &(sec_event.ble_key.key_value.pid_key.private_addr),
+                        &(p_data->key.p_key_value->pid_key.private_addr),
+                        sizeof (BD_ADDR));
+                sec_event.ble_key.key_value.pid_key.create_rpa = p_data->key.p_key_value->pid_key.create_rpa;
+#endif
             }
             else
             {
@@ -5245,6 +5321,16 @@ static void bta_dm_ble_id_key_cback (UINT8 key_type, tBTM_BLE_LOCAL_KEYS *p_key)
                 bta_dm_cb.p_sec_cback(evt, &dm_key);
             }
             break;
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+        case BTM_BLE_KEY_TYPE_PUBLIC:
+            if (bta_dm_cb.p_sec_cback)
+            {
+                memcpy(&dm_key.le_pub_key, p_key, sizeof(tBTM_BLE_LOCAL_KEYS));
+                evt = BTA_DM_BLE_LOCAL_PK_EVT;
+                bta_dm_cb.p_sec_cback(evt, &dm_key);
+            }
+            break;
+#endif
 
         default:
             APPL_TRACE_DEBUG("Unknown key type %d", key_type);

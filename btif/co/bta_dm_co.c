@@ -33,6 +33,8 @@
 tBTE_APPL_CFG bte_appl_cfg = { 0x0, 0x4, 0x0, 0x0, 0x10 };
 #elif (defined BTM_NO_MITM_INCLUDED && BTM_NO_MITM_INCLUDED == TRUE)
 tBTE_APPL_CFG bte_appl_cfg = { 0x1, 0x4, 0x7, 0x7, 0x10 };
+#elif (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+tBTE_APPL_CFG bte_appl_cfg = { 0xD, 0x4, 0x7, 0x7, 0x10 };/*secure, keyboard_disp*/
 #else
 tBTE_APPL_CFG bte_appl_cfg =
 {
@@ -387,6 +389,16 @@ void bta_dm_co_ble_load_local_keys(tBTA_DM_BLE_LOCAL_KEY_MASK *p_key_mask, BT_OC
     btif_dm_get_ble_local_keys( p_key_mask, er, p_id_keys);
 }
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+void bta_dm_co_ble_load_pub_key(tBTA_DM_BLE_LOCAL_KEY_MASK *p_key_mask, BT_OCTET64 pub_key)
+{
+    BTIF_TRACE_DEBUG("##################################");
+    BTIF_TRACE_DEBUG("bta_dm_co_ble_load_pub_key:  Load public key if any are persisted");
+    BTIF_TRACE_DEBUG("##################################");
+    //btif_dm_get_ble_pub_keys( p_key_mask, er, p_id_keys);
+    btif_dm_get_pub_key(p_key_mask, pub_key);
+}
+#endif
 /*******************************************************************************
 **
 ** Function         bta_dm_co_ble_io_req
@@ -412,14 +424,44 @@ void bta_dm_co_ble_io_req(BD_ADDR bd_addr,  tBTA_IO_CAP *p_io_cap,
                           tBTA_LE_KEY_TYPE *p_init_key,
                           tBTA_LE_KEY_TYPE  *p_resp_key )
 {
-    UNUSED(bd_addr);
+    *p_oob_data = FALSE;
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    BT_OCTET16 p_c;
+    BT_OCTET16 p_r;
+    BOOLEAN result = FALSE;
     /* if OOB is not supported, this call-out function does not need to do anything
      * otherwise, look for the OOB data associated with the address and set *p_oob_data accordingly
      * If the answer can not be obtained right away,
      * set *p_oob_data to BTA_OOB_UNKNOWN and call bta_dm_ci_io_req() when the answer is available */
 
-    *p_oob_data = FALSE;
+    *p_oob_data = TRUE;
 
+    /*retrieve the properties from file system if  possible*/
+    if(btif_dm_get_smp_config(p_auth_req, p_io_cap, p_init_key, p_resp_key, p_max_key_size, (BOOLEAN*)p_oob_data))
+    {
+        bte_appl_cfg.ble_auth_req = *p_auth_req;
+        bte_appl_cfg.ble_io_cap = *p_io_cap;
+        bte_appl_cfg.ble_init_key = *p_init_key;
+        bte_appl_cfg.ble_resp_key = *p_resp_key;
+        bte_appl_cfg.ble_max_key_size = *p_max_key_size;
+        BTIF_TRACE_DEBUG("%s, received smp params from file system", __FUNCTION__);
+    }
+
+    if(*p_oob_data)
+    {
+        /*OOB data is present*/
+        result = btif_dm_ble_proc_rmt_oob(bd_addr, p_c, p_r);
+        if(result)
+        {
+            bta_dm_ci_ble_rmt_oob(result, bd_addr, p_c, p_r);
+        }
+        else
+        {
+            BTIF_TRACE_DEBUG("%s, OOB data could not be found", __FUNCTION__);
+            *p_oob_data = FALSE;
+        }
+    }
+#endif
     /* *p_auth_req by default is FALSE for devices with NoInputNoOutput; TRUE for other devices. */
 
     if (bte_appl_cfg.ble_auth_req)

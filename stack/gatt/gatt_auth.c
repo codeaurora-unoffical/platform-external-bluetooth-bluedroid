@@ -320,6 +320,7 @@ tGATT_SEC_ACTION gatt_determine_sec_act(tGATT_CLCB *p_clcb )
     BOOLEAN             is_link_encrypted= FALSE;
     BOOLEAN             is_link_key_known=FALSE;
     BOOLEAN             is_key_mitm=FALSE;
+    BOOLEAN             is_key_secure = FALSE;
     UINT8               key_type;
     tBTM_BLE_SEC_REQ_ACT    sec_act = BTM_LE_SEC_NONE;
 
@@ -344,6 +345,10 @@ tGATT_SEC_ACTION gatt_determine_sec_act(tGATT_CLCB *p_clcb )
 
         if (sec_flag & BTM_SEC_FLAG_LKEY_AUTHED)
             is_key_mitm = TRUE;
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+        if(sec_flag & (BTM_SEC_LE_CONN >> 8)) /*0x40*/
+            is_key_secure = TRUE;
+#endif
     }
 
     /* first check link key upgrade required or not */
@@ -360,6 +365,18 @@ tGATT_SEC_ACTION gatt_determine_sec_act(tGATT_CLCB *p_clcb )
             if (!is_link_key_known)
                 act = GATT_SEC_ENCRYPT_NO_MITM;
             break;
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+        case GATT_AUTH_REQ_SEC_MITM:
+            if(!is_key_secure || !is_key_mitm)
+                act = GATT_SEC_ENCRYPT_MITM;
+            break;
+
+        case GATT_AUTH_REQ_SEC_NO_MITM:
+            if(!is_key_secure)
+                act = GATT_SEC_ENCRYPT_NO_MITM;
+            break;
+#endif
+
         default:
             break;
     }

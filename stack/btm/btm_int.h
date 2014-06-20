@@ -202,6 +202,11 @@ typedef struct
 UINT8                   le_supported_states[BTM_LE_SUPPORT_STATE_SIZE];
 
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+
+    BT_OCTET64              le_pub_key;
+
+#endif
 
 #if BTM_BLE_CONFORMANCE_TESTING == TRUE
     BOOLEAN                 no_disc_if_pair_fail;
@@ -575,6 +580,9 @@ typedef struct
 #define BTM_SEC_LE_NAME_KNOWN      0x0800
 #define BTM_SEC_LE_LINK_KEY_KNOWN  0x1000       /* 0x10 */
 #define BTM_SEC_LE_LINK_KEY_AUTHED 0x2000
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define BTM_SEC_LE_CONN         BTM_SEC_FLAG_LE_SC    /*0x4000*/
+#endif
 
     UINT16           sec_flags;          /* Current device security state      */
 
@@ -1222,6 +1230,7 @@ extern UINT8 btm_sec_clr_service_by_psm (UINT16 psm);
 #endif
 extern void  btm_sec_clr_temp_auth_service (BD_ADDR bda);
 
+extern tBTM_SEC_DEV_REC* btm_find_dev_by_public_static_addr(BD_ADDR bd_addr);
 #ifdef __cplusplus
 }
 #endif

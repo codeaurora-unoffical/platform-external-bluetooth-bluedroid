@@ -44,6 +44,11 @@
 #define SMP_ID_INFO_SIZE        (BT_OCTET16_LEN + 1)
 #define SMP_ID_ADDR_SIZE        (BD_ADDR_LEN + 1 + 1)
 #define SMP_SIGN_INFO_SIZE      (BT_OCTET16_LEN + 1)
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define SMP_PUB_KEY_SIZE        (BT_OCTET64_LEN + 1)
+#define SMP_COMMIT_SIZE         (BT_OCTET16_LEN + 1)
+#define SMP_KEYPRESS_SIZE       2
+#endif
 #define SMP_PAIR_FAIL_SIZE      2
 
 
@@ -60,6 +65,11 @@ static BT_HDR * smp_build_security_request(UINT8 cmd_code, tSMP_CB *p_cb);
 static BT_HDR * smp_build_signing_info_cmd(UINT8 cmd_code, tSMP_CB *p_cb);
 static BT_HDR * smp_build_master_id_cmd(UINT8 cmd_code, tSMP_CB *p_cb);
 static BT_HDR * smp_build_id_addr_cmd(UINT8 cmd_code, tSMP_CB *p_cb);
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+static BT_HDR * smp_build_pub_key_cmd(UINT8 cmd_code, tSMP_CB *p_cb);
+static BT_HDR * smp_build_commit_cmd(UINT8 cmd_code, tSMP_CB *p_cb);
+static BT_HDR * smp_build_keypress_cmd(UINT8 cmd_code, tSMP_CB *p_cb);
+#endif
 
 const tSMP_CMD_ACT smp_cmd_build_act[] =
 {
@@ -75,6 +85,12 @@ const tSMP_CMD_ACT smp_cmd_build_act[] =
     smp_build_id_addr_cmd,          /* 0x09: signing information */
     smp_build_signing_info_cmd,    /* 0x0A: signing information */
     smp_build_security_request    /* 0x0B: security request */
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    ,
+    smp_build_pub_key_cmd,          /* 0x0C: public key  */
+    smp_build_commit_cmd,           /* 0x0D: dhkey check  */
+    smp_build_keypress_cmd          /*0x0E: keypress not*/
+#endif
 };
 /*******************************************************************************
 **
@@ -86,13 +102,23 @@ const tSMP_CMD_ACT smp_cmd_build_act[] =
 BOOLEAN  smp_send_msg_to_L2CAP(BD_ADDR rem_bda, BT_HDR *p_toL2CAP)
 {
     UINT16              l2cap_ret;
+    tSMP_CB   *p_cb = &smp_cb;
+    UINT8 fixed_cid = L2CAP_SMP_CID;
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    if(p_cb->smp_bredr)
+    {
+        fixed_cid = L2CAP_SMP_BREDR_CID;
+    }
+#endif
 
     SMP_TRACE_EVENT("smp_send_msg_to_L2CAP");
 
-    if ((l2cap_ret = L2CA_SendFixedChnlData (L2CAP_SMP_CID, rem_bda, p_toL2CAP)) == L2CAP_DW_FAILED)
+    if ((l2cap_ret = L2CA_SendFixedChnlData (fixed_cid, rem_bda, p_toL2CAP)) == L2CAP_DW_FAILED)
     {
         SMP_TRACE_ERROR("SMP   failed to pass msg:0x%0x to L2CAP",
                          *((UINT8 *)(p_toL2CAP + 1) + p_toL2CAP->offset));
+        /*The below mem free is a potential crash location*/
         GKI_freebuf(p_toL2CAP);
         return FALSE;
     }
@@ -252,6 +278,89 @@ static BT_HDR * smp_build_rand_cmd(UINT8 cmd_code, tSMP_CB *p_cb)
 
     return p_buf;
 }
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+/*******************************************************************************
+**
+** Function         smp_build_pub_key_cmd
+**
+** Description      Build pairing public key command.
+**
+*******************************************************************************/
+static BT_HDR * smp_build_pub_key_cmd(UINT8 cmd_code, tSMP_CB *p_cb)
+{
+    BT_HDR      *p_buf = NULL ;
+    UINT8       *p;
+    BT_OCTET64  pub_key;
+    SMP_TRACE_EVENT("smp_build_pub_key_cmd");
+    BTM_GetDevicePubKey(pub_key);
+    if ((p_buf = (BT_HDR *)GKI_getbuf(sizeof(BT_HDR) + SMP_PUB_KEY_SIZE + L2CAP_MIN_OFFSET)) != NULL)
+    {
+        p = (UINT8 *)(p_buf + 1) + L2CAP_MIN_OFFSET;
+
+        UINT8_TO_STREAM (p, SMP_OPCODE_PUBLIC_KEY);
+        ARRAY_TO_STREAM (p, pub_key, BT_OCTET64_LEN);
+
+        p_buf->offset = L2CAP_MIN_OFFSET;
+        p_buf->len = SMP_PUB_KEY_SIZE;
+    }
+
+    return p_buf;
+}
+
+/*******************************************************************************
+**
+** Function         smp_build_commit_cmd
+**
+** Description      Build dhkey check or commit command.
+**
+*******************************************************************************/
+static BT_HDR * smp_build_commit_cmd(UINT8 cmd_code, tSMP_CB *p_cb)
+{
+    BT_HDR      *p_buf = NULL ;
+    UINT8       *p;
+    SMP_TRACE_EVENT("smp_build_pub_key_cmd");
+    if ((p_buf = (BT_HDR *)GKI_getbuf(sizeof(BT_HDR) + SMP_COMMIT_SIZE + L2CAP_MIN_OFFSET)) != NULL)
+    {
+        p = (UINT8 *)(p_buf + 1) + L2CAP_MIN_OFFSET;
+
+        UINT8_TO_STREAM (p, SMP_OPCODE_DHKEY_CHECK);
+        ARRAY_TO_STREAM (p, p_cb->commit, BT_OCTET16_LEN);
+
+        p_buf->offset = L2CAP_MIN_OFFSET;
+        p_buf->len = SMP_COMMIT_SIZE;
+    }
+
+    return p_buf;
+}
+
+/*******************************************************************************
+**
+** Function         smp_build_keypress_cmd
+**
+** Description      Build dhkey check or commit command.
+**
+*******************************************************************************/
+static BT_HDR * smp_build_keypress_cmd(UINT8 cmd_code, tSMP_CB *p_cb)
+{
+    BT_HDR      *p_buf = NULL ;
+    UINT8       *p;
+    SMP_TRACE_EVENT("smp_build_keypress_cmd");
+    if ((p_buf = (BT_HDR *)GKI_getbuf(sizeof(BT_HDR) + SMP_KEYPRESS_SIZE + L2CAP_MIN_OFFSET)) != NULL)
+    {
+        p = (UINT8 *)(p_buf + 1) + L2CAP_MIN_OFFSET;
+
+        UINT8_TO_STREAM (p, SMP_OPCODE_KEYPRESS_NOT);
+        UINT8_TO_STREAM (p, p_cb->notification);
+
+        p_buf->offset = L2CAP_MIN_OFFSET;
+        p_buf->len = SMP_KEYPRESS_SIZE;
+    }
+
+    return p_buf;
+}
+
+#endif
 /*******************************************************************************
 **
 ** Function         smp_build_encrypt_info_cmd
@@ -571,8 +680,18 @@ void smp_reset_control_value(tSMP_CB *p_cb)
 
 
 #else
-    /* We can tell L2CAP to remove the fixed channel (if it has one) */
-    L2CA_RemoveFixedChnl (L2CAP_SMP_CID, p_cb->pairing_bda);
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    if(p_cb->smp_bredr == TRUE)
+    {
+        /* We can tell L2CAP to remove the fixed channel (if it has one) */
+        L2CA_RemoveFixedChnl (L2CAP_SMP_BREDR_CID, p_cb->pairing_bda);
+    }
+    else
+#endif
+    {
+        /* We can tell L2CAP to remove the fixed channel (if it has one) */
+        L2CA_RemoveFixedChnl (L2CAP_SMP_CID, p_cb->pairing_bda);
+    }
 
 #endif
     smp_cb_cleanup(p_cb);
@@ -609,7 +728,14 @@ void smp_proc_pairing_cmpl(tSMP_CB *p_cb)
                       evt_data.cmplt.reason,
                       evt_data.cmplt.sec_level );
     if (p_cb->p_callback)
-        (*p_cb->p_callback) (SMP_COMPLT_EVT, p_cb->pairing_bda, &evt_data);
+    {
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+        if(p_cb->smp_bredr)
+            (*p_cb->p_callback) (SMP_DERIVE_LTK_EVT, p_cb->pairing_bda, &evt_data);
+        else
+#endif
+            (*p_cb->p_callback) (SMP_COMPLT_EVT, p_cb->pairing_bda, &evt_data);
+    }
 
 #if 0 /* TESTING CODE : as a master, reencrypt using LTK */
     if (evt_data.cmplt.reason == 0 && p_cb->role == HCI_ROLE_MASTER)

@@ -237,6 +237,17 @@ BOOLEAN  BTM_SecRegister (tBTM_APPL_INFO *p_cb_info)
         {
             BTM_TRACE_ERROR ("BTM_SecRegister:p_cb_info->p_le_callback == NULL ");
         }
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+        /*LE sec conn: generate public key: Uncomment below for using persisted pubkey*/
+        /*if (memcmp(btm_cb.devcb.le_pub_key, &temp_value, sizeof(BT_OCTET64)) == 0)*/
+        {
+            btm_ble_generate_public_key();
+        }
+#endif
+    }
+    else
+    {
+        BTM_TRACE_ERROR ("BTM_SecRegister:p_cb_info->p_le_callback == NULL ");
     }
 #endif
 
@@ -1103,6 +1114,32 @@ UINT8 BTM_SecClrUCDService (UINT8 service_id)
     return(0);
 #endif
 }
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+/*******************************************************************************
+**
+** Function         BTM_KeyNotify
+**
+** Description      This function is called to send key press notifications
+**                  to the SMP layer
+**
+** Parameters:      bd_addr      - Address of the device being paired
+**                  notification - notification type
+**
+*******************************************************************************/
+
+void BTM_KeyNotify (BD_ADDR bd_addr, UINT8 notification)
+{
+    BTM_TRACE_DEBUG("%s", __FUNCTION__);
+    if (memcmp (bd_addr, btm_cb.pairing_bda, BD_ADDR_LEN) != 0)
+    {
+        BTM_TRACE_ERROR ("%s - Wrong BD Addr", __FUNCTION__);
+        return;
+    }
+    SMP_KeyNotify(notification);
+}
+
+#endif
 
 /*******************************************************************************
 **
@@ -2027,6 +2064,8 @@ tBTM_STATUS BTM_ReadLocalOobData(void)
 *******************************************************************************/
 void BTM_RemoteOobDataReply(tBTM_STATUS res, BD_ADDR bd_addr, BT_OCTET16 c, BT_OCTET16 r)
 {
+    BTM_TRACE_DEBUG("%s:result%d", __FUNCTION__, res);
+
     BTM_TRACE_EVENT ("BTM_RemoteOobDataReply():  State: %s  res:%d",
                       btm_pair_state_descr(btm_cb.pairing_state), res);
 
@@ -2048,7 +2087,26 @@ void BTM_RemoteOobDataReply(tBTM_STATUS res, BD_ADDR bd_addr, BT_OCTET16 c, BT_O
         btsnd_hcic_rem_oob_reply (bd_addr, c, r);
     }
 }
-
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+/*******************************************************************************
+**
+** Function         BTM_LERemoteOobDataReply
+**
+** Description      This function is called to provide the remote OOB data for
+**                  LE Pairing
+**
+** Parameters:      bd_addr     - Address of the peer device
+**                  c           - simple pairing Hash C.
+**                  r           - simple pairing Randomizer  C.
+**
+*******************************************************************************/
+void BTM_LERemoteOobDataReply(tBTM_STATUS res, BD_ADDR bd_addr,
+                                                        BT_OCTET16 c, BT_OCTET16 r)
+{
+    BTM_TRACE_DEBUG("%s:result%d", __FUNCTION__, res);
+    SMP_Save_OOB_Data(c, r);
+}
+#endif
 /*******************************************************************************
 **
 ** Function         BTM_BuildOobData

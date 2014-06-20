@@ -1195,6 +1195,9 @@ typedef void (tBTM_ESCO_CBACK) (tBTM_ESCO_EVT event, tBTM_ESCO_EVT_DATA *p_data)
 #define BTM_SEC_FLAG_ENCRYPTED      0x04
 #define BTM_SEC_FLAG_LKEY_KNOWN     0x10
 #define BTM_SEC_FLAG_LKEY_AUTHED    0x20
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define BTM_SEC_FLAG_LE_SC          0x4000
+#endif
 
 /* PIN types */
 #define BTM_PIN_TYPE_VARIABLE       HCI_PIN_TYPE_VARIABLE
@@ -1673,6 +1676,11 @@ enum
     BTM_LE_OOB_REQ_EVT,     /* OOB data request event */
     BTM_LE_COMPLT_EVT,      /* received SIMPLE_PAIRING_COMPLETE event */
     BTM_LE_KEY_EVT         /* KEY update event */
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    ,
+    BTM_LE_KEY_CONFIRM_EVT,   /* received USER_PASSKEY_CONFIRM event */
+    BTM_LE_DERIVE_LTK_EVT
+#endif
 };
 typedef UINT8 tBTM_LE_EVT;
 
@@ -1682,11 +1690,18 @@ typedef UINT8 tBTM_LE_EVT;
 #define BTM_LE_KEY_LENC      (SMP_SEC_KEY_TYPE_ENC << 3)       /* master role security information:div */
 #define BTM_LE_KEY_LID       (SMP_SEC_KEY_TYPE_ID << 3)        /* master device ID key */
 #define BTM_LE_KEY_LCSRK     (SMP_SEC_KEY_TYPE_CSRK << 3)       /* local CSRK has been deliver to peer */
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define BTM_LE_KEY_DERIVED     (SMP_SEC_KEY_TYPE_CSRK << 4)       /* local CSRK has been deliver to peer */
+#endif
 typedef UINT8 tBTM_LE_KEY_TYPE;
 
 #define BTM_LE_AUTH_REQ_NO_BOND SMP_AUTH_NO_BOND   /* 0 */
 #define BTM_LE_AUTH_REQ_BOND    SMP_AUTH_GEN_BOND  /* 1 << 0 */
 #define BTM_LE_AUTH_REQ_MITM    SMP_AUTH_YN_BIT    /* 1 << 2 */
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define BTM_LE_AUTH_REQ_SECURE  SMP_SECURE_CONN    /* 1 << 3 */
+#define BTM_LE_AUTH_REQ_KEYNOT  SMP_KEY_PRESS_NOT  /* 1 << 4 */
+#endif
 typedef UINT8 tBTM_LE_AUTH_REQ;
 
 #define BTM_LE_AUTH_REQ_MASK SMP_AUTH_MASK  /* 0x03*/
@@ -1695,6 +1710,9 @@ typedef UINT8 tBTM_LE_AUTH_REQ;
 #define BTM_LE_SEC_NONE             SMP_SEC_NONE
 #define BTM_LE_SEC_UNAUTHENTICATE   SMP_SEC_UNAUTHENTICATE      /* 1 */
 #define BTM_LE_SEC_AUTHENTICATED    SMP_SEC_AUTHENTICATED       /* 4 */
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define BTM_LE_SEC_SECURE           SMP_SEC_LE_SECURE           /* 8 */
+#endif
 typedef UINT8 tBTM_LE_SEC;
 
 
@@ -1759,7 +1777,20 @@ typedef struct
     BT_OCTET16          irk;
     tBLE_ADDR_TYPE      addr_type;
     BD_ADDR             static_addr;
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    BD_ADDR             private_addr;
+    BOOLEAN             create_rpa;
+#endif
 }tBTM_LE_PID_KEYS;
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+typedef struct
+{
+    LINK_KEY link_key;
+    UINT8 link_key_type;
+    UINT8 pin_key_len;
+}tBTM_LE_DERIVED_KEYS;
+#endif
 
 typedef union
 {
@@ -1768,6 +1799,9 @@ typedef union
     tBTM_LE_PID_KEYS    pid_key;        /* peer device ID key */
     tBTM_LE_LENC_KEYS   lenc_key;       /* local encryption reproduction keys LTK = = d1(ER,DIV,0)*/
     tBTM_LE_LCSRK_KEYS   lcsrk_key;      /* local device CSRK = d1(ER,DIV,1)*/
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    tBTM_LE_DERIVED_KEYS bredr_key;      /*br edr derived link key*/
+#endif
 }tBTM_LE_KEY_VALUE;
 
 typedef struct
@@ -1795,6 +1829,9 @@ typedef UINT8 (tBTM_LE_CALLBACK) (tBTM_LE_EVT event, BD_ADDR bda, tBTM_LE_EVT_DA
 #define BTM_BLE_KEY_TYPE_ID         1
 #define BTM_BLE_KEY_TYPE_ER         2
 #define BTM_BLE_KEY_TYPE_COUNTER    3  //tobe obsolete
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define BTM_BLE_KEY_TYPE_PUBLIC     4
+#endif
 
 typedef struct
 {
@@ -1808,6 +1845,9 @@ typedef union
 {
     tBTM_BLE_LOCAL_ID_KEYS  id_keys;
     BT_OCTET16              er;
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    BT_OCTET64              le_pub_key;
+#endif
 }tBTM_BLE_LOCAL_KEYS;
 
 
@@ -4060,6 +4100,10 @@ BOOLEAN BTM_SetBleEncKeySize (char *p_name, UINT8 enc_key_size, UINT16 le_psm);
                                           UINT8 *p_pin, UINT32 trusted_mask[]);
 
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    BTM_API extern void BTM_KeyNotify (BD_ADDR bd_addr, UINT8 notification);
+#endif
+
 /*******************************************************************************
 **
 ** Function         BTM_DeviceAuthorized
@@ -4239,6 +4283,20 @@ BOOLEAN BTM_SetBleEncKeySize (char *p_name, UINT8 enc_key_size, UINT16 le_psm);
 **
 *******************************************************************************/
     BTM_API extern void BTM_RemoteOobDataReply(tBTM_STATUS res, BD_ADDR bd_addr,
+                                                        BT_OCTET16 c, BT_OCTET16 r);
+/*******************************************************************************
+**
+** Function         BTM_LERemoteOobDataReply
+**
+** Description      This function is called to provide the remote OOB data for
+**                  LE Pairing
+**
+** Parameters:      bd_addr     - Address of the peer device
+**                  c           - simple pairing Hash C.
+**                  r           - simple pairing Randomizer  C.
+**
+*******************************************************************************/
+    BTM_API extern void BTM_LERemoteOobDataReply(tBTM_STATUS res, BD_ADDR bd_addr,
                                                         BT_OCTET16 c, BT_OCTET16 r);
 
 /*******************************************************************************

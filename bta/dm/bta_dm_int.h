@@ -137,6 +137,10 @@ enum
     BTA_DM_API_EXECUTE_CBACK_EVT,
     BTA_DM_API_SET_AFH_CHANNEL_ASSESMENT_EVT,
     BTA_DM_API_HCI_RAW_COMMAND_EVT,
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    BTA_DM_API_KEY_NOT_EVT,
+    BTA_DM_CI_BLE_RMT_OOB_EVT,
+#endif
     BTA_DM_MAX_EVT
 };
 
@@ -283,6 +287,15 @@ typedef struct
     UINT8 pin_len;
     UINT8 p_pin[PIN_CODE_LEN];
 } tBTA_DM_API_PIN_REPLY;
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+typedef struct
+{
+    BT_HDR hdr;
+    BD_ADDR bd_addr;
+    UINT8 notification;
+}tBTA_DM_API_KEY_NOT;
+#endif
 
 /* data type for BTA_DM_API_LINK_POLICY_EVT */
 typedef struct
@@ -841,6 +854,9 @@ typedef union
 #endif
     tBTA_DM_API_REMOVE_ACL              remove_acl;
     tBTA_DM_API_RAW_COMMAND btc_command;
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    tBTA_DM_API_KEY_NOT     key_notify;
+#endif
 
 } tBTA_DM_MSG;
 
@@ -1227,6 +1243,10 @@ extern void bta_dm_ble_read_scan_reports(tBTA_DM_MSG * p_data);
 extern void bta_dm_ble_track_advertiser(tBTA_DM_MSG * p_data);
 extern void bta_dm_ble_get_energy_info(tBTA_DM_MSG *p_data);
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+extern void bta_dm_send_key_press_notify(tBTA_DM_MSG *p_data);
+#endif
+
 #endif
 extern void bta_dm_set_encryption(tBTA_DM_MSG *p_data);
 extern void bta_dm_confirm(tBTA_DM_MSG *p_data);
@@ -1235,6 +1255,9 @@ extern void bta_dm_passkey_cancel(tBTA_DM_MSG *p_data);
 extern void bta_dm_loc_oob(tBTA_DM_MSG *p_data);
 extern void bta_dm_ci_io_req_act(tBTA_DM_MSG *p_data);
 extern void bta_dm_ci_rmt_oob_act(tBTA_DM_MSG *p_data);
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+extern void bta_dm_ci_ble_rmt_oob_act(tBTA_DM_MSG *p_data);
+#endif
 #endif /* BTM_OOB_INCLUDED */
 
 extern void bta_dm_init_pm(void);

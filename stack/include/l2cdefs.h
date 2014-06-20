@@ -154,6 +154,9 @@
 #define L2CAP_ATT_CID                   4
 #define L2CAP_BLE_SIGNALLING_CID        5
 #define L2CAP_SMP_CID                   6
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define L2CAP_SMP_BREDR_CID             7
+#endif
 #define L2CAP_AMP_TEST_CID              0x003F
 #define L2CAP_BASE_APPL_CID             0x0040
 

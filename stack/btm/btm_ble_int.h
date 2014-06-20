@@ -354,6 +354,14 @@ extern void btm_ble_link_encrypted(BD_ADDR bd_addr, UINT8 encr_enable, UINT8 sta
 /* LE device management functions */
 extern void btm_ble_reset_id( void );
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+/*LE Secure conn API */
+extern void btm_ble_generate_public_key (void);
+extern void btm_ble_proc_public_key(UINT8 *p, UINT16 evt_len);
+extern void btm_ble_proc_dhkey(UINT8 *p, UINT16 evt_len);
+extern void btm_ble_generate_dhkey(BT_OCTET64 rem_pk);
+#endif
+
 /* security related functions */
 extern void btm_ble_increment_sign_ctr(BD_ADDR bd_addr, BOOLEAN is_local );
 extern BOOLEAN btm_get_local_div (BD_ADDR bd_addr, UINT16 *p_div);

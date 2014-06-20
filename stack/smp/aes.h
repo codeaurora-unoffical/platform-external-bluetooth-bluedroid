@@ -55,6 +55,16 @@
 #define N_BLOCK   (N_ROW * N_COL)
 #define N_MAX_ROUNDS           14
 
+typedef unsigned char UINT8;
+typedef unsigned short UINT16;
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+void aes_cmac(UINT8 *p, UINT8 *p_key, UINT16 text_len, UINT8 *p_out);
+void aes_f4(UINT8* p_u, UINT8* p_v, UINT8* p_x, UINT8* p_z, UINT8* p_out);
+void aes_f5(UINT8 *p_w, UINT8 *p_n1, UINT8 *p_n2, UINT8 *p_keyID, UINT8 *p_a1, UINT8* p_a2, UINT8* p_out);
+void aes_f5_v2(UINT8 counter, UINT8 *p_w, UINT8 *p_n1, UINT8 *p_n2, UINT8 *p_keyID, UINT8 *p_a1, UINT8* p_a2, UINT8* p_out);
+void aes_f6(UINT8 *p_w, UINT8 *p_n1, UINT8 *p_n2, UINT8 *p_r, UINT8 *p_iocap, UINT8 *p_a1, UINT8 * p_a2, UINT8 * p_out);
+void aes_g2(UINT8 *p_u, UINT8 *p_v, UINT8 *p_x, UINT8 *p_y, UINT8 *p_out);
+#endif
 typedef unsigned char uint_8t;
 
 typedef uint_8t return_type;

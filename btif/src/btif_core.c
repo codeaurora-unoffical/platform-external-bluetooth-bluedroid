@@ -995,7 +995,7 @@ static bt_status_t btif_in_get_adapter_properties(void)
     return BT_STATUS_SUCCESS;
 }
 
-static bt_status_t btif_in_get_remote_device_properties(bt_bdaddr_t *bd_addr)
+bt_status_t btif_in_get_remote_device_properties(bt_bdaddr_t *bd_addr)
 {
     bt_property_t remote_properties[8];
     uint32_t num_props = 0;

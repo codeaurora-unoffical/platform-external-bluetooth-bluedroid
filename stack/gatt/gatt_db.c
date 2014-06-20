@@ -123,6 +123,7 @@ static tGATT_STATUS gatts_check_attr_readability(tGATT_ATTR16 *p_attr,
     tGATT_PERM      perm = p_attr->permission;
 
     UNUSED(offset);
+    GATT_TRACE_DEBUG("gatts_check_attr_readability, sec_flag=%0x, key-size=%d", sec_flag, key_size);
     min_key_size = (((perm & GATT_ENCRYPT_KEY_SIZE_MASK) >> 12));
     if (min_key_size != 0 )
     {
@@ -135,14 +136,22 @@ static tGATT_STATUS gatts_check_attr_readability(tGATT_ATTR16 *p_attr,
         return GATT_READ_NOT_PERMIT;
     }
 
-    if ((perm & GATT_READ_AUTH_REQUIRED ) && !(sec_flag & GATT_SEC_FLAG_LKEY_UNAUTHED) &&
+    if ((perm & GATT_READ_ENCRYPTED_REQUIRED ) && !(sec_flag & GATT_SEC_FLAG_LKEY_UNAUTHED) &&
         !(sec_flag & BTM_SEC_FLAG_ENCRYPTED))
     {
         GATT_TRACE_ERROR( "GATT_INSUF_AUTHENTICATION");
         return GATT_INSUF_AUTHENTICATION;
     }
-
-    if ((perm & GATT_READ_MITM_REQUIRED ) && !(sec_flag & GATT_SEC_FLAG_LKEY_AUTHED))
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    if ((perm & GATT_PERM_READ_SC_ENC_MITM) && (sec_flag & BTM_SEC_FLAG_ENCRYPTED) &&
+         !(sec_flag & GATT_SEC_FLAG_LE_SECURE))
+    {
+        GATT_TRACE_ERROR( "GATT_INSUF_AUTHENTICATION: LE_SEC required");
+        return GATT_INSUF_AUTHENTICATION;
+    }
+#endif
+    if ((perm & GATT_READ_MITM_REQUIRED ) && !(sec_flag & GATT_SEC_FLAG_LKEY_AUTHED) &&
+        (sec_flag & BTM_SEC_FLAG_ENCRYPTED))
     {
         GATT_TRACE_ERROR( "GATT_INSUF_AUTHENTICATION: MITM Required");
         return GATT_INSUF_AUTHENTICATION;
@@ -805,17 +814,29 @@ tGATT_STATUS gatts_write_attr_perm_check (tGATT_SVC_DB *p_db, UINT8 op_code,
                     status = GATT_WRITE_NOT_PERMIT;
                     GATT_TRACE_ERROR( "gatts_write_attr_perm_check - GATT_WRITE_NOT_PERMIT");
                 }
-                /* require authentication, but not been authenticated */
-                else if ((perm & GATT_WRITE_AUTH_REQUIRED ) && !(sec_flag & GATT_SEC_FLAG_LKEY_UNAUTHED))
+                /* require encryption, but not encrypted and ltk is not known*/
+                else if((perm & GATT_WRITE_ENCRYPTED_PERM) && !(sec_flag & GATT_SEC_FLAG_ENCRYPTED) &&
+                        !(sec_flag & GATT_SEC_FLAG_LKEY_UNAUTHED))
+                {
+                    GATT_TRACE_ERROR( "gatts_write_attr_perm_check - GATT_INSUF_AUTHENTICATION");
+                    status = GATT_INSUF_AUTHENTICATION;
+                }
+                /*requires mitm enc and link is encrypted but ltk is not auth*/
+                else if((perm & GATT_WRITE_MITM_REQUIRED) && !(sec_flag & GATT_SEC_FLAG_LKEY_AUTHED) &&
+                        (sec_flag & GATT_SEC_FLAG_ENCRYPTED))
                 {
                     status = GATT_INSUF_AUTHENTICATION;
                     GATT_TRACE_ERROR( "gatts_write_attr_perm_check - GATT_INSUF_AUTHENTICATION");
                 }
-                else if ((perm & GATT_WRITE_MITM_REQUIRED ) && !(sec_flag & GATT_SEC_FLAG_LKEY_AUTHED))
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+                /*le SC encryption with MITM needed, link is encrypted with legacy*/
+                else if((perm & GATT_PERM_WRITE_SC_ENC_MITM) && (sec_flag & GATT_SEC_FLAG_ENCRYPTED) &&
+                        !(sec_flag & GATT_SEC_FLAG_LE_SECURE))
                 {
                     status = GATT_INSUF_AUTHENTICATION;
-                    GATT_TRACE_ERROR( "gatts_write_attr_perm_check - GATT_INSUF_AUTHENTICATION: MITM required");
+                    GATT_TRACE_ERROR( "gatts_write_attr_perm_check - GATT_INSUF_AUTHENTICATION");
                 }
+#endif
                 else if ((perm & GATT_WRITE_ENCRYPTED_PERM ) && !(sec_flag & GATT_SEC_FLAG_ENCRYPTED))
                 {
                     status = GATT_INSUF_ENCRYPTION;

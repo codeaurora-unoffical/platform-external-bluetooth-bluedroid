@@ -1153,8 +1153,15 @@ and USER_HW_DISABLE_API macros */
 #define BTM_SECURE_CONN_HOST_INCLUDED    TRUE
 /* TRUE to read the controller capability */
 #define BTM_READ_CTLR_CAP_INCLUDED       TRUE
+
+#ifndef BTM_LE_SECURE_CONN
+#define BTM_LE_SECURE_CONN          FALSE
+#endif
 #endif
 
+#ifndef BTM_LE_SECURE_CONN_ONLY
+#define BTM_LE_SECURE_CONN_ONLY  FALSE
+#endif
 /*************************
 ** End of Lisbon Features
 **************************/
@@ -1296,8 +1303,13 @@ and USER_HW_DISABLE_API macros */
 
 /* Used for features using fixed channels; set to zero if no fixed channels supported (BLE, etc.) */
 /* Excluding L2CAP signaling channel and UCD */
-#ifndef L2CAP_NUM_FIXED_CHNLS
+
+#ifndef L2CAP_NUM_FIXED_CHNL
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define L2CAP_NUM_FIXED_CHNLS               5
+#else
 #define L2CAP_NUM_FIXED_CHNLS               4
+#endif
 #endif
 
 /* First fixed channel supported */

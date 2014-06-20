@@ -45,7 +45,7 @@
 /*              L O C A L    F U N C T I O N     P R O T O T Y P E S            */
 /********************************************************************************/
 static void gatt_le_connect_cback (BD_ADDR bd_addr, BOOLEAN connected, UINT16 reason, tBT_TRANSPORT transport);
-static void gatt_le_data_ind (BD_ADDR bd_addr, BT_HDR *p_buf);
+static void gatt_le_data_ind (BD_ADDR bd_addr, BT_HDR *p_buf, tBT_TRANSPORT transport);
 static void gatt_le_cong_cback(BD_ADDR remote_bda, BOOLEAN congest);
 
 static void gatt_l2cif_connect_ind_cback (BD_ADDR  bd_addr, UINT16 l2cap_cid, UINT16 psm, UINT8 l2cap_id);
@@ -534,9 +534,10 @@ static void gatt_le_cong_cback(BD_ADDR remote_bda, BOOLEAN congested)
 ** Returns          void
 **
 *******************************************************************************/
-static void gatt_le_data_ind (BD_ADDR bd_addr, BT_HDR *p_buf)
+static void gatt_le_data_ind (BD_ADDR bd_addr, BT_HDR *p_buf, tBT_TRANSPORT transport)
 {
     tGATT_TCB    *p_tcb;
+    UNUSED(transport);
 
     /* Find CCB based on bd addr */
     if ((p_tcb = gatt_find_tcb_by_addr (bd_addr, BT_TRANSPORT_LE)) != NULL &&
