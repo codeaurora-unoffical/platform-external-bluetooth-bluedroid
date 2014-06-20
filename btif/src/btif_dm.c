@@ -665,9 +665,9 @@ static void btif_dm_cb_create_bond(bt_bdaddr_t *bd_addr)
         }
 #endif
         BTA_DmBond ((UINT8 *)bd_addr->address);
+        /*  Track  originator of bond creation  */
+        pairing_cb.is_local_initiated = TRUE;
     }
-    /*  Track  originator of bond creation  */
-    pairing_cb.is_local_initiated = TRUE;
 
 }
 
@@ -1351,7 +1351,8 @@ static void btif_dm_search_services_evt(UINT16 event, char *p_param)
                     p_data->disc_res.result, p_data->disc_res.services);
             if  ((p_data->disc_res.result != BTA_SUCCESS) &&
                  (pairing_cb.state == BT_BOND_STATE_BONDING ) &&
-                 (pairing_cb.sdp_attempts < BTIF_DM_MAX_SDP_ATTEMPTS_AFTER_PAIRING))
+                 (pairing_cb.sdp_attempts < BTIF_DM_MAX_SDP_ATTEMPTS_AFTER_PAIRING)
+                 && !check_cod(&bd_addr, COD_HID_POINTING))
             {
                 BTIF_TRACE_WARNING1("%s:SDP failed after bonding re-attempting", __FUNCTION__);
                 pairing_cb.sdp_attempts++;
