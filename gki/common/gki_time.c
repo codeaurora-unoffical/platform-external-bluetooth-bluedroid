@@ -816,6 +816,11 @@ void GKI_add_to_timer_list (TIMER_LIST_Q *p_timer_listq, TIMER_LIST_ENT  *p_tle)
     /* block others to edit the timer_queue list while it is getting modified */
     GKI_disable();
 
+    if (p_timer_listq == NULL || p_tle == NULL)
+    {
+       BT_ERROR_TRACE_0(TRACE_LAYER_GKI, "ERROR :GKI_add_to_timer_list:either node or List is NULL");
+       return;
+    }
     /* Only process valid tick values */
     if (p_tle->ticks >= 0)
     {
@@ -845,7 +850,7 @@ void GKI_add_to_timer_list (TIMER_LIST_Q *p_timer_listq, TIMER_LIST_ENT  *p_tle)
         {
             /* Find the entry that the new one needs to be inserted in front of */
             p_temp = p_timer_listq->p_first;
-            while (p_tle->ticks > p_temp->ticks)
+            while (p_temp != NULL && (p_tle->ticks > p_temp->ticks))
             {
                 /* Update the tick value if looking at an unexpired entry */
                 if (p_temp->ticks > 0)
