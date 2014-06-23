@@ -453,7 +453,7 @@ void btsnoop_acl_data(uint8_t *p, uint8_t is_rcvd)
 
 #define EXT_PARSER_PORT 4330
 
-static pthread_t thread_id;
+static pthread_t thread_id = 0;
 static int s_listen = -1;
 static int ext_parser_fd = -1;
 static long int gmt_offset;
@@ -664,10 +664,18 @@ void btsnoop_close(void)
 void btsnoop_cleanup (void)
 {
 #if defined(BTSNOOP_EXT_PARSER_INCLUDED) && (BTSNOOP_EXT_PARSER_INCLUDED == TRUE)
-    ALOGD("btsnoop_cleanup");
-    pthread_kill(thread_id, SIGUSR2);
-    pthread_join(thread_id, NULL);
-    ext_parser_detached();
+    if (thread_id > 0)
+    {
+        ALOGD("btsnoop_cleanup");
+        pthread_kill(thread_id, SIGUSR2);
+        pthread_join(thread_id, NULL);
+        ext_parser_detached();
+        thread_id = 0;
+    }
+    else
+    {
+        ALOGD("btsnoop_cleanup failed");
+    }
 #endif
 }
 
