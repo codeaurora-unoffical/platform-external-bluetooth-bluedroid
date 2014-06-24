@@ -520,6 +520,15 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
             BTIF_TRACE_WARNING0("Moved from idle by outgoing Connection request");
             BTA_AvDisconnect(((tBTA_AV*)p_data)->pend.bd_addr);
             break;
+        case BTA_AV_CLOSE_EVT:
+            /* avdtp link is closed */
+            btif_a2dp_on_stopped(NULL);
+            /* inform the application that we are disconnected */
+            HAL_CBACK(bt_av_callbacks, connection_state_cb,
+                BTAV_CONNECTION_STATE_DISCONNECTED, &(btif_av_cb.peer_bda));
+
+            btif_sm_change_state(btif_av_cb.sm_handle, BTIF_AV_STATE_IDLE);
+            break;
 
         CHECK_RC_EVENT(event, p_data);
 
@@ -956,11 +965,92 @@ static void btif_av_handle_event(UINT16 event, char* p_param)
     btif_sm_dispatch(btif_av_cb.sm_handle, event, (void*)p_param);
 }
 
+void display_meta_msg(tBTA_AV_META_MSG meta_msg)
+{
+    int index, disp_index = 0;
+    char disp_buf[128] = {0};
+
+    BTIF_TRACE_DEBUG3("rc_hndl = %d : comp_id = 0x%x : label = %d",
+        meta_msg.rc_handle, meta_msg.company_id, meta_msg.label);
+
+    BTIF_TRACE_DEBUG4("len = %d : p_data = %p : p_msg = %p : rc_handle = %d",
+        meta_msg.len, meta_msg.p_data, meta_msg.p_msg, meta_msg.rc_handle);
+
+    BTIF_TRACE_DEBUG4("AVRC Msg : Vendor Header: ctype = %d : subunit_type = %d :"
+        "subunit_id = %d : opcode = %d",
+        meta_msg.p_msg->vendor.hdr.ctype, meta_msg.p_msg->vendor.hdr.subunit_type,
+        meta_msg.p_msg->vendor.hdr.subunit_id, meta_msg.p_msg->vendor.hdr.opcode);
+
+    BTIF_TRACE_DEBUG3("AVRC Msg : Vendor: comp_id = 0x%x : p_vendor_data = %p : vendor_len = %d",
+        meta_msg.p_msg->vendor.company_id, meta_msg.p_msg->vendor.p_vendor_data,
+        meta_msg.p_msg->vendor.vendor_len);
+
+    BTIF_TRACE_DEBUG0("Vendor data : ");
+    for (index = 0; index < meta_msg.p_msg->vendor.vendor_len; index++)
+    {
+        disp_index += snprintf(disp_buf + disp_index, 128 - disp_index, "%02x ",
+                                meta_msg.p_msg->vendor.p_vendor_data[index]);
+        if (disp_index % 20 == 0)
+        {
+            BTIF_TRACE_DEBUG1("%s", disp_buf);
+            disp_index = 0;
+        }
+    }
+    if(disp_index != 0)
+    {
+        BTIF_TRACE_DEBUG1("%s", disp_buf);
+    }
+}
+
+void btif_av_msg_copy(UINT16 event, char *p_dest, char *p_src)
+{
+    if (event == BTA_AV_META_MSG_EVT)
+    {
+        tBTA_AV *p_data;
+        tAVRC_MSG *p_avrc;
+        UINT8 *p_vendor_data;
+
+        memcpy(p_dest, p_src, sizeof(tBTA_AV));  /* callback parameter data */
+        p_data = (tBTA_AV *)p_dest;
+
+        p_avrc = (tAVRC_MSG *)GKI_getbuf(sizeof(tAVRC_MSG) +
+                  p_data->meta_msg.p_msg->vendor.vendor_len);
+        if(p_avrc == NULL)
+        {
+            BTIF_TRACE_ERROR0("GKI_getbuf failed : Failed to copy Meta Msg");
+            return;
+        }
+        memcpy(p_avrc, p_data->meta_msg.p_msg, sizeof(tAVRC_MSG));
+        p_vendor_data = (UINT8*)(p_avrc + 1);
+
+        memcpy(p_vendor_data, p_data->meta_msg.p_msg->vendor.p_vendor_data,
+            p_data->meta_msg.p_msg->vendor.vendor_len);
+
+        p_data->meta_msg.p_msg = p_avrc;
+        p_data->meta_msg.p_msg->vendor.p_vendor_data = p_vendor_data;
+    }
+}
+
 static void bte_av_callback(tBTA_AV_EVT event, tBTA_AV *p_data)
 {
+    int param_len;
+
     /* Switch to BTIF context */
-    btif_transfer_context(btif_av_handle_event, event,
+    /* Special handling for META_MSG because of vendor data pointer */
+    if (event == BTA_AV_META_MSG_EVT)
+    {
+        param_len = sizeof(tAVRC_MSG) + p_data->meta_msg.p_msg->vendor.vendor_len;
+        BTIF_TRACE_DEBUG1(" Meta Message Length %d", param_len);
+
+        display_meta_msg(p_data->meta_msg);
+        btif_transfer_context(btif_av_handle_event, event,
+                          (char*)p_data, sizeof(tBTA_AV), btif_av_msg_copy);
+    }
+    else
+    {
+        btif_transfer_context(btif_av_handle_event, event,
                           (char*)p_data, sizeof(tBTA_AV), NULL);
+    }
 }
 
 static void bte_av_media_callback(tBTA_AV_EVT event, tBTA_AV_MEDIA *p_data)
