@@ -328,7 +328,7 @@ typedef struct
 #define BTA_BLE_AD_BIT_INT_RANGE       BTM_BLE_AD_BIT_INT_RANGE
 #define BTA_BLE_AD_BIT_SERVICE         BTM_BLE_AD_BIT_SERVICE
 #define BTA_BLE_AD_BIT_APPEARANCE      BTM_BLE_AD_BIT_APPEARANCE
-#define BTA_BLE_AD_BIT_VS_DATA         BTM_BLE_AD_BIT_VS_DATA
+#define BTA_BLE_AD_BIT_PROPRIETARY     BTM_BLE_AD_BIT_PROPRIETARY
 #define BTA_DM_BLE_AD_BIT_SERVICE_SOL     BTM_BLE_AD_BIT_SERVICE_SOL
 #define BTA_DM_BLE_AD_BIT_SERVICE_DATA    BTM_BLE_AD_BIT_SERVICE_DATA
 #define BTA_DM_BLE_AD_BIT_SIGN_DATA       BTM_BLE_AD_BIT_SIGN_DATA
@@ -373,7 +373,7 @@ typedef struct
 {
     UINT8                   num_elem;
     tBTA_BLE_PROP_ELEM      *p_elem;
-}tBTA_BLE_VS_DATA;
+}tBTA_BLE_PROPRIETARY;
 
 typedef struct
 {
@@ -383,7 +383,7 @@ typedef struct
     tBTA_BLE_SERVICE        services;        /* services */
     UINT16                  appearance;      /* appearance data */
     UINT8                   flag;
-    tBTA_BLE_VS_DATA    *vs_data;
+    tBTA_BLE_PROPRIETARY    *p_proprietary;
 
 }tBTA_BLE_ADV_DATA;
 
@@ -2047,7 +2047,7 @@ BTA_API extern void BTA_DmBleObserve_With_Filter(BOOLEAN start, UINT8 duration, 
 *******************************************************************************/
 BTA_API extern void BTA_DmSetAfhChannelAssessment (BOOLEAN enable_or_disable);
 
-#if BLE_INCLUDE == TRUE
+#if BLE_INCLUDED == TRUE
 // btla-specific --
 /*******************************************************************************
 **
@@ -2090,6 +2090,34 @@ BTA_API extern void BTA_DmBleEnableRemotePrivacy(BD_ADDR bd_addr, BOOLEAN privac
 *******************************************************************************/
 BTA_API extern void BTA_DmBleSetAdvConfig (tBTA_BLE_AD_MASK data_mask,
                                            tBTA_BLE_ADV_DATA *p_adv_cfg);
+
+/*******************************************************************************
+**
+** Function         BTA_DmBleSetScanRsp
+**
+** Description      This function is called to override the BTA scan response.
+**
+** Parameters       Pointer to User defined ADV data structure
+**
+** Returns          None
+**
+*******************************************************************************/
+BTA_API extern void BTA_DmBleSetScanRsp (tBTA_BLE_AD_MASK data_mask,
+                                         tBTA_BLE_ADV_DATA *p_adv_cfg);
+
+/*******************************************************************************
+**
+** Function         BTA_DmBleBroadcast
+**
+** Description      This function starts or stops LE broadcasting.
+**
+** Parameters       start: start or stop broadcast.
+**
+** Returns          None
+**
+*******************************************************************************/
+BTA_API extern void BTA_DmBleBroadcast (BOOLEAN start);
+
 #endif
 
 #ifdef __cplusplus
