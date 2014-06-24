@@ -53,6 +53,14 @@ BT DUT MODE CONFIGURE
 HAL REQUEST SUCCESS
 >
 
+Device Discovery Options
+=======================
+Fetch More than one devices within 20 Sec window and exit
+root@android:/ # /system/bin/bdt get_ap_list
+
+Fetch single device and exit on first found. Search window is 20sec.
+root@android:/ # /system/bin/bdt get_a_device
+
 Running BLE Test commands (Bluetooth must be enabled)
 =====================================================
 NOTE: Unlike BR/EDR, there is no explicit DUT mode to run these BLE tests.
