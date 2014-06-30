@@ -1182,7 +1182,7 @@ void do_le_client_set_adv_data(char *p)
     IncludeTxPower     = get_int(&p, -1);  // arg3  Other than zero will be considered as true.
 
     //To start with we are going with hard-code values.
-    Ret = sGattIfaceScan->client->set_adv_data(/*g_server_if*/ g_server_if_scan /*g_client_if_scan*/, SetScanRsp, IncludeName, IncludeTxPower, 100, 1000, FALSE, /*8, "QUALCOMM" */ 0, NULL);
+    Ret = sGattIfaceScan->client->set_adv_data(/*g_server_if*/ g_server_if_scan /*g_client_if_scan*/, SetScanRsp, IncludeName, IncludeTxPower, 100, 1000, FALSE, 8, "QUALCOMM", 0, NULL, 0, NULL);
 }
 
 void do_le_client_listen_start(char *p)
