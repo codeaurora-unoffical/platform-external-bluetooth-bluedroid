@@ -1016,6 +1016,31 @@ void btif_av_msg_copy(UINT16 event, char *p_dest, char *p_src)
         p_data->meta_msg.p_msg = p_avrc;
         p_data->meta_msg.p_msg->vendor.p_vendor_data = p_vendor_data;
     }
+    else if (event == BTA_AV_BROWSE_MSG_EVT)
+    {
+        tBTA_AV *p_data;
+        tAVRC_MSG *p_avrc;
+        UINT8 *p_browse_data;
+
+        memcpy(p_dest, p_src, sizeof(tBTA_AV));
+        p_data = (tBTA_AV *)p_dest;
+
+        p_avrc = (tAVRC_MSG *)GKI_getbuf(sizeof(tAVRC_MSG) +
+                  p_data->browse_msg.p_msg->browse.browse_len);
+        if(p_avrc == NULL)
+        {
+            BTIF_TRACE_ERROR0("GKI_getbuf failed : Failed to copy Browse Msg");
+            return;
+        }
+        memcpy(p_avrc, p_data->browse_msg.p_msg, sizeof(tAVRC_MSG));
+        p_browse_data = (UINT8*)(p_avrc + 1);
+
+        memcpy(p_browse_data, p_data->browse_msg.p_msg->browse.p_browse_data,
+            p_data->browse_msg.p_msg->browse.browse_len);
+
+        p_data->browse_msg.p_msg = p_avrc;
+        p_data->browse_msg.p_msg->browse.p_browse_data = p_browse_data;
+    }
 }
 
 static void bte_av_callback(tBTA_AV_EVT event, tBTA_AV *p_data)
@@ -1032,6 +1057,15 @@ static void bte_av_callback(tBTA_AV_EVT event, tBTA_AV *p_data)
         display_meta_msg(p_data->meta_msg);
         btif_transfer_context(btif_av_handle_event, event,
                           (char*)p_data, sizeof(tBTA_AV), btif_av_msg_copy);
+    }
+    /* Special handling for BROWSE_MSG because of browse data pointer */
+    else if (event == BTA_AV_BROWSE_MSG_EVT)
+    {
+        param_len = sizeof(tAVRC_MSG) + p_data->browse_msg.p_msg->browse.\
+                                                                browse_len;
+        BTIF_TRACE_DEBUG1(" Browse Message Length %d", param_len);
+        btif_transfer_context(btif_av_handle_event, event, (char*)p_data,
+                                        sizeof(tBTA_AV), btif_av_msg_copy);
     }
     else
     {
