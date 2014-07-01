@@ -789,25 +789,6 @@ void handle_rc_browsemsg_cmd (tBTA_AV_BROWSE_MSG *pbrowse_msg)
                 dropmsg = FALSE;
             }
         break;
-        case AVRC_PDU_SET_BROWSED_PLAYER:
-            event  = pbrowse_msg->p_msg->browse.p_browse_data[0] ;
-            cmd.br_player.pdu     = event;
-            //Check for length
-            p_length = &pbrowse_msg->p_msg->browse.p_browse_data[1];
-            BE_STREAM_TO_UINT16(length, p_length);
-            if (length != 0x0002)
-            {
-                BTIF_TRACE_ERROR1("SET_BROWSED_PLAYERlength error: = %d",length);
-            }
-            else
-            {
-                p_length = &pbrowse_msg->p_msg->browse.p_browse_data[3];
-                BE_STREAM_TO_UINT16(cmd.br_player.player_id, p_length);
-                cmd.br_player.opcode = AVRC_OP_BROWSE;
-                btif_rc_upstreams_evt(event, &cmd, 0, pbrowse_msg->label);
-                dropmsg = FALSE;
-            }
-        break;
 
         default:
             BTIF_TRACE_ERROR0("pbrowse_msg ERROR");
@@ -879,7 +860,10 @@ void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV *p_data)
             BTIF_TRACE_DEBUG2("BTA_AV_META_MSG_EVT  code:%d label:%d", p_data->meta_msg.code,
                 p_data->meta_msg.rc_handle);
             /* handle the metamsg command */
+
             handle_rc_metamsg_cmd(&(p_data->meta_msg));
+            /* Free the Memory allocated for tAVRC_MSG */
+            GKI_freebuf(p_data->meta_msg.p_msg);
         }
         break;
         case BTA_AV_BROWSE_MSG_EVT:

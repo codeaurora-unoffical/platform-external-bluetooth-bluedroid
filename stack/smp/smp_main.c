@@ -114,6 +114,7 @@ enum
     SMP_PROC_REL_DELAY,
     SMP_PROC_REL_DELAY_TOUT,
     SMP_DELAY_TERMINATE,
+    SMP_SEC_REQ_TERMINATE,
     SMP_SM_NO_ACTION
 };
 
@@ -156,6 +157,7 @@ static const tSMP_ACT smp_sm_action[] =
     smp_proc_release_delay,
     smp_proc_release_delay_tout,
     smp_delay_terminate,
+    smp_sec_req_terminate,
 };
 /************ SMP Master FSM State/Event Indirection Table **************/
 static const UINT8 smp_ma_entry_map[][SMP_ST_MAX] =
@@ -277,7 +279,7 @@ static const UINT8 smp_sl_entry_map[][SMP_ST_MAX] =
 /* KEY_READY*/           { 0,    3,    0,      3,     2,   2,    1,   2,    1,     0       },
 /* ENC_CMPL */           { 0,    0,    2,      0,     0,   0,    0,   3,    0,     0       },
 /* L2C_CONN */           { 1,    0,    0,      0,     0,   0,    0,   0,    0,     0       },
-/* L2C_DISC */           { 0,    0x83, 0x83,   0x83,  0x83,0x83, 0x83,0x83, 0x83,  2       },
+/* L2C_DISC */           { 0,    0x83, 3,   0x83,  0x83,0x83, 0x83,0x83, 0x83,  2       },
 /* IO_RSP   */           { 0,    1,    0,      0,     0,   0,    0,   0,    0,     0       },
 /* SEC_GRANT*/           { 0,    2,    0,      0,     0,   0,    0,   0,    0,     0       },
 
@@ -308,6 +310,7 @@ static const UINT8 smp_sl_sec_request_table[][SMP_SM_NUM_COLS] = {
 /* Event       			Action          Next State */
 /* PAIR_REQ */{SMP_PROC_PAIR_CMD,       SMP_SEND_PAIR_RSP,      SMP_ST_PAIR_REQ_RSP},
 /* ENCRYPTED*/{SMP_ENC_CMPL,        SMP_SM_NO_ACTION,       SMP_ST_PAIR_REQ_RSP},
+/* L2CAPDISC*/{SMP_SEC_REQ_TERMINATE,        SMP_SM_NO_ACTION,       SMP_ST_IDLE}
 };
 
 static const UINT8 smp_sl_pair_req_rsp_table[][SMP_SM_NUM_COLS] = {

@@ -122,6 +122,7 @@ BOOLEAN l2c_link_hci_conn_req (BD_ADDR bd_addr)
         else
             p_lcb->link_role = l2cu_get_conn_role(bd_addr);
 
+        p_lcb->is_collision = TRUE;
         btsnd_hcic_accept_conn (bd_addr, p_lcb->link_role);
 
         p_lcb->link_state = LST_CONNECTING;
@@ -219,7 +220,7 @@ BOOLEAN l2c_link_hci_conn_comp (UINT8 status, UINT16 handle, BD_ADDR p_bda)
         l2c_process_held_packets(FALSE);
 
         btu_stop_timer (&p_lcb->timer_entry);
-
+        p_lcb->is_collision = FALSE;
         /* For all channels, send the event through their FSMs */
         for (p_ccb = p_lcb->ccb_queue.p_first_ccb; p_ccb; p_ccb = p_ccb->p_next_ccb)
         {
@@ -261,6 +262,16 @@ BOOLEAN l2c_link_hci_conn_comp (UINT8 status, UINT16 handle, BD_ADDR p_bda)
 
         p_lcb->disc_reason = status;
         /* Release the LCB */
+        if(status == HCI_ERR_COMMAND_DISALLOWED && p_lcb->is_collision ==  TRUE)
+        {
+          L2CAP_TRACE_ERROR0 ("l2c_link_hci_conn_comp: collision,Dont free p_lcb");
+          p_lcb->is_collision = FALSE;
+          p_lcb->link_state = LST_CONNECTING;
+          return (TRUE);
+        }
+
+        p_lcb->is_collision = FALSE;
+
         if (p_lcb->ccb_queue.p_first_ccb == NULL)
             l2cu_release_lcb (p_lcb);
         else                              /* there are any CCBs remaining */
