@@ -110,7 +110,7 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
 
 /****************************************************************************
 **
-** Function         sdp_dev_blacklistted_for_avrcp15
+** Function         sdp_dev_blacklisted_for_avrcp15
 **
 ** Description      This function is called to check if Remote device
 **                  is blacklisted for Avrcp version.
@@ -118,7 +118,7 @@ static void process_service_search_attr_req (tCONN_CB *p_ccb, UINT16 trans_num,
 ** Returns          BOOLEAN
 **
 *******************************************************************************/
-BOOLEAN sdp_dev_blacklistted_for_avrcp15 (BD_ADDR addr)
+BOOLEAN sdp_dev_blacklisted_for_avrcp15 (BD_ADDR addr)
 {
     int blacklistsize = 0;
     int i =0;
@@ -155,7 +155,7 @@ BOOLEAN sdp_fallback_avrcp_version (tSDP_ATTRIBUTE *p_attr, BD_ADDR remote_addre
         if (((p_attr->value_ptr[3] << 8) | (p_attr->value_ptr[4])) ==
                 UUID_SERVCLASS_AV_REMOTE_CONTROL)
         {
-            if (sdp_dev_blacklistted_for_avrcp15 (remote_address))
+            if (sdp_dev_blacklisted_for_avrcp15 (remote_address))
             {
                 p_attr->value_ptr[AVRCP_VERSION_POSITION] = 0x03; // Update AVRCP version as 1.3
                 SDP_TRACE_ERROR1("SDP Change AVRCP Version = 0x%x",
