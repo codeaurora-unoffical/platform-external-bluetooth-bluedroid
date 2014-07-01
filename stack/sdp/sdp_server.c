@@ -57,7 +57,8 @@ static const UINT8 sdp_black_list_prefix[][3] = {{0x00, 0x1D, 0xBA},  /* JVC car
                                                  {0x00, 0x06, 0xF7},  /* Denso Navi carkit */
                                                  {0x00, 0x1E, 0xB2},  /* AVN 3.0 Hyundai*/
                                                  {0x00, 0x0E, 0x9F},  /* Porshe car kit */
-                                                 {0x00, 0x13, 0x7B}   /* BYOM Opel*/ };
+                                                 {0x00, 0x13, 0x7B},  /* BYOM Opel*/
+                                                 {0xE0, 0xAE, 0x5E}   /* Denso carkit*/ };
 
 /********************************************************************************/
 /*              L O C A L    F U N C T I O N     P R O T O T Y P E S            */
