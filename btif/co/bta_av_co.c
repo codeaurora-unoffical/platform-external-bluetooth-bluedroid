@@ -554,7 +554,7 @@ UINT8 bta_av_audio_sink_getconfig(tBTA_AV_HNDL hndl, tBTA_AV_CODEC codec_type,
 
 #if defined(BTA_AV_CO_CP_SCMS_T) && (BTA_AV_CO_CP_SCMS_T == TRUE)
                 /* Check if this sink supports SCMS */
-                if (bta_av_co_audio_sink_has_scmst(p_sink))
+                if (bta_av_co_audio_sink_has_scmst(p_src))
                 {
                     p_peer->cp_active = TRUE;
                     bta_av_co_cb.cp.active = TRUE;
