@@ -718,11 +718,6 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data)
             if (p_av->start.status != BTA_AV_SUCCESS)
                 return FALSE;
 
-            if (btif_av_cb.sep == SEP_SRC)
-            {
-                btif_a2dp_set_rx_flush(FALSE); /*  remove flush state, ready for streaming*/
-            }
-
             /* change state to started, send acknowledgement if start is pending */
             if (btif_av_cb.flags & BTIF_AV_FLAG_PENDING_START) {
                 if (btif_av_cb.sep == SEP_SNK)
@@ -823,6 +818,11 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
             btif_av_cb.flags &= ~BTIF_AV_FLAG_REMOTE_SUSPEND;
             HAL_CBACK(bt_av_callbacks, audio_state_cb,
                 BTAV_AUDIO_STATE_STARTED, &(btif_av_cb.peer_bda));
+            if (btif_av_cb.sep == SEP_SRC)
+            {
+                btif_a2dp_set_rx_flush(FALSE); /*  remove flush state, ready for streaming*/
+                btif_av_request_audio_focus(TRUE);
+            }
             break;
 
         case BTIF_SM_EXIT_EVT:
@@ -934,10 +934,10 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
 
             break;
 
-            case BTIF_AV_REQUEST_AUDIO_FOCUS_EVT:
-                HAL_CBACK(bt_av_callbacks, audio_focus_request_cb,
-                                       1, &(btif_av_cb.peer_bda));
-                break;
+        case BTIF_AV_REQUEST_AUDIO_FOCUS_EVT:
+            HAL_CBACK(bt_av_callbacks, audio_focus_request_cb,
+                                   1, &(btif_av_cb.peer_bda));
+            break;
 
         case BTA_AV_CLOSE_EVT:
 
