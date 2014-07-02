@@ -127,10 +127,14 @@ BOOLEAN l2c_link_hci_conn_req (BD_ADDR bd_addr)
 
         if (no_links)
         {
-            if (!btm_dev_support_switch (bd_addr))
-                p_lcb->link_role = HCI_ROLE_SLAVE;
-            else
+            if (!btm_dev_support_switch (bd_addr)) {
+                p_lcb->link_role = l2cb.desire_role;
+                L2CAP_TRACE_WARNING1 ("l2c_link_hci_conn_req:set desire_role %d",p_lcb->link_role);
+            }
+            else {
                 p_lcb->link_role = l2cu_get_conn_role(bd_addr);
+                L2CAP_TRACE_WARNING1 ("l2c_link_hci_conn_req:set l2cu_get_conn_role %d",p_lcb->link_role);
+            }
         }
 
         if ((p_lcb->link_role == BTM_ROLE_MASTER)&&(hci_blacklistted_for_role_switch(bd_addr))) {
