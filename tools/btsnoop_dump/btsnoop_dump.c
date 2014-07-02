@@ -81,7 +81,7 @@ int btsnoop_file_name (char file_name[256])
         return -1;
     }
 
-    if (strftime(time_string, 64, "%d%m%y%H%M%S", tmp) == 0)
+    if (strftime(time_string, 64, "%y%m%d%H%M%S", tmp) == 0)
     {
         snoop_log("Error : strftime :");
         return -1;
