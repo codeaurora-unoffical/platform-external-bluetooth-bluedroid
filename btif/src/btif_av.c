@@ -199,7 +199,7 @@ const char *dump_av_sm_event_name(btif_av_sm_event_t event)
         CASE_RETURN_STR(BTIF_AV_SUSPEND_STREAM_REQ_EVT)
         CASE_RETURN_STR(BTIF_AV_RECONFIGURE_REQ_EVT)
         CASE_RETURN_STR(BTIF_AV_REQUEST_AUDIO_FOCUS_EVT)
-        CASE_RETURN_STR(BTIF_AV_REQUEST_ACTIVATE_SINK_EVT)
+
         default: return "UNKNOWN_EVENT";
    }
 }
@@ -385,6 +385,9 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data)
             {
                 bdcpy(btif_av_cb.peer_bda.address, ((tBTA_AV*)p_data)->pend.bd_addr);
             }
+            // Only for AVDTP connection request move to opening state
+            if (event == BTA_AV_PENDING_EVT)
+                btif_sm_change_state(btif_av_cb.sm_handle, BTIF_AV_STATE_OPENING);
             HAL_CBACK(bt_av_callbacks, connection_priority_cb, &(btif_av_cb.peer_bda));
             break;
 
@@ -698,10 +701,22 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data)
             if ((p_av->start.status == BTA_SUCCESS) && (p_av->start.suspending == TRUE))
                 return TRUE;
 
-            /* if remote tries to start a2dp when call is in progress, suspend it right away */
-            if ((!(btif_av_cb.flags & BTIF_AV_FLAG_PENDING_START)) && (!btif_hf_is_call_idle())) {
-                BTIF_TRACE_EVENT1("%s: trigger suspend as call is in progress!!", __FUNCTION__);
-                btif_dispatch_sm_event(BTIF_AV_SUSPEND_STREAM_REQ_EVT, NULL, 0);
+            /* if remote tries to start a2dp when DUT is a2dp source
+             * then suspend. In case a2dp is sink and call is active
+             * then disconnect the AVDTP channel
+             */
+            if (!(btif_av_cb.flags & BTIF_AV_FLAG_PENDING_START))
+            {
+                if (btif_av_cb.sep == SEP_SNK)
+                {
+                    BTIF_TRACE_EVENT1("%s: trigger suspend as remote initiated!!", __FUNCTION__);
+                    btif_dispatch_sm_event(BTIF_AV_SUSPEND_STREAM_REQ_EVT, NULL, 0);
+                }
+                else if (!btif_hf_is_call_idle())
+                {
+                    BTIF_TRACE_WARNING0(" Peer is SRC, Disc the Link ");
+                    btif_dispatch_sm_event(BTIF_AV_DISCONNECT_REQ_EVT, NULL, 0);
+                }
             }
 
             /*  In case peer is A2DP SRC we do not want to ack commands on UIPC*/
