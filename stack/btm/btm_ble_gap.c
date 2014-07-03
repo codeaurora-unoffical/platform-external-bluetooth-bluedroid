@@ -1077,6 +1077,57 @@ static void BTM_ReadAdvTxPower(void)
     ret = btsnd_hcic_ble_read_adv_chnl_tx_power();
     BTM_TRACE_ERROR1("BTM_ReadAdvTxPower result: %d", ret);
 }
+
+static void set_ble_adv_tx_pwr_level_hci_cmd_complete(void *p_data) {
+    tBTM_VSC_CMPL *event = (tBTM_VSC_CMPL*)p_data;
+    UINT8         *stream,  status, subcmd;
+    UINT16        opcode, length;
+    BTM_TRACE_EVENT1("%s enter", __FUNCTION__);
+
+    if(event && (stream = (UINT8*)event->p_param_buf)) {
+        opcode = event->opcode;
+        length = event->param_len;
+        STREAM_TO_UINT8(status, stream);
+        BTM_TRACE_EVENT3("opcode= %d, length = %d, status=%d",opcode, length, status);
+        if(status == HCI_SUCCESS) {
+            BTM_TRACE_EVENT0("status success, calling read tx power");
+            BTM_ReadAdvTxPower();
+        }
+    }
+}
+
+/*******************************************************************************
+**
+** Function         BTM_BleSetTxPowerLevel
+**
+** Description      This function is called to set LE Tx power level
+**
+** Parameters       Tx power level
+**
+** Returns          none
+**
+*******************************************************************************/
+tBTM_STATUS BTM_BleSetTxPowerLevel(UINT8 tx_pwr_level)
+{
+    BOOLEAN ret;
+    void      *p_buf = 0;
+    UINT8     cmd[1], *p_cursor;
+    BTM_TRACE_EVENT0("BTM_BleSetTxPowerLevel");
+
+    if (NULL == (p_buf = HCI_GET_CMD_BUF(sizeof(void*) + sizeof(cmd)))) {
+        BTM_TRACE_EVENT1("%s HCI_GET_CMD_BUF null memory allocated", __FUNCTION__);
+        return (BTM_NO_RESOURCES);
+    }
+
+    p_cursor = cmd;
+    *p_cursor++ = tx_pwr_level;
+
+    btsnd_hcic_vendor_spec_cmd(p_buf, HCI_VSC_SET_BLE_TX_PWR_LEVEL, sizeof(cmd), cmd, (void*)set_ble_adv_tx_pwr_level_hci_cmd_complete);
+    BTM_TRACE_EVENT1("BTM_BleSetTxPowerLevel result: %d", ret);
+    return (BTM_CMD_STARTED);
+}
+
+
 /*******************************************************************************
 **
 ** Function         BTM_CheckAdvData

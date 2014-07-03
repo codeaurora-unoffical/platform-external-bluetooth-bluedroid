@@ -464,6 +464,28 @@ void BTA_DmSendBleConnUpdate (BD_ADDR bd_addr, UINT16 interval_min,
 
 /*******************************************************************************
 **
+** Function         BTA_DmSetBleTxPowerLevel
+**
+** Description      This function sets LE Tx power level
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+void BTA_DmSetBleTxPowerLevel (UINT8 tx_power_level)
+{
+    tBTA_DM_API_BLE_SET_TX_PWR_LEVEL    *p_msg;
+    APPL_TRACE_API0 ("BTA_DmSetBleTxPowerLevel");
+    if ((p_msg = (tBTA_DM_API_BLE_SET_TX_PWR_LEVEL *) GKI_getbuf(sizeof(tBTA_DM_MSG))) != NULL)
+    {
+        p_msg->hdr.event = BTA_DM_API_BLE_SET_TX_PWR_LEVEL_EVT;
+        p_msg->tx_power_level = tx_power_level;
+        bta_sys_sendmsg(p_msg);
+    }
+}
+
+/*******************************************************************************
+**
 ** Function         BTA_DmSetScanParam
 **
 ** Description      This function sets the parameters for page scan and

@@ -111,6 +111,7 @@ enum
     BTA_DM_API_BLE_SERVICEDATA_EVT,
     BTA_DM_API_BLE_SEND_CONN_UPDATE_EVT,
     BTA_DM_BLE_CONN_PARAMS_CHANGE_EVT,
+    BTA_DM_API_BLE_SET_TX_PWR_LEVEL_EVT,
 #endif
 
 #if ( BTM_EIR_SERVER_INCLUDED == TRUE )&&( BTA_EIR_CANNED_UUID_LIST != TRUE )&&(BTA_EIR_SERVER_NUM_CUSTOM_UUID > 0)
@@ -593,6 +594,13 @@ typedef struct
     BD_ADDR                 bd_addr;
 }tBTA_DM_API_BLE_SEND_CONN_UPDATE;
 
+/* Data type for setting LE Tx power level */
+typedef struct
+{
+    BT_HDR                  hdr;
+    UINT8                   tx_power_level;
+}tBTA_DM_API_BLE_SET_TX_PWR_LEVEL;
+
 /* start/stop scan with filter */
 typedef struct
 {
@@ -739,6 +747,7 @@ typedef union
     tBTA_DM_API_BLE_OBSERVE_WITH_FILTER ble_observe_with_filter;
     tBTA_DM_API_BLE_SEND_CONN_UPDATE    ble_send_conn_update;
     tBTA_DM_BLE_CONN_PARAMS_CHANGE      ble_conn_params;
+    tBTA_DM_API_BLE_SET_TX_PWR_LEVEL    ble_set_tx_pwr_level;
 #endif
 
     tBTA_DM_API_SET_AFH_CHANNEL_ASSESSMENT set_afh_channel_assessment;
@@ -1116,6 +1125,7 @@ extern void bta_dm_ble_broadcast (tBTA_DM_MSG *p_data);
 extern void bta_dm_set_service_data(tBTA_DM_MSG *p_data);
 extern void bta_dm_ble_send_conn_update(tBTA_DM_MSG *p_data);
 extern void bta_dm_ble_conn_params_change(tBTA_DM_MSG *p_data);
+extern void bta_dm_ble_set_tx_power_level(tBTA_DM_MSG *p_data);
 
 #endif
 extern void bta_dm_set_encryption(tBTA_DM_MSG *p_data);

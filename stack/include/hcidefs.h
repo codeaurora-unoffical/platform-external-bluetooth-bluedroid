@@ -1078,6 +1078,9 @@ typedef struct
 #define HCI_BRCM_ACL_PRIORITY_HIGH          0xFF
 #define HCI_BRCM_SET_ACL_PRIORITY           (0x0057 | HCI_GRP_VENDOR_SPECIFIC)
 
+/* Vendor specific command to set TX Power in BLE Adv */
+#define HCI_VSC_SET_BLE_TX_PWR_LEVEL        (0x0018 | HCI_GRP_VENDOR_SPECIFIC)
+
 /* Define values for LMP Test Control parameters
 ** Test Scenario, Hopping Mode, Power Control Mode
 */
