@@ -596,6 +596,9 @@ static BOOLEAN btif_av_state_closing_handler(btif_sm_event_t event, void *p_data
             {
                 btif_a2dp_set_rx_flush(TRUE);
             }
+            /* inform the application that we are audio is stopped */
+            HAL_CBACK(bt_av_callbacks, audio_state_cb,
+                BTAV_AUDIO_STATE_STOPPED, &(btif_av_cb.peer_bda));
 
             btif_a2dp_on_stopped(NULL);
               break;
