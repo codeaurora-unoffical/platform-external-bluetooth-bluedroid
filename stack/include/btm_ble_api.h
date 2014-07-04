@@ -432,6 +432,18 @@ BTM_API extern tBTM_STATUS BTM_BleSetAdvParams(UINT16 adv_int_min, UINT16 adv_in
 *******************************************************************************/
 BTM_API extern void BTM_SetAdvDataMask(UINT16 dmask);
 
+/*******************************************************************************
+**
+** Function         BTM_BleSetTxPowerLevel
+**
+** Description      This function is called to set LE Tx power level.
+**
+** Parameters:       tx_power_level.
+**
+** Returns          void
+**
+*******************************************************************************/
+BTM_API extern tBTM_STATUS BTM_BleSetTxPowerLevel(UINT8 tx_power_level);
 
 /*******************************************************************************
 **
