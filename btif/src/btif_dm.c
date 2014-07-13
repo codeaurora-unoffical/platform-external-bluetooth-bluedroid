@@ -184,7 +184,7 @@ extern BOOLEAN btif_av_is_connected();
 extern void btif_av_close_update();
 extern void btif_av_move_idle(bt_bdaddr_t bd_addr);
 extern BOOLEAN btif_is_multi_hf_supported();
-
+extern BOOLEAN btif_hh_find_added_dev_by_bda(bt_bdaddr_t *bd_addr);
 
 /******************************************************************************
 **  Functions
@@ -2853,9 +2853,16 @@ static void btif_dm_ble_auth_cmpl_evt (tBTA_DM_AUTH_CMPL *p_auth_cmpl)
         status = BT_STATUS_SUCCESS;
         state = BT_BOND_STATE_BONDED;
 
-        btif_dm_save_ble_bonding_keys();
-        BTA_GATTC_Refresh(bd_addr.address);
-        btif_dm_get_remote_services(&bd_addr);
+        if(btif_hh_find_added_dev_by_bda(&bd_addr))
+        {
+            BTIF_TRACE_DEBUG1("%s, device already paired, skipping discovery",__FUNCTION__ );
+        }
+        else
+        {
+            btif_dm_save_ble_bonding_keys();
+            BTA_GATTC_Refresh(bd_addr.address);
+            btif_dm_get_remote_services(&bd_addr);
+        }
     }
     else
     {
