@@ -420,11 +420,12 @@ void bta_sys_hw_evt_enabled(tBTA_SYS_HW_MSG *p_sys_hw_msg)
     {
         bta_sys_hw_btm_cback (BTM_DEV_STATUS_UP);
     }
+#elif (defined NO_HCI_RESET_FROM_BDROID )
+    APPL_TRACE_EVENT0("Transport driver sent HCI Reset, so continue HCI reset complete process");
+    btm_reset_complete();
 #else
-
     /* if HCI reset was not sent during stack start-up */
     BTM_DeviceReset( NULL );
-
 #endif
 }
 
