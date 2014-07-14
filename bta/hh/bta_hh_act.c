@@ -1202,7 +1202,7 @@ void bta_hh_sdp_cmp_after_bonding_act(tBTA_HH_DEV_CB *p_cb, tBTA_HH_DATA *p_data
     /* Stop the SDP Complete Timer, since SDP completed by DM Layer */
     bta_hh_stop_sdp_cmp_timer();
 
-    if (p_cb->incoming_conn && !bta_hh_cb.p_disc_db &&
+    if (p_cb->incoming_conn &&
             bdcmp(p_cb->addr, p_data->sdp_cmp_after_bonding.bd_addr) == 0)
     {
         APPL_TRACE_EVENT6 ("bta_hh_sdp_cmp_after_bonding_act: "
@@ -1233,7 +1233,7 @@ static void bta_hh_sdp_timeout(union sigval arg)
 {
     APPL_TRACE_DEBUG0("bta_hh_sdp_timeout");
 
-    if (bdcmp(bta_hh_cb.in_bd_addr, bd_addr_null) && !bta_hh_cb.p_disc_db)
+    if (bdcmp(bta_hh_cb.in_bd_addr, bd_addr_null))
     {
         APPL_TRACE_DEBUG0("bta_hh_sdp_timeout: performing sdp on incoming conn");
         BTA_HhSdpCmplAfterBonding(bta_hh_cb.in_bd_addr);
