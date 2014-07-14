@@ -1451,17 +1451,6 @@ static void btif_dm_search_services_evt(UINT16 event, char *p_param)
             //check if this a non LE device
             if(!btif_config_get_int("Remote", (char const *)&bdstr,"DevType", &device_type) || device_type != BT_DEVICE_TYPE_BLE)
             {
-                if ((pairing_cb.state == BT_BOND_STATE_BONDING) &&
-                    (pairing_cb.bd_addr[0] != '\0') &&
-                     pairing_cb.sdp_attempts > 0)
-                {
-                    pairing_cb.sdp_attempts  = 0;
-
-                    BTIF_TRACE_DEBUG1("%s Remote Service SDP not done. Call "
-                            "bond_state_changed_cb BONDED", __FUNCTION__);
-                    bond_state_changed(BT_STATUS_SUCCESS, &bd_addr, BT_BOND_STATE_BONDED);
-                }
-
                 ble_service_search_in_progress.search_in_progress=FALSE;
                 ble_service_search_in_progress.hogp_present=FALSE;
                 BTIF_TRACE_DEBUG2("%s: DISC_CMPL_EVT:device_type:%d,not an LE device",  __FUNCTION__, device_type);
