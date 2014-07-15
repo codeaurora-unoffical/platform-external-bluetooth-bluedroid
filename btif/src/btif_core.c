@@ -1849,13 +1849,12 @@ void btif_data_profile_register(int value)
 {
     bt_property_t property;
     int val;
-    //update the global in any case
-    btif_data_profile_registered = value;
 
-    if (btif_pending_mode == BT_SCAN_MODE_NONE)
+    if (value == btif_data_profile_registered || btif_pending_mode == BT_SCAN_MODE_NONE)
         return;
 
     BTIF_TRACE_EVENT2("%s: Data profile registration = %d", __FUNCTION__, value);
+    btif_data_profile_registered = value;
     if (btif_data_profile_registered)
     {
         property.type = BT_PROPERTY_ADAPTER_SCAN_MODE;
