@@ -697,7 +697,7 @@ static void btgattc_handle_event(uint16_t event, char* p_param)
 
             if (btif_get_device_type(p_cb->bd_addr.address, &addr_type, &device_type) == TRUE
                   && device_type != BT_DEVICE_TYPE_BREDR)
-                BTA_DmAddBleDevice(p_cb->bd_addr.address, addr_type, BT_DEVICE_TYPE_BLE);
+                BTA_DmAddBleDevice(p_cb->bd_addr.address, addr_type, device_type);
 
             // Mark background connections
             if (!p_cb->is_direct)
