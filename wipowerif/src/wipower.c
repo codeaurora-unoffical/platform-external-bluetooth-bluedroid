@@ -48,6 +48,11 @@ pthread_cond_t signal_cv;
 #define WIP_LOG_TAG "wipower"
 #define HCI_EVENT_WAIT_TIMEOUT 2
 
+#define WIPOWER_ADV_30MS_MSB 0x00
+#define WIPOWER_ADV_30MS_LSB 0x1E
+#define WIPOWER_ADV_600MS_LSB 0x58
+#define WIPOWER_ADV_600MS_MSB 0x02
+
 /*1 seconds timeout*/
 #define WIPOWER_DATA_IDLE_TIMEOUT (1000)
 
@@ -295,7 +300,7 @@ void dispatch_wp_events (UINT16 len, char* p_param) {
 
             if(alert == 0x01) {
                 /*Disable this event now*/
-                enable_power_apply(0x00, 0x01);
+                enable_power_apply(0x00, 0x01, 0x00);
             }
         }
 
@@ -443,17 +448,15 @@ int enable_data_notify(bool enable)
         }
     }
     else {
-        ALOGI("enable power apply as part disable data");
-        enable_power_apply(0x01, 0x01);
         timer_delete(wp_data_timer);
     }
 
     return status;
 }
 
-void enable_power_apply(bool enable, bool on)
+int enable_power_apply(bool enable, bool on, bool time_flag)
 {
-    UINT8 en[3];
+    UINT8 en[5];
     ALOGE("%s:%d", __func__, enable);
 
     en[0] = WP_HCI_CMD_ENABLE_POWER;
@@ -463,9 +466,20 @@ void enable_power_apply(bool enable, bool on)
         en[1] = 0;
     }
 
-    en[2] = on;
+    /* 30ms beacon is used to advertise if charge is required
+     * else uses 600ms beacon to advertise on charge completeion */
 
-    BTA_DmVendorSpecificCommand(WP_HCI_VS_CMD, 3, en, enable_power_cb);
+    en[2] = on;
+    if (time_flag == true) {
+        en[3] = WIPOWER_ADV_600MS_LSB;
+        en[4] = WIPOWER_ADV_600MS_MSB;
+    } else {
+        en[3] = WIPOWER_ADV_30MS_LSB;
+        en[4] = WIPOWER_ADV_30MS_MSB;
+    }
+
+    BTA_DmVendorSpecificCommand(WP_HCI_VS_CMD, 5, en, enable_power_cb);
+    return 0;
 }
 
 int init(wipower_callbacks_t *wp_callbacks) {
@@ -473,9 +487,7 @@ int init(wipower_callbacks_t *wp_callbacks) {
     int ret = 0;
 
     wipower_hal_cbacks = wp_callbacks;
-
-    /*enable power apply trigger for hw*/
-    enable_power_apply(0x01, 0x01);
+    ALOGV("BTM_RegisterForVSEvents: enetering init");
 
     tBTM_STATUS res = BTM_RegisterForVSEvents(wp_events, enable);
     if (res != BTM_SUCCESS) {
@@ -496,7 +508,8 @@ static const wipower_interface_t wipowerInterface = {
     get_current_limit,
     get_state,
     enable_alerts,
-    enable_data_notify
+    enable_data_notify,
+    enable_power_apply
 };
 
 const wipower_interface_t* get_wipower_interface ()
