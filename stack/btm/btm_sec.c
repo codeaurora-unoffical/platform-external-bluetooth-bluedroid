@@ -4538,7 +4538,12 @@ void btm_sec_disconnected (UINT16 handle, UINT8 reason)
     {
         p_dev_rec->p_callback = NULL; /* when the peer device time out the authentication before
                                          we do, this call back must be reset here */
-        (*p_callback) (p_dev_rec->bd_addr, p_dev_rec->p_ref_data, BTM_ERR_PROCESSING);
+        if(reason == HCI_ERR_CONN_FAILED_ESTABLISHMENT)
+            (*p_callback) (p_dev_rec->bd_addr, p_dev_rec->p_ref_data, BTM_BAD_RF);
+        else if(reason == BTM_DEVICE_TIMEOUT)
+            (*p_callback) (p_dev_rec->bd_addr, p_dev_rec->p_ref_data, BTM_DEVICE_TIMEOUT);
+        else
+            (*p_callback) (p_dev_rec->bd_addr, p_dev_rec->p_ref_data, BTM_ERR_PROCESSING);
     }
 
     BTM_TRACE_EVENT1("after Update sec_flags=0x%x", p_dev_rec->sec_flags);
