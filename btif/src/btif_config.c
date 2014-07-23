@@ -690,7 +690,6 @@ static int save_cfg()
    if(btif_config_save_file(file_name_new))
     {
         cached_change = 0;
-        processing_save_cmd = 0;
         chown(file_name_new, -1, AID_NET_BT_STACK);
         chmod(file_name_new, 0660);
         rename(file_name, file_name_old);
@@ -802,6 +801,11 @@ static void cfg_cmd_callback(int cmd_fd, int type, int size, uint32_t user_id)
             lock_slot(&slot_lock);
             if(cached_change > 0)
                 save_cfg();
+            /* reset the processing_save_cmd here instead of save_cfg, so that it will
+             * avoid btif_config_save blocked in send call incase btif_config_save called
+             * multiple times concesutively
+             */
+            processing_save_cmd = 0;
             unlock_slot(&slot_lock);
             break;
         }
