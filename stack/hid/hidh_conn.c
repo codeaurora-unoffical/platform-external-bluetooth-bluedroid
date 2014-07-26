@@ -651,12 +651,6 @@ static void hidh_l2cif_disconnect_ind (UINT16 l2cap_cid, BOOLEAN ack_needed)
 
     if ((p_hcon->ctrl_cid == 0) && (p_hcon->intr_cid == 0))
     {
-        if (p_hcon->conn_state == HID_CONN_STATE_REMOVING)
-        {
-            HIDH_TRACE_EVENT0 ("HID-Host: both channels have been disconnected "
-                 "device removed successfully, updating in_use flag to false");
-            hh_cb.devices[dhandle].in_use = FALSE;
-        }
         hh_cb.devices[dhandle].state = HID_DEV_NO_CONN;
         p_hcon->conn_state = HID_CONN_STATE_UNUSED;
 
@@ -737,12 +731,6 @@ static void hidh_l2cif_disconnect_cfm (UINT16 l2cap_cid, UINT16 result)
 
     if ((p_hcon->ctrl_cid == 0) && (p_hcon->intr_cid == 0))
     {
-        if (p_hcon->conn_state == HID_CONN_STATE_REMOVING)
-        {
-            HIDH_TRACE_EVENT0 ("HID-Host: both channels have been disconnected "
-                 "device removed successfully, updating in_use flag to false");
-            hh_cb.devices[dhandle].in_use = FALSE;
-        }
         hh_cb.devices[dhandle].state = HID_DEV_NO_CONN;
         p_hcon->conn_state = HID_CONN_STATE_UNUSED;
         hh_cb.callback( dhandle, hh_cb.devices[dhandle].addr, HID_HDEV_EVT_CLOSE, p_hcon->disc_reason, NULL ) ;
