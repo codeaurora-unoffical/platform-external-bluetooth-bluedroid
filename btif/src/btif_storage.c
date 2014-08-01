@@ -117,6 +117,7 @@
 #define STORAGE_HID_CTRY_CODE_SIZE           (2)
 #define STORAGE_HID_DESC_LEN_SIZE            (4)
 #define STORAGE_HID_DESC_MAX_SIZE            (2*512)
+#define STORAGE_HID_PAIRED_DEV_PRIORITY      (100)
 
 /* <18 char bd addr> <space> LIST< <36 char uuid> <;> > <keytype (dec)> <pinlen> */
 #define BTIF_REMOTE_SERVICES_ENTRY_SIZE_MAX (STORAGE_BDADDR_STRING_SZ + 1 +\
@@ -1533,8 +1534,16 @@ bt_status_t btif_storage_load_bonded_hid_info(void)
             btif_config_get_int("Remote", kname, "ssrmintout", &value);
             dscp_info.ssr_min_tout = (uint16_t) value;
 
-            btif_config_get_int("Remote", kname, "priority", &value);
-            priority = value;
+            if (btif_config_get_int("Remote", kname, "priority", &value))
+            {
+                priority = value;
+            }
+            else
+            {
+                /* Priority field was not defined earlier for paired device, set it now */
+                BTIF_TRACE_DEBUG1("Remote device:%s, priority field missing...", kname);
+                priority = STORAGE_HID_PAIRED_DEV_PRIORITY;
+            }
 
             int len = 0;
             int type;
