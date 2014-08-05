@@ -63,7 +63,7 @@
 #endif
 
 #define MAX_SERIAL_PORT (USERIAL_PORT_3 + 1)
-#define MAX_RETRIAL_CLOSE 10
+#define MAX_RETRIAL_CLOSE 50
 
 enum {
     USERIAL_RX_EXIT,
@@ -84,6 +84,7 @@ typedef enum {
 extern bt_vendor_interface_t *bt_vnd_if;
 uint16_t hci_mct_receive_evt_msg(void);
 uint16_t hci_mct_receive_acl_msg(void);
+void userial_mct_close(void);
 
 
 /******************************************************************************
@@ -307,17 +308,18 @@ uint8_t userial_mct_open(uint8_t port)
     struct sched_param param;
     int policy, result;
     pthread_attr_t thread_attr;
-    userial_state = USERIAL_STATE_OPENING;
 
     USERIALDBG("userial_open(port:%d)", port);
 
     if (userial_running)
     {
         /* Userial is open; close it first */
-        userial_close();
+        USERIALDBG("userial_open: userial_running =1");
+        userial_mct_close();
         utils_delay(50);
     }
 
+    userial_state = USERIAL_STATE_OPENING;
     if (port >= MAX_SERIAL_PORT)
     {
         ALOGE("Port > MAX_SERIAL_PORT");
@@ -466,11 +468,14 @@ void userial_mct_close(void)
 
     USERIALDBG("userial_close");
     userial_close_pending = TRUE;
-    while((userial_state == USERIAL_STATE_OPENING) || (i< MAX_RETRIAL_CLOSE))
+    while((userial_state == USERIAL_STATE_OPENING) && (i< MAX_RETRIAL_CLOSE))
     {
         usleep(200);
         i++;
     }
+
+    if (i == MAX_RETRIAL_CLOSE)
+        USERIALDBG("USERIAL CLOSE : Timeout in creating userial read thread");
 
     if (userial_running)
         send_wakeup_signal(USERIAL_RX_EXIT);
