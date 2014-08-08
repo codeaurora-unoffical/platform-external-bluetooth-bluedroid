@@ -3995,7 +3995,7 @@ void btm_sec_encrypt_change (UINT16 handle, UINT8 status, UINT8 encr_enable)
     if (p_acl && p_acl->is_le_link)
     {
         if(status == HCI_ERR_KEY_MISSING) {
-            btm_sec_dev_rec_cback_event (p_dev_rec, HCI_ERR_KEY_MISSING);
+            btm_sec_dev_rec_cback_event (p_dev_rec, BTM_ERR_KEY_MISSING);
         }
         else if(!encr_enable)
         {
