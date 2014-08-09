@@ -1233,8 +1233,8 @@ void bta_hh_le_encrypt_cback(BD_ADDR bd_addr, void *p_ref_data, tBTM_STATUS resu
     tBTA_HH_DEV_CB *p_dev_cb;
 
     APPL_TRACE_ERROR0("bta_hh_le_encrypt_cback");
-    if(result == HCI_ERR_KEY_MISSING) {
-        APPL_TRACE_ERROR0("HCI_ERR_KEY_MISSING");
+    if(result == BTM_ERR_KEY_MISSING) {
+        APPL_TRACE_ERROR0("BTM_ERR_KEY_MISSING");
         BTA_DmRemoveDevice(bd_addr);
         return;
     }
