@@ -1034,7 +1034,7 @@ UINT16 AVRC_MsgReq (UINT8 handle, UINT8 label, UINT8 ctype, BT_HDR *p_pkt)
             AVRC_TRACE_DEBUG1 ("p_pkt->len(%d) > AVRC_MAX_CTRL_DATA_LEN", p_pkt->len );
             p_pkt_new = (BT_HDR *)GKI_getbuf((UINT16)(AVRC_PACKET_LEN + AVCT_MSG_OFFSET
                 + BT_HDR_SIZE));
-            if (p_pkt_new && p_start)
+            if (p_pkt_new)
             {
                 p_fcb->frag_enabled = TRUE;
                 p_fcb->p_fmsg       = p_pkt;
