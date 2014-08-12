@@ -62,9 +62,6 @@ static void queue_int_add(connect_node_t *p_param)
     connect_node_t *p_node = GKI_getbuf(sizeof(connect_node_t));
     ASSERTC(p_node != NULL, "Failed to allocate new list node", 0);
 
-    if(!p_node)
-        return;
-
     memcpy(p_node, p_param, sizeof(connect_node_t));
 
     if (connect_queue == NULL)
