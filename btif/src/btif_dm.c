@@ -2178,6 +2178,7 @@ static void bte_search_devices_evt(tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH *p_d
 
     if (p_data)
         param_len += sizeof(tBTA_DM_SEARCH);
+
     /* Allocate buffer to hold the pointers (deep copy). The pointers will point to the end of the tBTA_DM_SEARCH */
     switch (event)
     {
@@ -2220,6 +2221,7 @@ static void bte_dm_search_services_evt(tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH 
     UINT16 param_len = 0;
    if (p_data)
        param_len += sizeof(tBTA_DM_SEARCH);
+
    switch (event)
    {
          case BTA_DM_DISC_RES_EVT:
