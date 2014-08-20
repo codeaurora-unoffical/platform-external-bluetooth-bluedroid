@@ -372,8 +372,8 @@ BOOLEAN btm_ble_start_auto_conn(BOOLEAN start)
         }
         if (p_cb->conn_state == BLE_CONN_IDLE && btm_ble_count_unconn_dev_in_whitelist() > 0)
         {
-            scan_int = (p_cb->scan_int == BTM_BLE_CONN_PARAM_UNDEF) ? BTM_BLE_SCAN_SLOW_INT_1 : p_cb->scan_int;
-            scan_win = (p_cb->scan_win == BTM_BLE_CONN_PARAM_UNDEF) ? BTM_BLE_SCAN_SLOW_WIN_1 : p_cb->scan_win;
+            scan_int = BTM_BLE_SCAN_SLOW_INT_1;
+            scan_win = BTM_BLE_SCAN_SLOW_WIN_1;
 
             if (!btsnd_hcic_ble_create_ll_conn (scan_int,  /* UINT16 scan_int      */
                                                 scan_win,    /* UINT16 scan_win      */
