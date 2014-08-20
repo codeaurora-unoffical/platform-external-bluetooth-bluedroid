@@ -715,8 +715,8 @@ BOOLEAN l2cble_init_direct_conn (tL2C_LCB *p_lcb)
         return(FALSE);
     }
 
-    scan_int = (p_cb->scan_int == BTM_BLE_CONN_PARAM_UNDEF) ? BTM_BLE_SCAN_FAST_INT : p_cb->scan_int;
-    scan_win = (p_cb->scan_win == BTM_BLE_CONN_PARAM_UNDEF) ? BTM_BLE_SCAN_FAST_WIN : p_cb->scan_win;
+    scan_int = BTM_BLE_SCAN_FAST_INT;
+    scan_win = BTM_BLE_SCAN_FAST_WIN;
 
     init_addr_type = p_lcb->ble_addr_type;
     memcpy(init_addr, p_lcb->remote_bd_addr, BD_ADDR_LEN);
