@@ -198,6 +198,10 @@ BOOLEAN gatt_disconnect (BD_ADDR rem_bda)
                 {
                     gatt_set_ch_state(p_tcb, GATT_CH_CLOSING);
                     ret = L2CA_CancelBleConnectReq (rem_bda);
+                    if(!ret)
+                    {
+                        gatt_set_ch_state(p_tcb, GATT_CH_CLOSE);
+                    }
                 }
             }
             else
