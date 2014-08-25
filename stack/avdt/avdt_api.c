@@ -281,16 +281,19 @@ UINT16 AVDT_CreateStream(UINT8 *p_handle, tAVDT_CS *p_cs)
     /* Verify parameters; if invalid, return failure */
     if (((p_cs->cfg.psc_mask & (~AVDT_PSC)) != 0) || (p_cs->p_ctrl_cback == NULL))
     {
+        AVDT_TRACE_ERROR("%s: bad param", __FUNCTION__);
         result = AVDT_BAD_PARAMS;
     }
     /* Allocate scb; if no scbs, return failure */
     else if ((p_scb = avdt_scb_alloc(p_cs)) == NULL)
     {
+        AVDT_TRACE_ERROR("%s: noresource", __FUNCTION__);
         result = AVDT_NO_RESOURCES;
     }
     else
     {
         *p_handle = avdt_scb_to_hdl(p_scb);
+        AVDT_TRACE_DEBUG("%s: allocated SCB", __FUNCTION__);
     }
     return result;
 }

@@ -1537,15 +1537,20 @@ void bta_av_sig_chg(tBTA_AV_DATA *p_data)
         p_lcb = bta_av_find_lcb(p_data->str_msg.bd_addr, BTA_AV_LCB_FIND);
         if(!p_lcb)
         {
+            if (p_cb->conn_lcb > 0)
+            {
+                APPL_TRACE_DEBUG("Already connected to LCBs: 0x%x", p_cb->conn_lcb);
+            }
             /* if the address does not have an LCB yet, alloc one */
             for(xx=0; xx<BTA_AV_NUM_LINKS; xx++)
             {
                 mask = 1 << xx;
-                APPL_TRACE_DEBUG("conn_lcb: 0x%x", p_cb->conn_lcb);
+                APPL_TRACE_DEBUG("The current conn_lcb: 0x%x", p_cb->conn_lcb);
 
                 /* look for a p_lcb with its p_scb registered */
                 if((!(mask & p_cb->conn_lcb)) && (p_cb->p_scb[xx] != NULL))
                 {
+                    APPL_TRACE_DEBUG("Found a free p_lcb : 0x%x", xx);
                     p_lcb = &p_cb->lcb[xx];
                     p_lcb->lidx = xx + 1;
                     bdcpy(p_lcb->addr, p_data->str_msg.bd_addr);
@@ -1667,6 +1672,9 @@ void bta_av_sig_timer(tBTA_AV_DATA *p_data)
             {
                 bta_sys_start_timer(&p_cb->sig_tmr, BTA_AV_SIG_TIMER_EVT, BTA_AV_SIG_TIME_VAL);
                 bdcpy(pend.bd_addr, p_lcb->addr);
+                APPL_TRACE_DEBUG("bta_av_sig_timer on IDX = %d",xx);
+                //Copy the handle of SCB
+                pend.hndl = p_cb->p_scb[xx]->hndl;
                 (*p_cb->p_cback)(BTA_AV_PENDING_EVT, (tBTA_AV *) &pend);
             }
         }
