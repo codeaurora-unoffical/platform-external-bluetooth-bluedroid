@@ -526,6 +526,7 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
             BTA_AvDisconnect(((tBTA_AV*)p_data)->pend.bd_addr);
             break;
         case BTIF_AV_DISCONNECT_REQ_EVT:
+            BTA_AvClose(btif_av_cb.bta_handle);
             HAL_CBACK(bt_av_callbacks, connection_state_cb,
                 BTAV_CONNECTION_STATE_DISCONNECTED, &(btif_av_cb.peer_bda));
             btif_sm_change_state(btif_av_cb.sm_handle, BTIF_AV_STATE_IDLE);
