@@ -2115,6 +2115,7 @@ void gatt_cleanup_upon_disc(BD_ADDR bda, UINT16 reason)
     if ((p_tcb = gatt_find_tcb_by_addr(bda)) != NULL)
     {
         GATT_TRACE_DEBUG0 ("found p_tcb ");
+        gatt_set_ch_state(p_tcb, GATT_CH_CLOSE);
         for (i = 0; i < GATT_CL_MAX_LCB; i ++)
         {
             p_clcb = &gatt_cb.clcb[i];
