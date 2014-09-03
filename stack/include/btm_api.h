@@ -66,7 +66,8 @@ enum
     BTM_REPEATED_ATTEMPTS,               /* 19 repeated attempts for LE security requests */
     BTM_BAD_RF,                            /*20 Event status is 0x3E or 62*/
     BTM_HOST_DISCONN,                     /* 21 host disconnected link*/
-    BTM_ERR_KEY_MISSING                 /* 22 Pin or Key Missing*/
+    BTM_ERR_KEY_MISSING,                 /* 22 Pin or Key Missing*/
+    BTM_LMP_TIMEOUT                     /* 23 BTM_LMP timeout*/
 };
 typedef UINT8 tBTM_STATUS;
 
