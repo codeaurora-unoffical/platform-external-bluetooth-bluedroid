@@ -150,6 +150,8 @@ static const btif_sm_handler_t btif_av_state_handlers[] =
     btif_av_state_closing_handler
 };
 
+static void allow_connection(int is_valid);
+
 /*************************************************************************
 ** Extern functions
 *************************************************************************/
@@ -353,8 +355,12 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data)
             {
                 BTIF_TRACE_DEBUG("  Callling connection priority callback ");
                 idle_rc_event = event;
+#ifdef Q_BLUETOOTH
                 HAL_CBACK(bt_av_src_callbacks, connection_priority_cb,
                          &(btif_av_cb.peer_bda));
+#else
+                allow_connection(1);
+#endif
             }
             if (bt_av_sink_callbacks != NULL)
             {
