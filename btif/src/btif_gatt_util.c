@@ -273,7 +273,7 @@ static void btif_gatt_set_encryption_cb (BD_ADDR bd_addr, tBTA_STATUS result)
 {
     ALOGI("%s result=%d", __FUNCTION__, result);
     if (result == BTA_BUSY || result == BTA_BAD_RF || result == BTA_TIMEOUT ||
-         result == BTA_WRONG_MODE || result == BTA_HOST_DISCONN)
+         result == BTA_WRONG_MODE || result == BTA_HOST_DISCONN || result == BTA_LMP_TIMEOUT)
     {
         ALOGE("%s: callback called with status busy. No Action.", __FUNCTION__);
         return;

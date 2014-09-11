@@ -1386,6 +1386,8 @@ void btm_ble_encryption_failure(BD_ADDR bd_addr,UINT8 status)
             btm_sec_dev_rec_cback_event(p_dev_rec, BTM_DEVICE_TIMEOUT);
         else if (status == HCI_ERR_CONN_CAUSE_LOCAL_HOST)
             btm_sec_dev_rec_cback_event(p_dev_rec, BTM_HOST_DISCONN);
+        else if(status == HCI_ERR_LMP_RESPONSE_TIMEOUT)
+            btm_sec_dev_rec_cback_event(p_dev_rec, BTM_LMP_TIMEOUT);
         else
             btm_sec_dev_rec_cback_event(p_dev_rec, BTM_ERR_PROCESSING);
 

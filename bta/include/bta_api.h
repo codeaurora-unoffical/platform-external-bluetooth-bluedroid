@@ -51,6 +51,7 @@
 #define BTA_BAD_RF              6
 #define BTA_TIMEOUT             7
 #define BTA_HOST_DISCONN        8
+#define BTA_LMP_TIMEOUT         9
 typedef UINT8 tBTA_STATUS;
 
 /*
