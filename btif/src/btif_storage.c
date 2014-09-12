@@ -285,10 +285,12 @@ static int prop2cfg(bt_bdaddr_t *remote_bd_addr, bt_property_t *prop)
             value[prop->len]='\0';
             btif_config_set_str("Remote", bdstr, BTIF_STORAGE_PATH_REMOTE_ALIASE, value);
             break;
+#ifdef Q_BLUETOOTH
         case BT_PROPERTY_REMOTE_TRUST_VALUE:
             btif_config_set_int("Remote", bdstr, BTIF_STORAGE_PATH_REMOTE_TRUST_VALUE, *(int*)prop->val);
             btif_config_save();
             break;
+#endif
         case BT_PROPERTY_ADAPTER_SCAN_MODE:
             btif_config_set_int("Local", "Adapter",
                                 BTIF_STORAGE_KEY_ADAPTER_SCANMODE, *(int*)prop->val);
@@ -395,6 +397,7 @@ static int cfg2prop(bt_bdaddr_t *remote_bd_addr, bt_property_t *prop)
             }
             break;
         }
+#ifdef Q_BLUETOOTH
         case BT_PROPERTY_REMOTE_TRUST_VALUE:
         {
             if(prop->len >= (int)sizeof(int))
@@ -403,7 +406,7 @@ static int cfg2prop(bt_bdaddr_t *remote_bd_addr, bt_property_t *prop)
             break;
 
         }
-
+#endif
         case BT_PROPERTY_ADAPTER_SCAN_MODE:
            if(prop->len >= (int)sizeof(int))
                 ret = btif_config_get_int("Local", "Adapter",
@@ -964,10 +967,12 @@ bt_status_t btif_storage_load_bonded_devices(void)
                                          remote_properties[num_props]);
             num_props++;
 
+#ifdef Q_BLUETOOTH
             BTIF_STORAGE_GET_REMOTE_PROP(p_remote_addr, BT_PROPERTY_REMOTE_TRUST_VALUE,
                                          &trustval, sizeof(trustval),
                                          remote_properties[num_props]);
             num_props++;
+#endif
 
             BTIF_STORAGE_GET_REMOTE_PROP(p_remote_addr, BT_PROPERTY_CLASS_OF_DEVICE,
                                          &cod, sizeof(cod),

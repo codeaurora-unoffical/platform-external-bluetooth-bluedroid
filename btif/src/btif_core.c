@@ -1030,11 +1030,13 @@ static bt_status_t btif_in_get_remote_device_properties(bt_bdaddr_t *bd_addr)
                                             &remote_properties[num_props]);
     num_props++;
 
+#ifdef Q_BLUETOOTH
     BTIF_STORAGE_FILL_PROPERTY(&remote_properties[num_props], BT_PROPERTY_REMOTE_TRUST_VALUE,
                                sizeof(trustval), &trustval);
     btif_storage_get_remote_device_property(bd_addr,
                                             &remote_properties[num_props]);
     num_props++;
+#endif
 
     BTIF_STORAGE_FILL_PROPERTY(&remote_properties[num_props], BT_PROPERTY_CLASS_OF_DEVICE,
                                sizeof(cod), &cod);
