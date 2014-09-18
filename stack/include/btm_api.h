@@ -64,7 +64,8 @@ enum
     BTM_SUCCESS_NO_SECURITY,            /* 17 security passed, no security set  */
     BTM_FAILED_ON_SECURITY ,             /* 18 security failed                   */
     BTM_REPEATED_ATTEMPTS,               /* 19 repeated attempts for LE security requests */
-    BTM_BAD_RF                            /*20 Event status is 0x3E or 62*/
+    BTM_BAD_RF,                            /*20 Event status is 0x3E or 62*/
+    BTM_LMP_TIMEOUT                     /* 23 BTM_LMP timeout*/
 };
 typedef UINT8 tBTM_STATUS;
 
