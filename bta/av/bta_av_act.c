@@ -1544,6 +1544,8 @@ void bta_av_sig_chg(tBTA_AV_DATA *p_data)
                          * BTA_AV_SIG_TIME_VAL milliseconds.
                          * The following function shall send the event and start the recurring timer
                          */
+                        /* Clear counter before re-trying again  */
+                        p_cb->retry_attempt = 0;
                         bta_av_sig_timer(NULL);
                         APPL_TRACE_DEBUG0("Re-start timer for AVDTP service");
                         bta_sys_conn_open(BTA_ID_AV, p_cb->p_scb[xx]->app_id,
