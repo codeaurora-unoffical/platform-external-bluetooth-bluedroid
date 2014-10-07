@@ -1432,6 +1432,10 @@ void btif_multihf_close_update(void)
 BOOLEAN btif_multihf_is_call_idle()
 {
     int i, j = 1;
+    if (bt_multi_hf_callbacks == NULL)
+    {
+        return TRUE;
+    }
     for (i = 0; i < btif_max_hf_clients; i++)
     {
         BTIF_TRACE_EVENT3("%s: call_setup_state: %d for handle: %d",
