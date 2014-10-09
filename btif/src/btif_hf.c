@@ -597,6 +597,8 @@ static bt_status_t disconnect( bt_bdaddr_t *bd_addr )
 static bt_status_t connect_audio( bt_bdaddr_t *bd_addr )
 {
     CHECK_BTHF_INIT();
+    /* Check if SLC is connected */
+    CHECK_BTHF_SLC_CONNECTED();
 
     if (is_connected(bd_addr))
     {
