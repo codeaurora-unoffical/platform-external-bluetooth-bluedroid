@@ -210,12 +210,12 @@ void bnep_send_conn_req (tBNEP_CONN *p_bcb)
         memcpy (p, p_bcb->src_uuid.uu.uuid128, p_bcb->dst_uuid.len);
         p += p_bcb->dst_uuid.len;
     }
+#endif
     else
     {
         BNEP_TRACE_ERROR ("BNEP: uuid: %x, invalid length: %x", p_bcb->dst_uuid.uu.uuid16,
             p_bcb->dst_uuid.len);
     }
-#endif
 
     p_buf->len = (UINT16)(p - p_start);
 
