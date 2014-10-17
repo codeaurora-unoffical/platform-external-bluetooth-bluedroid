@@ -643,11 +643,15 @@ void smp_proc_release_delay(tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
 void smp_proc_release_delay_tout(tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
 {
     SMP_TRACE_DEBUG1 ("smp_proc_release_delay_tout , evt:%d", p_cb->cb_evt);
+    BD_ADDR bda;
     btu_stop_timer (&p_cb->rsp_timer_ent);
     if(p_cb->cb_evt == SMP_DELAY_EVT) /*release delay state due to encryption change*/
     {
+        bdcpy(bda, &p_cb->pairing_bda[0]);
         p_cb->state = SMP_ST_IDLE;
         memset(&p_cb->pairing_bda[0], 0xff, BD_ADDR_LEN);
+        /* to notify GATT to send data if any request is pending */
+        gatt_notify_enc_cmpl(bda);
     }
     else
         smp_proc_pairing_cmpl(p_cb);
