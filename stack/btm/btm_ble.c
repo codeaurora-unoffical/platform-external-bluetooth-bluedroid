@@ -1305,12 +1305,15 @@ void btm_ble_link_encrypted(BD_ADDR bd_addr, UINT8 encr_enable)
 {
     tBTM_SEC_DEV_REC    *p_dev_rec = btm_find_dev (bd_addr);
     BOOLEAN             enc_cback;
+    UINT8 smp_pair_state;
 
     if (!p_dev_rec)
     {
         BTM_TRACE_WARNING1 ("btm_ble_link_encrypted (No Device Found!) encr_enable=%d", encr_enable);
         return;
     }
+    smp_pair_state = smp_get_state();
+    BTM_TRACE_WARNING1 ("btm_ble_link_encrypted smp_pair_state = %d", smp_pair_state);
 
     BTM_TRACE_DEBUG1 ("btm_ble_link_encrypted encr_enable=%d", encr_enable);
 
@@ -1333,7 +1336,10 @@ void btm_ble_link_encrypted(BD_ADDR bd_addr, UINT8 encr_enable)
 
     }
     /* to notify GATT to send data if any request is pending */
-    gatt_notify_enc_cmpl(p_dev_rec->bd_addr);
+    if(!smp_pair_state)/*non pairing case, state = SMP_IDLE*/
+    {
+        gatt_notify_enc_cmpl(p_dev_rec->bd_addr);
+    }
 }
 
 /*******************************************************************************
