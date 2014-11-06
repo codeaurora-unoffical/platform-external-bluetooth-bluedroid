@@ -1270,6 +1270,8 @@ void GKI_exception (UINT16 code, char *msg)
 {
     UINT8 task_id;
     int i = 0;
+    FREE_QUEUE_T  *Q;
+    tGKI_COM_CB *p_cb = &gki_cb.com;
 
     GKI_ERROR_LOG( "GKI_exception(): Task State Table\n");
 
@@ -1301,6 +1303,15 @@ void GKI_exception (UINT16 code, char *msg)
 
     GKI_enable();
 #endif
+    if (code == GKI_ERROR_OUT_OF_BUFFERS)
+    {
+        for(i=0; i<p_cb->curr_total_no_of_pools; i++)
+        {
+            Q = &p_cb->freeq[p_cb->pool_list[i]];
+            if (Q !=NULL)
+                ALOGE("GKI_exception Buffer current cnt:%x, Total:%x", Q->cur_cnt, Q->total);
+        }
+    }
 
     GKI_TRACE("GKI_exception %d %s done", code, msg);
     return;
