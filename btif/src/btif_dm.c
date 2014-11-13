@@ -536,7 +536,9 @@ BOOLEAN check_sdp_bl(const bt_bdaddr_t *remote_bdaddr)
     }
     manufacturer = info.manufacturer;
 
-    for (int i = 0; i < MAX_SDP_BL_ENTRIES; i++)
+    int sdp_blacklist_size =
+            sizeof(sdp_blacklist)/sizeof(sdp_blacklist[0]);
+    for (int i = 0; i < sdp_blacklist_size; i++)
     {
         if (manufacturer == sdp_blacklist[i].manufact_id)
         {
@@ -987,6 +989,13 @@ static void btif_dm_pin_req_evt(tBTA_DM_PIN_REQ *p_pin_req)
     /* check for auto pair possiblity only if bond was initiated by local device */
     if (pairing_cb.is_local_initiated)
     {
+        if (bdcmp(pairing_cb.bd_addr, bd_addr.address))
+        {
+            /* Pin code from different device reject it as we dont support more than 1 pairing */
+            BTIF_TRACE_DEBUG("%s()rejecting pairing request", __FUNCTION__);
+            BTA_DmPinReply( (UINT8*)bd_addr.address, FALSE, 0, NULL);
+            return;
+        }
         if (check_cod(&bd_addr, COD_AV_HEADSETS) ||
             check_cod(&bd_addr, COD_AV_HANDSFREE) ||
             check_cod(&bd_addr, COD_AV_HEADPHONES) ||
@@ -2301,11 +2310,22 @@ void bte_dm_evt(tBTA_DM_SEC_EVT event, tBTA_DM_SEC *p_data)
 {
     bt_status_t status;
 
-    /* switch context to btif task context (copy full union size for convenience) */
-    status = btif_transfer_context(btif_dm_upstreams_evt, (uint16_t)event, (void*)p_data, sizeof(tBTA_DM_SEC), NULL);
-
-    /* catch any failed context transfers */
-    ASSERTC(status == BT_STATUS_SUCCESS, "context transfer failed", status);
+    switch (event)
+    {
+        case BTA_DM_AUTHORIZE_EVT:
+        case BTA_DM_SIG_STRENGTH_EVT:
+        case BTA_DM_SP_RMT_OOB_EVT:
+        case BTA_DM_ROLE_CHG_EVT:
+        case BTA_DM_SP_KEYPRESS_EVT:
+            break;
+        default:
+            /* switch context to btif task context (copy full union size for convenience) */
+            status = btif_transfer_context(btif_dm_upstreams_evt, (uint16_t)event,
+                                                    (void*)p_data, sizeof(tBTA_DM_SEC), NULL);
+            /* catch any failed context transfers */
+            ASSERTC(status == BT_STATUS_SUCCESS, "context transfer failed", status);
+            break;
+    }
 }
 
 /*******************************************************************************
