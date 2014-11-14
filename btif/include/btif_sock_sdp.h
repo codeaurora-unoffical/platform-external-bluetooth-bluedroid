@@ -48,7 +48,7 @@ int get_reserved_rfc_channel(const uint8_t* uuid);
 
 #if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
 int add_l2c_sdp_rec(const char* name, const uint8_t* uuid, int psm);
-int get_reserved_l2c_channel(const uint8_t* uuid);
+int get_reserved_l2c_channel(const uint8_t* uuid, const char *name);
 void del_l2c_sdp_rec(int handle, const uint8_t* uuid);
 #endif
 

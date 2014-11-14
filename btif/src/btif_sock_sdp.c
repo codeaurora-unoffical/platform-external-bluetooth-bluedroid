@@ -60,9 +60,13 @@
 #define RESERVED_SCN_DUN 25
 
 #if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
+#define RESERVED_PSM_MAPS_ID0 5251
+#define RESERVED_PSM_MAPS_ID1 5253
 #define RESERVED_PSM_OPS 5255
 #define RESERVED_PSM_FTP 5257
 int ops_sdp_handle = 0;
+int mas0_sdp_handle = 0;
+int mas1_sdp_handle = 0;
 #endif
 
 #define UUID_MAX_LENGTH 16
@@ -303,26 +307,57 @@ static int add_pbap_sdp(const char* p_service_name, int scn)
 #define BTA_MAP_MSG_TYPE_SMS_CDMA 0x04
 #define BTA_MAP_MSG_TYPE_MMS      0x08
 
+#if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
+#define BTA_MAP_NotificationReg_Feature 0x01
+#define BTA_MAP_Notification_Feature    0x02
+#define BTA_MAP_Browsing_Feature        0x04
+#define BTA_MAP_Uploading_Feature       0x08
+#define BTA_MAP_Delete_Feature          0x10
+#define BTA_MAP_Instance_Feature        0x20
+#define BTA_MAP_ExtendedEvent_Report    0x40
+#define BTA_MAPS_DEFAULT_VERSION 0x0102 /* MAP 1.2 */
+#else
 #define BTA_MAPS_DEFAULT_VERSION 0x0101 /* MAP 1.1 */
+#endif
+
+#define IS_MAP_SMS_MMS_INSTANCE(service_name) (!strncmp(service_name, "SMS/MMS Message Access", strlen("SMS/MMS Message Access")))
+#define IS_MAP_EMAIL_INSTANCE(service_name) (!strncmp(service_name, "Email Message Access", strlen("Email Message Access")))
 typedef struct
 {
     UINT8       mas_id;                 /* the MAS instance id */
     const char* service_name;          /* Description of the MAS instance */
     UINT8       supported_message_types;/* Server supported message types - SMS/MMS/EMAIL */
+#if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
+    UINT8       map_supported_features;/* MAPSupportedFeatures */
+#endif
 } tBTA_MAPS_CFG;
 const tBTA_MAPS_CFG bta_maps_cfg_sms_mms =
 {
     0,                  /* Mas id 0 is for SMS/MMS */
     "MAP SMS/MMS",
+#if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
+    BTA_MAP_MSG_TYPE_SMS_GSM | BTA_MAP_MSG_TYPE_SMS_CDMA | BTA_MAP_MSG_TYPE_MMS,
+    BTA_MAP_NotificationReg_Feature | BTA_MAP_Notification_Feature | BTA_MAP_Browsing_Feature| BTA_MAP_Uploading_Feature | BTA_MAP_Delete_Feature | BTA_MAP_Instance_Feature | BTA_MAP_ExtendedEvent_Report
+#else
     BTA_MAP_MSG_TYPE_SMS_GSM | BTA_MAP_MSG_TYPE_SMS_CDMA | BTA_MAP_MSG_TYPE_MMS
+#endif
 };
 const tBTA_MAPS_CFG bta_maps_cfg_email =
 {
     1,                  /* Mas id 1 is for EMAIL */
     "MAP EMAIL",
+#if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
+    BTA_MAP_MSG_TYPE_EMAIL,
+    BTA_MAP_NotificationReg_Feature | BTA_MAP_Notification_Feature | BTA_MAP_Browsing_Feature| BTA_MAP_Uploading_Feature | BTA_MAP_Delete_Feature | BTA_MAP_Instance_Feature | BTA_MAP_ExtendedEvent_Report
+#else
     BTA_MAP_MSG_TYPE_EMAIL
+#endif
 };
+#if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
+static int add_maps_sdp(const char* p_service_name, int scn, int psm)
+#else
 static int add_maps_sdp(const char* p_service_name, int scn)
+#endif
 {
 
     tSDP_PROTOCOL_ELEM  protoList [3];
@@ -330,20 +365,96 @@ static int add_maps_sdp(const char* p_service_name, int scn)
     UINT16              browse = UUID_SERVCLASS_PUBLIC_BROWSE_GROUP;
     BOOLEAN             status = FALSE;
     UINT32              sdp_handle = 0;
-    // TODO: To add support for EMAIL set below depending on the scn to either SMS or Email
     const tBTA_MAPS_CFG *p_bta_maps_cfg = &bta_maps_cfg_sms_mms;
 
-    if (!strncmp(p_service_name, "SMS/MMS Message Access", strlen("SMS/MMS Message Access"))) {
+    if( IS_MAP_SMS_MMS_INSTANCE(p_service_name) ) {
+
         p_bta_maps_cfg = &bta_maps_cfg_sms_mms;
-        //APPL_TRACE_DEBUG1("add_maps_sdp for: %s", p_service_name);
-    } else if (!strncmp(p_service_name, "Email Message Access", strlen("Email Message Access"))) {
+        #if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
+       /* check if someone already registered */
+        if(mas0_sdp_handle)
+        {
+            APPL_TRACE_DEBUG("scn %d, psm %d service name %s mas0_sdp_handle 0x%08x pval %d", scn,
+                   psm, p_service_name, mas0_sdp_handle,  p_bta_maps_cfg->map_supported_features );
+           if(psm > 0)
+           {
+                /* rfcomm is already registed */
+                /* delete the protocol desc list add new one with
+                  l2cap */
+                if( SDP_DeleteAttribute(mas0_sdp_handle, ATTR_ID_BT_PROFILE_DESC_LIST))
+                {
+                    if( SDP_AddProfileDescriptorList(mas0_sdp_handle,
+                        UUID_SERVCLASS_MESSAGE_ACCESS, BTA_MAPS_DEFAULT_VERSION))
+                    {
+                        /* swap the bytes as SDP is expecting the BIG endian */
+                        UINT8 pval[4];
+                        pval[0] = 0x00;
+                        pval[1] = 0x00;
+                        pval[2] = 0x00;
+                        pval[3] = p_bta_maps_cfg->map_supported_features;
+                        SDP_AddAttribute(sdp_handle, ATTR_ID_MAP_SUPPORTED_FEATURES, UINT_DESC_TYPE,
+                        (UINT32)4, pval);
+                        /* swap the bytes of PSM as SDP is expecting the BIG endian */
+                        psm = 0x8314;
+                        APPL_TRACE_DEBUG("add_maps_sdd: name %s Modify psm %d supportedFeaters %d",
+                              p_service_name, psm, p_bta_maps_cfg->map_supported_features);
+                        SDP_AddAttribute(mas0_sdp_handle, ATTR_ID_OBX_OVR_L2CAP_PSM ,
+                           UINT_DESC_TYPE, (UINT32)2, (UINT8*)&psm);
+                    }
+                }
+            }
+            return mas0_sdp_handle;
+        }
+
+        mas0_sdp_handle = sdp_handle = SDP_CreateRecord();
+        #else
+        sdp_handle = SDP_CreateRecord();
+        #endif
+    } else if ((IS_MAP_EMAIL_INSTANCE(p_service_name))) {
         p_bta_maps_cfg = &bta_maps_cfg_email;
-        //APPL_TRACE_DEBUG1("add_maps_sdp for: %s", p_service_name);
+        #if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
+       /* check if someone already registered */
+        if(mas1_sdp_handle)
+        {
+            APPL_TRACE_DEBUG("scn %d, psm %d service name %s mas1_sdp_handle %d pval %d", scn,
+                psm, p_service_name, mas1_sdp_handle,  p_bta_maps_cfg->map_supported_features );
+           if(psm > 0)
+           {
+                /* rfcomm is already registed */
+                /* delete the protocol desc list add new one with
+                  l2cap */
+                if( SDP_DeleteAttribute(mas1_sdp_handle, ATTR_ID_BT_PROFILE_DESC_LIST))
+                {
+                    if( SDP_AddProfileDescriptorList(mas0_sdp_handle,
+                        UUID_SERVCLASS_MESSAGE_ACCESS, BTA_MAPS_DEFAULT_VERSION))
+                    {
+                        /* swap the bytes as SDP is expecting the BIG endian */
+                        UINT8 pval[4];
+                        pval[0] = 0x00;
+                        pval[1] = 0x00;
+                        pval[2] = 0x00;
+                        pval[3] = p_bta_maps_cfg->map_supported_features;
+                        SDP_AddAttribute(sdp_handle, ATTR_ID_MAP_SUPPORTED_FEATURES, UINT_DESC_TYPE,
+                        (UINT32)4, pval);
+                        /* swap the bytes of PSM as SDP is expecting the BIG endian */
+                        psm = 0x8514;
+                        APPL_TRACE_DEBUG("add_maps_sdd: name %s Modify psm %d supportedFeaters %d",
+                              p_service_name, psm, p_bta_maps_cfg->map_supported_features);
+                        SDP_AddAttribute(mas1_sdp_handle, ATTR_ID_OBX_OVR_L2CAP_PSM ,
+                           UINT_DESC_TYPE, (UINT32)2, (UINT8*)&psm);
+                    }
+                }
+            }
+            return mas1_sdp_handle;
+        }
+
+        mas1_sdp_handle = sdp_handle = SDP_CreateRecord();
+        #else
+        sdp_handle = SDP_CreateRecord();
+        #endif
     }
 
-    APPL_TRACE_DEBUG("add_maps_sdd:scn %d, service name %s", scn, p_service_name);
-
-    if ((sdp_handle = SDP_CreateRecord()) == 0)
+    if (sdp_handle  == 0)
     {
         APPL_TRACE_ERROR("MAPS SDP: Unable to register MAPS Service");
         return sdp_handle;
@@ -373,11 +484,22 @@ static int add_maps_sdp(const char* p_service_name, int scn)
                             (UINT32)(strlen(p_bta_maps_cfg->service_name) + 1),
                             (UINT8 *)p_bta_maps_cfg->service_name);
 
+#if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
+            if( psm > 0) {
+#endif
             /* Add in the Bluetooth Profile Descriptor List */
             SDP_AddProfileDescriptorList(sdp_handle,
                                              UUID_SERVCLASS_MAP_PROFILE,
                                              BTA_MAPS_DEFAULT_VERSION);
 
+#if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
+            } else if(scn > 0)
+            {
+                SDP_AddProfileDescriptorList(sdp_handle,
+                    UUID_SERVCLASS_MAP_PROFILE,
+                    0x0101);
+            }
+#endif
         } /* end of setting mandatory protocol list */
     } /* end of setting mandatory service class */
 
@@ -388,7 +510,30 @@ static int add_maps_sdp(const char* p_service_name, int scn)
                   (UINT32)1, (UINT8*)&p_bta_maps_cfg->mas_id);
         SDP_AddAttribute(sdp_handle, ATTR_ID_SUPPORTED_MSG_TYPE, UINT_DESC_TYPE,
                   (UINT32)1, (UINT8*)&p_bta_maps_cfg->supported_message_types);
+#if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
+        /* swap the bytes as SDP is expecting the BIG endian */
+        UINT8  pval[4];
+        pval[0] = 0x00;
+        pval[1] = 0x00;
+        pval[2] = 0x00;
+        pval[3] = p_bta_maps_cfg->map_supported_features;
+        SDP_AddAttribute(sdp_handle, ATTR_ID_MAP_SUPPORTED_FEATURES, UINT_DESC_TYPE,
+                  (UINT32)4, pval);
 
+        if(psm == RESERVED_PSM_MAPS_ID0 || psm == RESERVED_PSM_MAPS_ID1)
+        {
+            /* swap the bytes of PSM as SDP is expecting the BIG endian */
+            if(IS_MAP_SMS_MMS_INSTANCE(p_service_name)) {
+                psm = 0x8314;
+            } else if (IS_MAP_EMAIL_INSTANCE(p_service_name)) {
+                psm = 0x8514;
+            }
+            APPL_TRACE_DEBUG("add_maps_sdd:service name %s Modify psm %d supprtd Featurs %d",
+                p_service_name, psm, p_bta_maps_cfg->map_supported_features);
+            SDP_AddAttribute(sdp_handle, ATTR_ID_OBX_OVR_L2CAP_PSM , UINT_DESC_TYPE,
+                (UINT32)2, (UINT8*)&psm);
+        }
+#endif
         /* Make the service browseable */
         SDP_AddUuidSequence (sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse);
     }
@@ -737,7 +882,11 @@ static int add_rfc_sdp_by_uuid(const char* name, const uint8_t* uuid, int scn)
     }
     else if (IS_UUID(UUID_MAPS_MAS,uuid))
     {
-        handle = add_maps_sdp(name, final_scn); //MAP Server is always 19
+#if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
+        handle = add_maps_sdp(name, final_scn, 0);
+#else
+        handle = add_maps_sdp(name, final_scn);
+#endif
     }
     else if (IS_UUID(UUID_FTP, uuid))
     {
@@ -799,8 +948,9 @@ int get_reserved_rfc_channel (const uint8_t* uuid)
 }
 
 #if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
-int get_reserved_l2c_channel (const uint8_t* uuid)
+int get_reserved_l2c_channel (const uint8_t* uuid, const char *name)
 {
+    APPL_TRACE_DEBUG("get_reserved_l2c_channel: %s : uuid: %x", name , uuid);
     if (IS_UUID(UUID_OBEX_OBJECT_PUSH,uuid))
     {
       return RESERVED_PSM_OPS;
@@ -809,6 +959,16 @@ int get_reserved_l2c_channel (const uint8_t* uuid)
     {
       return RESERVED_PSM_FTP;
     }
+    else if (IS_UUID(UUID_MAPS_MAS,uuid))
+    {
+        if(IS_MAP_SMS_MMS_INSTANCE(name)) {
+            return RESERVED_PSM_MAPS_ID0;
+        }
+        if(IS_MAP_EMAIL_INSTANCE(name)) {
+            return RESERVED_PSM_MAPS_ID1;
+        }
+    }
+    APPL_TRACE_ERROR("get_reserved_l2c_channel -1");
     return -1;
 }
 #endif
@@ -841,6 +1001,7 @@ int add_rfc_sdp_rec(const char* name, const uint8_t* uuid, int scn)
         }
     }
     sdp_handle = add_rfc_sdp_by_uuid(name, uuid, scn);
+    APPL_TRACE_DEBUG("add_rfc_sdp_rec: name:%s scn:%d 0x%x", name, scn, sdp_handle);
     return sdp_handle;
 }
 
@@ -852,6 +1013,10 @@ int add_l2c_sdp_rec(const char* name, const uint8_t* uuid, int psm)
     {
         switch(psm)
         {
+            case RESERVED_PSM_MAPS_ID0:
+            case RESERVED_PSM_MAPS_ID1:
+                uuid = UUID_MAPS_MAS;
+                break;
             case RESERVED_PSM_FTP:
                 uuid = UUID_FTP;
                 break;
@@ -864,7 +1029,16 @@ int add_l2c_sdp_rec(const char* name, const uint8_t* uuid, int psm)
     if (IS_UUID(UUID_OBEX_OBJECT_PUSH,uuid))
     {
         sdp_handle = add_ops_sdp(name, RESERVED_SCN_OPS, psm);
+    } else if (IS_UUID(UUID_MAPS_MAS,uuid))
+    {
+        if (IS_MAP_SMS_MMS_INSTANCE(name)) {
+            psm = 0x8314;
+        } else if (IS_MAP_EMAIL_INSTANCE(name)) {
+            psm = 0x8514;
+        }
+        sdp_handle = add_maps_sdp(name, 0, psm);
     }
+    APPL_TRACE_DEBUG("add_l2c_sdp_rec: name:%s psm:%d 0x%x", name, psm, sdp_handle);
     return sdp_handle;
 }
 #endif
@@ -872,21 +1046,20 @@ int add_l2c_sdp_rec(const char* name, const uint8_t* uuid, int psm)
 void del_rfc_sdp_rec(int handle)
 {
     APPL_TRACE_DEBUG("del_rfc_sdp_rec: handle:0x%x", handle);
-#if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
     if(handle != -1 && handle != 0)
     {
-        if(handle == ops_sdp_handle)
-        {
+#if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
+        if(handle == ops_sdp_handle) {
             ops_sdp_handle = 0;
-            BTA_JvDeleteRecord( handle );
+        } else if(handle == mas0_sdp_handle) {
+            mas0_sdp_handle = 0;
+        } else if(handle == mas1_sdp_handle) {
+            mas1_sdp_handle = 0;
         }
-        else
-            BTA_JvDeleteRecord( handle );
-    }
-#else
-    if(handle != -1 && handle != 0)
-        BTA_JvDeleteRecord( handle );
 #endif
+        BTA_JvDeleteRecord( handle );
+    }
+
 }
 
 #if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
@@ -916,6 +1089,41 @@ void del_l2c_sdp_rec(int handle, const uint8_t* uuid)
                     }
                 }
             }
+        }
+        else if (IS_UUID(UUID_MAPS_MAS,uuid))
+        {
+            if(mas0_sdp_handle == 0 && mas1_sdp_handle == 0)
+            {
+                /* it's already deleted by the rfcomm */
+                /* do nothing */
+            }
+            else
+            {
+                /* don't delete the full record instead delete the attribute
+                   and make the version as 1.1 */
+                if(mas0_sdp_handle == handle) {
+                    if( SDP_DeleteAttribute(mas0_sdp_handle, ATTR_ID_BT_PROFILE_DESC_LIST))
+                    {
+                        if( SDP_AddProfileDescriptorList(mas0_sdp_handle,
+                                UUID_SERVCLASS_MESSAGE_ACCESS, 0x0101))
+                        {
+                            SDP_DeleteAttribute(mas0_sdp_handle, ATTR_ID_OBX_OVR_L2CAP_PSM);
+                            SDP_DeleteAttribute(mas0_sdp_handle, ATTR_ID_MAP_SUPPORTED_FEATURES);
+                        }
+                    }
+                }
+                if(mas1_sdp_handle ==  handle) {
+                    if( SDP_DeleteAttribute(mas1_sdp_handle, ATTR_ID_BT_PROFILE_DESC_LIST))
+                    {
+                        if( SDP_AddProfileDescriptorList(mas1_sdp_handle,
+                                UUID_SERVCLASS_MESSAGE_ACCESS, 0x0101))
+                        {
+                            SDP_DeleteAttribute(mas1_sdp_handle, ATTR_ID_OBX_OVR_L2CAP_PSM);
+                            SDP_DeleteAttribute(mas1_sdp_handle, ATTR_ID_MAP_SUPPORTED_FEATURES);
+                        }
+                    }
+                }
+             }
         }
         else
             BTA_JvDeleteRecord( handle );
