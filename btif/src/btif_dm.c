@@ -187,7 +187,10 @@ typedef struct
 #define MAX_SDP_BL_ENTRIES 3
 #define UUID_HUMAN_INTERFACE_DEVICE "00001124-0000-1000-8000-00805f9b34fb"
 
-static skip_sdp_entry_t sdp_blacklist[] = {{76}}; //Apple Mouse and Keyboard
+static skip_sdp_entry_t sdp_manufacturer_blacklist[] = {{76}}; //Apple Mouse and Keyboard
+static const UINT8 hid_sdp_addr_blacklist[][3] = {
+    {0x00, 0x07, 0x61} // Logitech
+};
 
 /* hid_auth_blacklist to FIX IOP issues with hid devices
  * that dont want to have authentication during hid connection */
@@ -514,7 +517,6 @@ BOOLEAN check_sdp_bl(const bt_bdaddr_t *remote_bdaddr)
     bt_remote_version_t info;
     bt_status_t status;
 
-
     if (remote_bdaddr == NULL)
         return FALSE;
 
@@ -536,13 +538,28 @@ BOOLEAN check_sdp_bl(const bt_bdaddr_t *remote_bdaddr)
     }
     manufacturer = info.manufacturer;
 
-    int sdp_blacklist_size =
-            sizeof(sdp_blacklist)/sizeof(sdp_blacklist[0]);
-    for (int i = 0; i < sdp_blacklist_size; i++)
+    int sdp_manufacturer_blacklist_size =
+            sizeof(sdp_manufacturer_blacklist)/sizeof(sdp_manufacturer_blacklist[0]);
+    for (int i = 0; i < sdp_manufacturer_blacklist_size; i++)
     {
-        if (manufacturer == sdp_blacklist[i].manufact_id)
+        if (manufacturer == sdp_manufacturer_blacklist[i].manufact_id)
         {
             APPL_TRACE_WARNING("device is in blacklist for skipping sdp");
+            return TRUE;
+        }
+    }
+    int sdp_addr_blacklist_size =
+            sizeof(hid_sdp_addr_blacklist)/sizeof(hid_sdp_addr_blacklist[0]);
+    for (int i = 0; i < sdp_addr_blacklist_size; i++)
+    {
+        if (hid_sdp_addr_blacklist[i][0] == (*(BD_ADDR*)remote_bdaddr)[0] &&
+            hid_sdp_addr_blacklist[i][1] == (*(BD_ADDR*)remote_bdaddr)[1] &&
+            hid_sdp_addr_blacklist[i][2] == (*(BD_ADDR*)remote_bdaddr)[2]) {
+            APPL_TRACE_WARNING("%02x:%02x:%02x:%02x:%02x:%02x is in blacklist for "
+                "skipping sdp", (*(BD_ADDR*)remote_bdaddr)[0],
+                (*(BD_ADDR*)remote_bdaddr)[1], (*(BD_ADDR*)remote_bdaddr)[2],
+                (*(BD_ADDR*)remote_bdaddr)[3], (*(BD_ADDR*)remote_bdaddr)[4],
+                (*(BD_ADDR*)remote_bdaddr)[5]);
             return TRUE;
         }
     }
@@ -554,14 +571,6 @@ static void bond_state_changed(bt_status_t status, bt_bdaddr_t *bd_addr, bt_bond
     /* Send bonding state only once - based on outgoing/incoming we may receive duplicates */
     if ( (pairing_cb.state == state) && (state == BT_BOND_STATE_BONDING) )
         return;
-
-    /* Ignore the invalid state transition for othere device */
-    if ( (state == BT_BOND_STATE_NONE) && (pairing_cb.state == BT_BOND_STATE_BONDING) &&
-         bdcmp(pairing_cb.bd_addr, bd_addr->address))
-    {
-        BTIF_TRACE_ERROR("%s:Ignore invalid bond state transition of other device", __FUNCTION__);
-        return;
-    }
 
     if (pairing_cb.is_temp)
     {
@@ -2923,6 +2932,33 @@ bt_status_t btif_dm_get_remote_services(bt_bdaddr_t *remote_addr)
 
 /*******************************************************************************
 **
+** Function         btif_dm_get_remote_services_transport
+**
+** Description      Start SDP to get remote services by transport
+**
+** Returns          bt_status_t
+**
+*******************************************************************************/
+bt_status_t btif_dm_get_remote_services_by_transport(bt_bdaddr_t *remote_addr, int transport)
+{
+    bdstr_t bdstr;
+    tBTA_SERVICE_MASK_EXT mask_ext;
+
+    BTIF_TRACE_EVENT("%s: remote_addr=%s", __FUNCTION__, bd2str(remote_addr, &bdstr));
+
+    /*set the mask extension*/
+    mask_ext.num_uuid = 0;
+    mask_ext.p_uuid = NULL;
+    mask_ext.srvc_mask = BTA_ALL_SERVICE_MASK;
+
+    BTA_DmDiscoverByTransport(remote_addr->address, &mask_ext,
+                   bte_dm_search_services_evt, TRUE, BT_TRANSPORT_LE);
+
+    return BT_STATUS_SUCCESS;
+}
+
+/*******************************************************************************
+**
 ** Function         btif_dm_get_remote_service_record
 **
 ** Description      Start SDP to get remote service record
@@ -3216,7 +3252,7 @@ static void btif_dm_ble_auth_cmpl_evt (tBTA_DM_AUTH_CMPL *p_auth_cmpl)
         {
             btif_dm_save_ble_bonding_keys();
             BTA_GATTC_Refresh_No_Discovery(bd_addr.address);
-            btif_dm_get_remote_services(&bd_addr);
+            btif_dm_get_remote_services_by_transport(&bd_addr, BTA_GATT_TRANSPORT_LE);
         }
     }
     else
