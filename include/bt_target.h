@@ -297,7 +297,7 @@
 #endif
 
 #ifndef BTA_DMT_SPT_FLAG_DISABLE
-#define BTA_DMT_SPT_FLAG_DISABLE  FALSE
+#define BTA_DMT_SPT_FLAG_DISABLE  TRUE
 #endif
 
 #ifndef BT_TRACE_PROTOCOL
@@ -310,6 +310,10 @@
 
 #ifndef BT_TRACE_BTIF
 #define BT_TRACE_BTIF  TRUE
+#endif
+
+#ifndef BT_TRACE_LATENCY_AUDIO
+#define BT_TRACE_LATENCY_AUDIO  TRUE
 #endif
 
 #ifndef BTTRC_INCLUDED

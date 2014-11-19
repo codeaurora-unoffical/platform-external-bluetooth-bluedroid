@@ -93,11 +93,16 @@ void bta_av_del_rc(tBTA_AV_RCB *p_rcb)
     tBTA_AV_SCB  *p_scb;
     UINT8        rc_handle;      /* connected AVRCP handle */
 
+    p_scb = NULL;
     if(p_rcb->handle != BTA_AV_RC_HANDLE_NONE)
     {
         if(p_rcb->shdl)
         {
-            p_scb = bta_av_cb.p_scb[p_rcb->shdl - 1];
+            /* Validate array index*/
+            if ((p_rcb->shdl - 1) < BTA_AV_NUM_STRS)
+            {
+                p_scb = bta_av_cb.p_scb[p_rcb->shdl - 1];
+            }
             if(p_scb)
             {
                 APPL_TRACE_DEBUG("bta_av_del_rc shdl:%d, srch:%d rc_handle:%d", p_rcb->shdl,
@@ -208,7 +213,7 @@ static void bta_av_rc_ctrl_cback(UINT8 handle, UINT8 event, UINT16 result, BD_AD
 #if (defined(BTA_AV_MIN_DEBUG_TRACES) && BTA_AV_MIN_DEBUG_TRACES == TRUE)
     APPL_TRACE_EVENT("rc_ctrl handle: %d event=0x%x", handle, event);
 #else
-    APPL_TRACE_EVENT("bta_av_rc_ctrl_cback handle: %d event=0x%x", handle, event);
+    BTIF_TRACE_IMP("bta_av_rc_ctrl_cback handle: %d event=0x%x", handle, event);
 #endif
     if (event == AVRC_OPEN_IND_EVT)
     {
@@ -254,7 +259,7 @@ static void bta_av_rc_msg_cback(UINT8 handle, UINT8 label, UINT8 opcode, tAVRC_M
 #if (defined(BTA_AV_MIN_DEBUG_TRACES) && BTA_AV_MIN_DEBUG_TRACES == TRUE)
     APPL_TRACE_ERROR("rc_msg handle: %d opcode=0x%x", handle, opcode);
 #else
-    APPL_TRACE_EVENT("bta_av_rc_msg_cback handle: %d opcode=0x%x", handle, opcode);
+    BTIF_TRACE_IMP("bta_av_rc_msg_cback handle: %d opcode=0x%x", handle, opcode);
 #endif
     /* determine size of buffer we need */
     if (opcode == AVRC_OP_VENDOR && p_msg->vendor.p_vendor_data != NULL)
@@ -861,7 +866,7 @@ tBTA_AV_EVT bta_av_proc_meta_cmd(tAVRC_RESPONSE  *p_rc_rsp, tBTA_AV_RC_MSG *p_ms
         }
     }
 #else
-    APPL_TRACE_DEBUG("AVRCP 1.3 Metadata not supporteed. Reject command.");
+    BTIF_TRACE_IMP("AVRCP 1.3 Metadata not supporteed. Reject command.");
     /* reject invalid message without reporting to app */
     evt = 0;
     p_rc_rsp->rsp.status = AVRC_STS_BAD_CMD;
@@ -927,7 +932,7 @@ void bta_av_rc_msg(tBTA_AV_CB *p_cb, tBTA_AV_DATA *p_data)
 
     rc_rsp.rsp.status = BTA_AV_STS_NO_RSP;
 #endif
-    APPL_TRACE_DEBUG("bta_av_rc_msg opcode: %x",p_data->rc_msg.opcode);
+    BTIF_TRACE_IMP(" %s bta_av_rc_msg opcode: %x", __FUNCTION__, p_data->rc_msg.opcode);
 
     if (p_data->rc_msg.opcode == AVRC_OP_PASS_THRU)
     {
@@ -1234,7 +1239,7 @@ void bta_av_stream_chg(tBTA_AV_SCB *p_scb, BOOLEAN started)
 void bta_av_conn_chg(tBTA_AV_DATA *p_data)
 {
     tBTA_AV_CB   *p_cb = &bta_av_cb;
-    tBTA_AV_SCB     *p_scb;
+    tBTA_AV_SCB     *p_scb = NULL;
     tBTA_AV_SCB     *p_scbi;
     UINT8   mask;
     UINT8   conn_msk;
@@ -1246,8 +1251,11 @@ void bta_av_conn_chg(tBTA_AV_DATA *p_data)
     tBTA_AV_RCB *p_rcb, *p_rcb2;
     BOOLEAN     chk_restore = FALSE;
 
-    p_scb = p_cb->p_scb[index];
-
+    /* Validate array index*/
+    if (index < BTA_AV_NUM_STRS)
+    {
+        p_scb = p_cb->p_scb[index];
+    }
     mask = BTA_AV_HNDL_TO_MSK(index);
     p_lcb = bta_av_find_lcb(p_data->conn_chg.peer_addr, BTA_AV_LCB_FIND);
     conn_msk = 1 << (index + 1);
@@ -1489,7 +1497,8 @@ void bta_av_sig_chg(tBTA_AV_DATA *p_data)
     UINT8   mask;
     tBTA_AV_LCB *p_lcb = NULL;
 
-    APPL_TRACE_DEBUG("bta_av_sig_chg event: %d", event);
+    BTIF_TRACE_IMP("%s bta_av_sig_chg event: %d",
+            __FUNCTION__, event);
     if(event == AVDT_CONNECT_IND_EVT)
     {
         p_lcb = bta_av_find_lcb(p_data->str_msg.bd_addr, BTA_AV_LCB_FIND);
@@ -1645,9 +1654,12 @@ static void bta_av_acp_sig_timer_cback (TIMER_LIST_ENT *p_tle)
 {
     UINT8   inx = (UINT8)p_tle->param;
     tBTA_AV_CB  *p_cb = &bta_av_cb;
-    tBTA_AV_SCB *p_scb = p_cb->p_scb[inx];
+    tBTA_AV_SCB *p_scb = NULL;
     tBTA_AV_API_OPEN  *p_buf;
-
+    if (inx < BTA_AV_NUM_STRS)
+    {
+        p_scb = p_cb->p_scb[inx];
+    }
     if (p_scb)
     {
         APPL_TRACE_DEBUG("bta_av_acp_sig_timer_cback, coll_mask = 0x%02X", p_scb->coll_mask);
@@ -1797,7 +1809,11 @@ void bta_av_rc_disc_done(tBTA_AV_DATA *p_data)
     }
     else
     {
-        p_scb = p_cb->p_scb[(p_cb->disc & BTA_AV_HNDL_MSK) - 1];
+        /* Validate array index*/
+        if (((p_cb->disc & BTA_AV_HNDL_MSK) - 1) < BTA_AV_NUM_STRS)
+        {
+            p_scb = p_cb->p_scb[(p_cb->disc & BTA_AV_HNDL_MSK) - 1];
+        }
         if (p_scb)
             rc_handle = p_scb->rc_handle;
         else
@@ -1898,6 +1914,7 @@ void bta_av_rc_closed(tBTA_AV_DATA *p_data)
     tBTA_AV_LCB *p_lcb;
 
     rc_close.rc_handle = BTA_AV_RC_HANDLE_NONE;
+    p_scb = NULL;
     APPL_TRACE_DEBUG("bta_av_rc_closed rc_handle:%d", p_msg->handle);
     for(i=0; i<BTA_AV_NUM_RCB; i++)
     {
@@ -1911,7 +1928,10 @@ void bta_av_rc_closed(tBTA_AV_DATA *p_data)
             APPL_TRACE_DEBUG("       shdl:%d, lidx:%d", p_rcb->shdl, p_rcb->lidx);
             if(p_rcb->shdl)
             {
-                p_scb = bta_av_cb.p_scb[p_rcb->shdl - 1];
+                if ((p_rcb->shdl - 1) < BTA_AV_NUM_STRS)
+                {
+                    p_scb = bta_av_cb.p_scb[p_rcb->shdl - 1];
+                }
                 if(p_scb)
                 {
                     bdcpy(rc_close.peer_addr, p_scb->peer_addr);

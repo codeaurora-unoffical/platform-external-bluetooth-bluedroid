@@ -2541,6 +2541,8 @@ static void bta_dm_discover_device(BD_ADDR remote_bd_addr)
         transport = bta_dm_search_cb.transport;
 #endif
 
+    bta_dm_search_cb.transport = BTA_TRANSPORT_UNKNOWN;
+
 
     APPL_TRACE_DEBUG("bta_dm_discover_device, BDA:0x%02X%02X%02X%02X%02X%02X",
                         remote_bd_addr[0],remote_bd_addr[1],
@@ -2549,10 +2551,11 @@ static void bta_dm_discover_device(BD_ADDR remote_bd_addr)
 
     bdcpy(bta_dm_search_cb.peer_bdaddr, remote_bd_addr);
 
-    APPL_TRACE_DEBUG("bta_dm_discover_device name_discover_done = %d p_btm_inq_info 0x%x state = %d",
+    APPL_TRACE_DEBUG("bta_dm_discover_device name_discover_done = %d p_btm_inq_info 0x%x state = %d, transport=%d",
                         bta_dm_search_cb.name_discover_done,
                         bta_dm_search_cb.p_btm_inq_info,
-                        bta_dm_search_cb.state
+                        bta_dm_search_cb.state,
+                        transport
                         );
     if ( bta_dm_search_cb.p_btm_inq_info ) {
 
@@ -2632,6 +2635,9 @@ static void bta_dm_discover_device(BD_ADDR remote_bd_addr)
                  bta_dm_search_cb.p_btm_inq_info->results.device_type == BT_DEVICE_TYPE_BLE &&
                  (bta_dm_search_cb.services_to_search & BTA_BLE_SERVICE_MASK))*/
             {
+                 // check ACL is still up before  start gatt op
+                if (!BTM_IsAclConnectionUp(bta_dm_search_cb.peer_bdaddr, BT_TRANSPORT_LE))
+                    return;
                 if (bta_dm_search_cb.services_to_search & BTA_BLE_SERVICE_MASK)
                 {
                     //set the raw data buffer here
