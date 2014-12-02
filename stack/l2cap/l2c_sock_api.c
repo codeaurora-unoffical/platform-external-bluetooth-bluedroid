@@ -80,6 +80,11 @@ void L2C_SOCK_Init (void)
         L2C_SOCK_TRACE_ERROR("%s:l2c_sock_if_init Failed for PSM %d", __FUNCTION__,
                                  BT_PSM_MAS1_1_2);
     }
+    if(l2c_sock_if_init(BT_PSM_MAP_MNS_1_2) == 0)
+    {
+        L2C_SOCK_TRACE_ERROR("%s:l2c_sock_if_init Failed for PSM %d", __FUNCTION__,
+                                 BT_PSM_MAP_MNS_1_2);
+    }
 }
 
 /*******************************************************************************
@@ -128,7 +133,8 @@ int SOCK_L2C_CreateConnection (UINT16 psm, BOOLEAN is_server, BD_ADDR bd_addr,
 
     /* Register the PSM with L2CAP incase if it's not already registered */
     /* PSM check would have done in BTA layer */
-    if((psm != BT_PSM_OPP_1_2) && (psm != BT_PSM_MAS0_1_2) && (psm!=  BT_PSM_MAS1_1_2))
+    if((psm != BT_PSM_OPP_1_2) && (psm != BT_PSM_MAS0_1_2) && (psm!=  BT_PSM_MAS1_1_2) &&
+       (psm != BT_PSM_MAP_MNS_1_2))
     {
         if(l2c_sock_if_init(psm) == 0)
         {
@@ -524,7 +530,8 @@ void l2c_sock_release_scb (tL2C_SOCK_CB *p_scb)
     }
 
     /* Deregister the PSM with L2CAP */
-    if((psm != BT_PSM_OPP_1_2) && (psm != BT_PSM_MAS0_1_2) && (psm != BT_PSM_MAS1_1_2))
+    if((psm != BT_PSM_OPP_1_2) && (psm != BT_PSM_MAS0_1_2) && (psm != BT_PSM_MAS1_1_2) &&
+       (psm != BT_PSM_MAP_MNS_1_2))
     {
         L2CA_DEREGISTER (psm);
     }

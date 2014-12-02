@@ -57,6 +57,7 @@ typedef struct
     char    *p_srv_name;
     UINT16  srv_name_len;
     UINT8   instance_id;
+    UINT16  l2cap_psm;
     UINT8   msg_type;
 } tBTA_MCE_MAS_INFO;
 

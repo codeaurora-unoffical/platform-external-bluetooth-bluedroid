@@ -230,6 +230,8 @@ typedef struct
 #define BT_PSM_OPP_1_2                  0x1487 /* OPP PSM for the obex over L2CAP */
 #define BT_PSM_MAS0_1_2                 0x1483 /* MAP PSM for the obex over L2CAP */
 #define BT_PSM_MAS1_1_2                 0x1485 /* MAP PSM for the obex over L2CAP */
+#define BT_PSM_MAP_MNS_1_2              0x148b /* MAP MNS PSM for the obex over L2CAP */
+
 
 
 /* These macros extract the HCI opcodes from a buffer
