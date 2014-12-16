@@ -99,6 +99,7 @@ static void bte_send_preload_req(void);
 static void preload_start_wait_timer(void);
 static void preload_stop_wait_timer(void);
 
+BOOLEAN btif_is_shutdown(void);
 /*******************************************************************************
 **  Externs
 *******************************************************************************/
@@ -720,8 +721,16 @@ static char *alloc(int size)
 ******************************************************************************/
 static int dealloc(TRANSAC transac, char *p_buf)
 {
-    GKI_freebuf(transac);
-    return BT_HC_STATUS_SUCCESS;
+    if (btif_is_shutdown() == FALSE)
+    {
+        GKI_freebuf(transac);
+        return BT_HC_STATUS_SUCCESS;
+    }
+    else
+    {
+        APPL_TRACE_WARNING0("GKI is already shutdown ");
+        return BT_HC_STATUS_FAIL;
+    }
 }
 
 /******************************************************************************
