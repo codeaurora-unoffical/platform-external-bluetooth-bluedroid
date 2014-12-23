@@ -2383,7 +2383,6 @@ bt_status_t btif_dm_cancel_bond(const bt_bdaddr_t *bd_addr)
             {
                 BTA_DmConfirm( (UINT8 *)bd_addr->address, FALSE);
                 BTA_DmBondCancel ((UINT8 *)bd_addr->address);
-                btif_storage_remove_bonded_device((bt_bdaddr_t *)bd_addr);
             }
         }
         else
