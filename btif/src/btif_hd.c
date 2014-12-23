@@ -426,10 +426,6 @@ static bt_status_t register_app(bthd_app_param_t *p_app_param, bthd_qos_param_t 
         return BT_STATUS_BUSY;
     }
 
-    /* register HID Device with L2CAP and unregister HID Host with L2CAP */
-    /* Disable HH */
-    btif_hh_service_registration(FALSE);
-
     app_info.p_name = GKI_getbuf(BTIF_HD_APP_NAME_LEN);
     memcpy(app_info.p_name, p_app_param->name, BTIF_HD_APP_NAME_LEN);
     app_info.p_description = GKI_getbuf(BTIF_HD_APP_DESCRIPTION_LEN);
@@ -454,6 +450,10 @@ static bt_status_t register_app(bthd_app_param_t *p_app_param, bthd_qos_param_t 
     out_qos.peak_bandwidth = p_out_qos->peak_bandwidth;
     out_qos.access_latency = p_out_qos->access_latency;
     out_qos.delay_variation = p_out_qos->delay_variation;
+
+    /* register HID Device with L2CAP and unregister HID Host with L2CAP */
+    /* Disable HH */
+    btif_hh_service_registration(FALSE);
 
     return BT_STATUS_SUCCESS;
 }
