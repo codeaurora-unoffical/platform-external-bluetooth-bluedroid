@@ -1718,6 +1718,26 @@ void btm_ble_conn_complete(UINT8 *p, UINT16 evt_len)
                 btm_sec_disconnected (handle, HCI_ERR_PEER_USER);
             }
         }
+#if (defined(LE_L2CAP_CFC_INCLUDED) && (LE_L2CAP_CFC_INCLUDED == TRUE))
+        else
+        {
+            tL2C_LCB    *p_lcb;
+            tL2C_CCB    *p_ccb;
+            handle = HCID_GET_HANDLE (handle);
+            p_lcb = l2cu_find_lcb_by_handle (handle);
+            /* Link is not connected. For all channels, send the event through */
+            /* their FSMs. The CCBs should remove themselves from the LCB     */
+            if(p_lcb)
+            {
+                for (p_ccb = p_lcb->ccb_queue.p_first_ccb; p_ccb; p_ccb = p_ccb->p_next_ccb)
+                {
+                    L2CAP_TRACE_DEBUG ("LE-L2CAP: %s Notifying connection Failed", __FUNCTION__);
+                    l2c_le_csm_execute (p_ccb, L2CEVT_LP_CONNECT_CFM_NEG, (void*)&status);
+                }
+                p_lcb->link_state = LST_DISCONNECTED;
+            }
+        }
+#endif
     }
 
 #if (BLE_PRIVACY_SPT == TRUE )

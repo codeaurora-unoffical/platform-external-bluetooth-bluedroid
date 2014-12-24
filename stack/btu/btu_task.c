@@ -630,7 +630,9 @@ BTU_API UINT32 btu_task (UINT32 param)
         if (event & EVENT_MASK(APPL_EVT_7))
             break;
     }
-
+#if (defined(LE_L2CAP_CFC_INCLUDED) && (LE_L2CAP_CFC_INCLUDED == TRUE))
+    l2c_cleanup();
+#endif
     return(0);
 }
 

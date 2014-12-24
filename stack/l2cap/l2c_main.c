@@ -35,6 +35,9 @@
 #include "btu.h"
 #include "btm_int.h"
 
+#if (defined(LE_L2CAP_CFC_INCLUDED) && (LE_L2CAP_CFC_INCLUDED == TRUE))
+#include <pthread.h>
+#endif
 /********************************************************************************/
 /*              L O C A L    F U N C T I O N     P R O T O T Y P E S            */
 /********************************************************************************/
@@ -51,6 +54,11 @@ tL2C_CB l2cb;
 #if (TCS_BCST_SETUP_INCLUDED == TRUE && TCS_INCLUDED == TRUE)
 extern void tcs_proc_bcst_msg( BD_ADDR addr, BT_HDR *p_msg ) ;
 #endif
+
+#if (defined(LE_L2CAP_CFC_INCLUDED) && (LE_L2CAP_CFC_INCLUDED == TRUE))
+pthread_mutex_t lock_mutex_le_credits;
+#endif
+
 /*******************************************************************************
 **
 ** Function         l2c_bcst_msg
@@ -306,6 +314,23 @@ void l2c_rcv_acl_data (BT_HDR *p_msg)
             GKI_freebuf (p_msg);
         else
         {
+#if (defined(LE_L2CAP_CFC_INCLUDED) && (LE_L2CAP_CFC_INCLUDED == TRUE))
+            if (p_lcb->transport == BT_TRANSPORT_LE)
+            {
+                if ( (p_ccb->is_le_coc == TRUE) && (p_ccb->chnl_state == CST_OPEN))
+                {
+                    if(!l2c_le_proc_pdu(p_ccb, p_msg))
+                        GKI_freebuf (p_msg);
+                }
+                else
+                {
+                    L2CAP_TRACE_ERROR("L2CAP-LE: Error: Not a LE COC chnl or state is not open" \
+                        "state %d  is_le_coc", p_ccb->chnl_state, p_ccb->is_le_coc);
+                    GKI_freebuf (p_msg);
+                }
+            }
+            else
+#endif /* LE_L2CAP_CFC_INCLUDED */
             /* Basic mode packets go straight to the state machine */
             if (p_ccb->peer_cfg.fcr.mode == L2CAP_FCR_BASIC_MODE)
                 l2c_csm_execute (p_ccb, L2CEVT_L2CAP_DATA, p_msg);
@@ -452,7 +477,11 @@ static void process_l2cap_cmd (tL2C_LCB *p_lcb, UINT8 *p, UINT16 pkt_len)
         case L2CAP_CMD_CONN_REQ:
             STREAM_TO_UINT16 (con_info.psm, p);
             STREAM_TO_UINT16 (rcid, p);
+#if (defined(LE_L2CAP_CFC_INCLUDED) && (LE_L2CAP_CFC_INCLUDED == TRUE))
+            if ((p_rcb = l2cu_find_rcb_by_psm (con_info.psm, BT_TRANSPORT_BR_EDR)) == NULL)
+#else
             if ((p_rcb = l2cu_find_rcb_by_psm (con_info.psm)) == NULL)
+#endif
             {
                 L2CAP_TRACE_WARNING ("L2CAP - rcvd conn req for unknown PSM: %d", con_info.psm);
                 l2cu_reject_connection (p_lcb, rcid, id, L2CAP_CONN_NO_PSM);
@@ -923,7 +952,17 @@ void l2c_init (void)
     l2cb.high_pri_min_xmit_quota = L2CAP_HIGH_PRI_MIN_XMIT_QUOTA;
 #endif
 
+#if (defined(LE_L2CAP_CFC_INCLUDED) && (LE_L2CAP_CFC_INCLUDED == TRUE))
+    pthread_mutex_init(&lock_mutex_le_credits, NULL);
+#endif
 }
+
+#if (defined(LE_L2CAP_CFC_INCLUDED) && (LE_L2CAP_CFC_INCLUDED == TRUE))
+void l2c_cleanup (void)
+{
+    pthread_mutex_destroy(&lock_mutex_le_credits);
+}
+#endif
 
 /*******************************************************************************
 **
@@ -944,6 +983,14 @@ void l2c_process_timeout (TIMER_LIST_ENT *p_tle)
         break;
 
     case BTU_TTYPE_L2CAP_CHNL:
+#if (defined(LE_L2CAP_CFC_INCLUDED) && (LE_L2CAP_CFC_INCLUDED == TRUE))
+        if((BT_TRANSPORT_LE == l2cu_get_chnl_transport((tL2C_CCB *)p_tle->param))
+            && (((tL2C_CCB *)p_tle->param)->is_le_coc == TRUE))
+        {
+            l2c_le_csm_execute (((tL2C_CCB *)p_tle->param), L2CEVT_TIMEOUT, NULL);
+        }
+        else
+#endif
         l2c_csm_execute (((tL2C_CCB *)p_tle->param), L2CEVT_TIMEOUT, NULL);
         break;
 
@@ -987,6 +1034,19 @@ UINT8 l2c_data_write (UINT16 cid, BT_HDR *p_data, UINT16 flags)
 
 #ifndef TESTER /* Tester may send any amount of data. otherwise sending message
                   bigger than mtu size of peer is a violation of protocol */
+#if (defined(LE_L2CAP_CFC_INCLUDED) && (LE_L2CAP_CFC_INCLUDED == TRUE))
+    if((BT_TRANSPORT_LE == l2cu_get_chnl_transport(p_ccb)) &&
+       (p_ccb->is_le_coc == TRUE))
+    {
+        if (p_data->len > p_ccb->le_rmt_conn_info.le_mtu)
+        {
+            L2CAP_TRACE_WARNING ("LE-L2CAP: CID: 0x%04x Send msg bigger than peer's mtu", cid);
+            GKI_freebuf (p_data);
+            return (L2CAP_DW_FAILED);
+        }
+    }
+    else
+#endif
     if (p_data->len > p_ccb->peer_cfg.mtu)
     {
         L2CAP_TRACE_WARNING ("L2CAP - CID: 0x%04x  cannot send message bigger than peer's mtu size", cid);
@@ -1008,6 +1068,14 @@ UINT8 l2c_data_write (UINT16 cid, BT_HDR *p_data, UINT16 flags)
         return (L2CAP_DW_FAILED);
     }
 
+#if (defined(LE_L2CAP_CFC_INCLUDED) && (LE_L2CAP_CFC_INCLUDED == TRUE))
+    if((BT_TRANSPORT_LE == l2cu_get_chnl_transport(p_ccb)) &&
+       (p_ccb->is_le_coc == TRUE))
+    {
+        l2c_le_csm_execute (p_ccb, L2CEVT_L2CA_DATA_WRITE, p_data);
+    }
+    else
+#endif
     l2c_csm_execute (p_ccb, L2CEVT_L2CA_DATA_WRITE, p_data);
 
     if (p_ccb->cong_sent)
