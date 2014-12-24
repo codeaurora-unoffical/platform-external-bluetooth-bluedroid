@@ -226,6 +226,7 @@ tAVDT_CTRL_CBACK * const bta_av_dt_cback[] =
     ,bta_av_stream5_cback
 #endif
 };
+static const UINT8 avrcp_timer_black_list[][3] = {{0x00, 0x1C, 0xEF} /* Motorola S605 */ };
 /***********************************************
 **
 ** Function         bta_get_scb_handle
@@ -318,6 +319,32 @@ static void notify_start_failed(tBTA_AV_SCB *p_scb)
     (*bta_av_cb.p_cback)(BTA_AV_START_EVT, (tBTA_AV *) &start);
 }
 
+/****************************************************************************
+**
+** Function         is_dev_avrcp_timer_blacklisted
+**
+** Description      This function is called to check if Remote device
+**                  is blacklisted for Avrcp version.
+**
+** Returns          BOOLEAN
+**
+*******************************************************************************/
+BOOLEAN is_dev_avrcp_timer_blacklisted(BD_ADDR addr)
+{
+    int blacklistsize = 0;
+    int i =0;
+
+    blacklistsize = sizeof(avrcp_timer_black_list)/sizeof(avrcp_timer_black_list[0]);
+    for (i=0; i < blacklistsize; i++)
+    {
+        if (0 == memcmp(avrcp_timer_black_list[i], addr, 3))
+        {
+            APPL_TRACE_DEBUG0(" AVRCP Timer Blacklisted Device ");
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
 /*******************************************************************************
 **
 ** Function         bta_av_st_rc_timer
@@ -342,7 +369,16 @@ void bta_av_st_rc_timer(tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         (p_scb->seps[p_scb->sep_idx].tsep == AVDT_TSEP_SRC) )
     {
         if ((p_scb->wait & BTA_AV_WAIT_ROLE_SW_BITS) == 0)
-            bta_sys_start_timer(&p_scb->timer, BTA_AV_AVRC_TIMER_EVT, BTA_AV_RC_DISC_TIME_VAL);
+        {
+            if (is_dev_avrcp_timer_blacklisted(p_scb->peer_addr))
+            {
+                bta_sys_start_timer(&p_scb->timer, BTA_AV_AVRC_TIMER_EVT, BTA_AV_RC_DISC_TIME_VAL + 2000);
+            }
+            else
+            {
+                bta_sys_start_timer(&p_scb->timer, BTA_AV_AVRC_TIMER_EVT, BTA_AV_RC_DISC_TIME_VAL);
+            }
+        }
         else
             p_scb->wait |= BTA_AV_WAIT_CHECK_RC;
     }
