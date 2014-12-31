@@ -130,6 +130,18 @@ typedef struct
 } btif_dm_oob_cb_t;
 #define BTA_SERVICE_ID_TO_SERVICE_MASK(id)       (1 << (id))
 
+/* hid_sdp_blacklist_bd_addr to FIX IOP issues with hid devices
+ * that give no resources error on multiple sdp */
+static const UINT8 hid_sdp_bl_bd_addr[][3] = {
+    {0x58, 0x1f, 0xaa}, // Apple Magic Mouse
+    {0x04, 0x0c, 0xce} // Apple Magic Mouse
+};
+
+/* hid_sdp_blacklist_bd_name to FIX IOP issues with hid devices
+ * that give no resources error on multiple sdp */
+static const UINT8 hid_sdp_bl_bd_name[][248] = {
+    "Apple Magic Mouse",
+};
 /* This flag will be true if HCI_Inquiry is in progress */
 static BOOLEAN btif_dm_inquiry_in_progress = FALSE;
 typedef struct
@@ -400,6 +412,61 @@ BOOLEAN check_hid_le(const bt_bdaddr_t *remote_bdaddr)
     return FALSE;
 }
 
+/*****************************************************************************
+**
+** Function        check_if_hh_sdp_bl
+**
+** Description     Checks if a given device is blacklisted to skip sdp
+**
+** Parameters      remote_bdaddr
+**
+** Returns         TRUE if the device is present in blacklist, else FALSE
+**
+*******************************************************************************/
+static BOOLEAN check_if_hh_sdp_bl(BD_ADDR peer_dev)
+{
+    int i;
+    int bl_bd_addr_size =
+            sizeof(hid_sdp_bl_bd_addr)/sizeof(hid_sdp_bl_bd_addr[0]);
+    int bl_bd_name_size =
+            sizeof(hid_sdp_bl_bd_name)/sizeof(hid_sdp_bl_bd_name[0]);
+
+    /* check for BD address */
+    for (i = 0; i < bl_bd_addr_size; i++) {
+        if (hid_sdp_bl_bd_addr[i][0] == peer_dev[0] &&
+            hid_sdp_bl_bd_addr[i][1] == peer_dev[1] &&
+            hid_sdp_bl_bd_addr[i][2] == peer_dev[2]) {
+            APPL_TRACE_WARNING6("%02x:%02x:%02x:%02x:%02x:%02x is in blacklist "
+                "for skipping sdp", peer_dev[0], peer_dev[1], peer_dev[2],
+                peer_dev[3], peer_dev[4], peer_dev[5]);
+
+            return TRUE;
+        }
+    }
+
+    /* check for name */
+    tBTA_DM_SEARCH p_search_data;
+    bt_bdname_t bdname;
+    bt_bdaddr_t bdaddr;
+    UINT8 remote_name_len = 0;
+
+    bdcpy(p_search_data.inq_res.bd_addr,  peer_dev);
+    bdname.name[0] = 0;
+    check_cached_remote_name(&p_search_data, bdname.name, &remote_name_len);
+    for (i = 0; i < bl_bd_name_size; i++) {
+        if ((remote_name_len != 0) && !strncmp((const char *)hid_sdp_bl_bd_name[i],
+            (const char *)bdname.name, strlen((const char *)hid_sdp_bl_bd_name[i])))
+        {
+            APPL_TRACE_WARNING1("%s is in blacklist for skipping sdp", bdname.name);
+            return TRUE;
+        }
+    }
+
+    APPL_TRACE_DEBUG6("%02x:%02x:%02x:%02x:%02x:%02x is not in blacklist for "
+        "skipping sdp", peer_dev[0], peer_dev[1], peer_dev[2], peer_dev[3],
+        peer_dev[4], peer_dev[5]);
+    return FALSE;
+}
 static void bond_state_changed(bt_status_t status, bt_bdaddr_t *bd_addr, bt_bond_state_t state)
 {
     /* Send bonding state only once - based on outgoing/incoming we may receive duplicates */
@@ -1056,6 +1123,27 @@ static void btif_dm_auth_cmpl_evt (tBTA_DM_AUTH_CMPL *p_auth_cmpl)
             BTIF_TRACE_DEBUG1("%s: sending BT_BOND_STATE_BONDED for hid device",
                     __FUNCTION__);
             bond_state_changed(BT_STATUS_SUCCESS, &bd_addr, BT_BOND_STATE_BONDED);
+        }
+        else if(check_if_hh_sdp_bl(p_auth_cmpl->bd_addr) && check_cod_hid(&bd_addr, COD_HID_MAJOR))
+        {
+            BTIF_TRACE_DEBUG1("%s: Incoming HID Connection from blacklisted device",__FUNCTION__);
+            bond_state_changed(BT_STATUS_SUCCESS, &bd_addr, BT_BOND_STATE_BONDED);
+            bt_property_t prop;
+            bt_uuid_t  uuid;
+            char uuid_str[128] = HID_UUID;
+
+            string_to_uuid(uuid_str, &uuid);
+
+            prop.type = BT_PROPERTY_UUIDS;
+            prop.val = uuid.uu;
+            prop.len = MAX_UUID_SIZE;
+
+            /* Also write this to the NVRAM */
+            status = btif_storage_set_remote_device_property(&bd_addr, &prop);
+            ASSERTC(status == BT_STATUS_SUCCESS, "storing remote services failed", status);
+            /* Send the event to the BTIF */
+            HAL_CBACK(bt_hal_cbacks, remote_device_properties_cb,
+                    BT_STATUS_SUCCESS, &bd_addr, 1, &prop);
         }
         else
         {
