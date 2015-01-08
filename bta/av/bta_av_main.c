@@ -385,6 +385,7 @@ static tBTA_AV_SCB * bta_av_alloc_scb(tBTA_AV_CHNL chnl)
                     p_ret->hndl = (tBTA_AV_HNDL)((xx + 1) | chnl);
                     p_ret->hdi  = xx;
                     bta_av_cb.p_scb[xx] = p_ret;
+                    APPL_TRACE_EVENT("AV: Alloc success, handle is =%d", p_ret->hndl);
                 }
                 break;
             }
@@ -626,6 +627,7 @@ static void bta_av_api_register(tBTA_AV_DATA *p_data)
         if(registr.chnl == BTA_AV_CHNL_AUDIO)
         {
             /* set up the audio stream control block */
+            APPL_TRACE_EVENT("AV: set up the audio stream control block ");
             p_scb->p_act_tbl = (const tBTA_AV_ACT *)bta_av_a2d_action;
             p_scb->p_cos     = &bta_av_a2d_cos;
             p_scb->media_type= AVDT_MEDIA_AUDIO;
@@ -699,10 +701,6 @@ static void bta_av_api_register(tBTA_AV_DATA *p_data)
                                   A2D_SUPF_PLAYER, bta_av_cb.sdp_a2d_snk_handle);
                     bta_sys_add_uuid(UUID_SERVCLASS_AUDIO_SINK);
                 }
-                /* start listening when A2DP is registered */
-                if (bta_av_cb.features & BTA_AV_FEAT_RCTG)
-                    bta_av_rc_create(&bta_av_cb, AVCT_ACP, 0, BTA_AV_NUM_LINKS + 1);
-
                 /* if the AV and AVK are both supported, it cannot support the CT role */
                 if (bta_av_cb.features & (BTA_AV_FEAT_RCCT))
                 {
@@ -727,6 +725,9 @@ static void bta_av_api_register(tBTA_AV_DATA *p_data)
                 }
             }
             bta_av_cb.reg_audio |= BTA_AV_HNDL_TO_MSK(p_scb->hdi);
+            /* start listening when A2DP is registered */
+            if (bta_av_cb.features & BTA_AV_FEAT_RCTG)
+                bta_av_rc_create(&bta_av_cb, AVCT_ACP, p_scb->hdi, BTA_AV_NUM_LINKS + 1);
             APPL_TRACE_DEBUG("reg_audio: 0x%x",bta_av_cb.reg_audio);
         }
         else
@@ -783,12 +784,12 @@ static void bta_av_ci_data(tBTA_AV_DATA *p_data)
     tBTA_AV_SCB *p_scb;
     int     i;
     UINT8   chnl = (UINT8)p_data->hdr.layer_specific;
-
     for( i=0; i < BTA_AV_NUM_STRS; i++ )
     {
         p_scb = bta_av_cb.p_scb[i];
-
-        if(p_scb && p_scb->chnl == chnl)
+        //Check if the Stream is in Started state before sending data
+        //in Dual Handoff mode, get SCB where START is done.
+        if(p_scb && (p_scb->chnl == chnl) && (p_scb->started))
         {
             bta_av_ssm_execute(p_scb, BTA_AV_SRC_DATA_READY_EVT, p_data);
         }
@@ -825,11 +826,9 @@ static void bta_av_api_to_ssm(tBTA_AV_DATA *p_data)
 {
     int xx;
     UINT16 event = p_data->hdr.event - BTA_AV_FIRST_A2S_API_EVT + BTA_AV_FIRST_A2S_SSM_EVT;
-
-    for(xx=0; xx<BTA_AV_NUM_STRS; xx++)
-    {
-        bta_av_ssm_execute(bta_av_cb.p_scb[xx], event, p_data);
-    }
+    //In Dual A2dp Handoff, process this fucntion on specific handles
+    APPL_TRACE_DEBUG("bta_av_api_to_ssm: on Handle 0x%x",p_data->hdr.layer_specific);
+    bta_av_ssm_execute(bta_av_hndl_to_scb(p_data->hdr.layer_specific), event, p_data);
 }
 
 /*******************************************************************************
@@ -847,7 +846,7 @@ BOOLEAN bta_av_chk_start(tBTA_AV_SCB *p_scb)
     BOOLEAN start = FALSE;
     tBTA_AV_SCB *p_scbi;
     int i;
-
+    APPL_TRACE_DEBUG("bta_av_chk_start: Audio open count: 0x%x",bta_av_cb.audio_open_cnt);
     if(p_scb->chnl == BTA_AV_CHNL_AUDIO)
     {
         if ((bta_av_cb.audio_open_cnt >= 2) &&
@@ -861,7 +860,10 @@ BOOLEAN bta_av_chk_start(tBTA_AV_SCB *p_scb)
                 p_scbi = bta_av_cb.p_scb[i];
                 if(p_scbi && p_scbi->chnl == BTA_AV_CHNL_AUDIO && p_scbi->co_started)
                 {
-                    start = TRUE;
+                    // TRUE will be returned when DUAL A2dp streaming is implemented
+                    start = FALSE;
+                    APPL_TRACE_DEBUG("bta_av_chk_start: Already playing");
+                    break;
                     /* may need to update the flush timeout of this already started stream */
                     if(p_scbi->co_started != bta_av_cb.audio_open_cnt)
                     {
@@ -1293,6 +1295,7 @@ BOOLEAN bta_av_hdl_event(BT_HDR *p_msg)
         APPL_TRACE_VERBOSE("AV nsm event=0x%x", event);
 #endif
         /* non state machine events */
+
         (*bta_av_nsm_act[event - BTA_AV_FIRST_NSM_EVT]) ((tBTA_AV_DATA *) p_msg);
     }
     else if (event >= BTA_AV_FIRST_SM_EVT && event <= BTA_AV_LAST_SM_EVT)

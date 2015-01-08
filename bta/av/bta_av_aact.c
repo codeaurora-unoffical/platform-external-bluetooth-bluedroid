@@ -433,6 +433,7 @@ void bta_av_proc_stream_evt(UINT8 handle, BD_ADDR bd_addr, UINT8 event, tAVDT_CT
     UINT16              sec_len = 0;
     tBTA_AV_SCB         *p_scb = bta_av_cb.p_scb[index];
     int                 xx;
+    APPL_TRACE_VERBOSE("bta_av_proc_stream_evt on the index : %d", index);
 
     if (p_data)
     {

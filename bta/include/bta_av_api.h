@@ -426,6 +426,7 @@ typedef struct
 typedef struct
 {
     BD_ADDR         bd_addr;
+    tBTA_AV_HNDL    hndl;    /* Handle associated with the stream. */
 } tBTA_AV_PEND;
 
 /* data associated with BTA_AV_REJECT_EVT */
@@ -636,25 +637,25 @@ void BTA_AvEnable_Sink(int enable);
 **
 ** Function         BTA_AvStart
 **
-** Description      Start audio/video stream data transfer.
+** Description      Start audio/video stream data transfer on the AV handle.
 **
 ** Returns          void
 **
 *******************************************************************************/
-BTA_API void BTA_AvStart(void);
+BTA_API void BTA_AvStart(tBTA_AV_HNDL hndl);
 
 /*******************************************************************************
 **
 ** Function         BTA_AvStop
 **
-** Description      Stop audio/video stream data transfer.
+** Description      Stop audio/video stream data transfer on the AV handle.
 **                  If suspend is TRUE, this function sends AVDT suspend signal
 **                  to the connected peer(s).
 **
 ** Returns          void
 **
 *******************************************************************************/
-BTA_API void BTA_AvStop(BOOLEAN suspend);
+BTA_API void BTA_AvStop(BOOLEAN suspend, tBTA_AV_HNDL handle);
 
 /*******************************************************************************
 **

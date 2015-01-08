@@ -41,6 +41,7 @@
 ******************************************************************************/
 typedef struct {
     btif_sm_state_t         state;
+    int                     index;
     btif_sm_handler_t       *p_handlers;
 } btif_sm_cb_t;
 
@@ -73,7 +74,8 @@ typedef struct {
 **
 ******************************************************************************/
 
-btif_sm_handle_t btif_sm_init(const btif_sm_handler_t *p_handlers, btif_sm_state_t initial_state)
+btif_sm_handle_t btif_sm_init(const btif_sm_handler_t *p_handlers, btif_sm_state_t initial_state,
+                            int index)
 {
     btif_sm_cb_t *p_cb = NULL;
 
@@ -91,9 +93,10 @@ btif_sm_handle_t btif_sm_init(const btif_sm_handler_t *p_handlers, btif_sm_state
     }
     p_cb->state = initial_state;
     p_cb->p_handlers = (btif_sm_handler_t*)p_handlers;
+    p_cb->index = index;
 
     /* Send BTIF_SM_ENTER_EVT to the initial state */
-    p_cb->p_handlers[initial_state](BTIF_SM_ENTER_EVT, NULL);
+    p_cb->p_handlers[initial_state](BTIF_SM_ENTER_EVT, NULL, index);
 
     return (btif_sm_handle_t)p_cb;
 }
@@ -131,7 +134,6 @@ void btif_sm_shutdown(btif_sm_handle_t handle)
 btif_sm_state_t btif_sm_get_state(btif_sm_handle_t handle)
 {
     btif_sm_cb_t *p_cb = (btif_sm_cb_t*)handle;
-
     if (p_cb == NULL)
     {
         BTIF_TRACE_ERROR("%s : Invalid handle", __FUNCTION__);
@@ -165,7 +167,7 @@ bt_status_t btif_sm_dispatch(btif_sm_handle_t handle, btif_sm_event_t event,
         return BT_STATUS_FAIL;
     }
 
-    if (p_cb->p_handlers[p_cb->state](event, data) == FALSE)
+    if (p_cb->p_handlers[p_cb->state](event, data, p_cb->index) == FALSE)
         return BT_STATUS_UNHANDLED;
 
     return status;
@@ -196,14 +198,14 @@ bt_status_t btif_sm_change_state(btif_sm_handle_t handle, btif_sm_state_t state)
     }
 
     /* Send exit event to the current state */
-    if (p_cb->p_handlers[p_cb->state](BTIF_SM_EXIT_EVT, NULL) == FALSE)
+    if (p_cb->p_handlers[p_cb->state](BTIF_SM_EXIT_EVT, NULL, p_cb->index) == FALSE)
         status = BT_STATUS_UNHANDLED;
 
     /* Change to the new state */
     p_cb->state = state;
 
     /* Send enter event to the new state */
-    if (p_cb->p_handlers[p_cb->state](BTIF_SM_ENTER_EVT, NULL) == FALSE)
+    if (p_cb->p_handlers[p_cb->state](BTIF_SM_ENTER_EVT, NULL, p_cb->index) == FALSE)
         status = BT_STATUS_UNHANDLED;
 
     return status;

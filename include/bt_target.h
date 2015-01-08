@@ -2118,9 +2118,11 @@ Range: Minimum 12000 (12 secs) on BR/EDR when supporting PBF.
 #define AVDT_NUM_LINKS              2
 #endif
 
-/* Number of simultaneous stream endpoints. */
+/* Number of simultaneous stream endpoints.
+ * Audio*2 + Video*2 + 1 Additional
+ */
 #ifndef AVDT_NUM_SEPS
-#define AVDT_NUM_SEPS               3
+#define AVDT_NUM_SEPS               5
 #endif
 
 /* Number of transport channels setup per media stream(audio or video) */
@@ -3497,9 +3499,11 @@ Range: Minimum 12000 (12 secs) on BR/EDR when supporting PBF.
 #define AVCT_NUM_LINKS              2
 #endif
 
-/* Number of simultaneous AVCTP connections. */
+/* Number of simultaneous AVCTP connections.
+ * Audio*2 + Video*2 + 1 Additional
+ */
 #ifndef AVCT_NUM_CONN
-#define AVCT_NUM_CONN               3
+#define AVCT_NUM_CONN               5
 #endif
 
 /* Pool ID where to reassemble the SDU.

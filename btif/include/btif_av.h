@@ -75,7 +75,7 @@ btif_sm_handle_t btif_av_get_sm_handle(void);
 **
 *******************************************************************************/
 
-bt_bdaddr_t btif_av_get_addr(void);
+bt_bdaddr_t btif_av_get_addr(BD_ADDR address);
 
 /*******************************************************************************
 **
