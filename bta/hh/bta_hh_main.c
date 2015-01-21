@@ -297,6 +297,7 @@ void bta_hh_sm_execute(tBTA_HH_DEV_CB *p_cb, UINT16 event, tBTA_HH_DATA * p_data
         /* BTA HH enabled already? otherwise ignore the event although it's bad*/
         if (bta_hh_cb.p_cback != NULL)
         {
+            APPL_TRACE_ERROR1("bta_hh_sm_execute: event = %0x", event);
             switch (event)
             {
             /* no control block available for new connection */
@@ -359,6 +360,13 @@ void bta_hh_sm_execute(tBTA_HH_DEV_CB *p_cb, UINT16 event, tBTA_HH_DATA * p_data
 
                 cback_data.dev_status.status = BTA_HH_ERR_HDL;
                 cback_data.dev_status.handle = (UINT8)p_data->api_sndcmd.hdr.layer_specific;
+                break;
+
+            case BTA_HH_API_GET_DSCP_EVT:
+                cback_event = BTA_HH_CLOSE_EVT;
+
+                cback_data.dev_status.status = BTA_HH_ERR_HDL;
+                cback_data.dev_status.handle = (UINT8)p_data->hdr.layer_specific;
                 break;
 
             default:
