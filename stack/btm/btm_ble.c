@@ -1336,7 +1336,7 @@ void btm_ble_link_encrypted(BD_ADDR bd_addr, UINT8 encr_enable)
 
     }
     /* to notify GATT to send data if any request is pending */
-    if(!smp_pair_state)/*non pairing case, state = SMP_IDLE*/
+    if(smp_pair_state != 0)/*pairing case, state != SMP_IDLE*/
     {
         gatt_notify_enc_cmpl(p_dev_rec->bd_addr);
     }
