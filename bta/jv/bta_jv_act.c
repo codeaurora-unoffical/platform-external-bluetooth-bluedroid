@@ -2013,6 +2013,7 @@ static void bta_jv_l2cap_server_cback(UINT16 sock_handle, UINT16 event)
     else if( (event == L2C_SOCK_CONGESTED) || (event == L2C_SOCK_UNCONGESTED))
     {
         APPL_TRACE_DEBUG("bta_jv_l2cap_server_cback: L2C_SOCK_CONGESTED %d", event);
+        failed = FALSE;
         p_l2c_cb->cong = (event == L2C_SOCK_CONGESTED) ? TRUE : FALSE;
 
         evt_data.l2c_cong.cong = p_l2c_cb->cong;

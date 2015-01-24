@@ -92,6 +92,7 @@
 #define  ATTR_ID_SUPPORTED_REPOSITORIES         0x0314 /* Phone book access Profile */
 #define  ATTR_ID_MAS_INSTANCE_ID                0x0315 /* MAP profile */
 #define  ATTR_ID_SUPPORTED_MSG_TYPE             0x0316 /* MAP profile */
+#define  ATTR_ID_MAP_SUPPORTED_FEATURES         0x0317 /* MAP profile */
 
 /* These values are for the BPP profile */
 #define ATTR_ID_DOCUMENT_FORMATS_SUPPORTED      0x0350

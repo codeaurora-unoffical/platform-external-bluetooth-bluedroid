@@ -345,7 +345,7 @@ bt_status_t btsock_l2c_listen(const char* service_name, const uint8_t* service_u
 
     /* validate it for FTP and OPP */
     //Check the service_uuid. overwrite the channel # if reserved
-    int reserved_channel = get_reserved_l2c_channel(service_uuid);
+    int reserved_channel = get_reserved_l2c_channel(service_uuid, service_name);
     if(reserved_channel > 0)
     {
         channel = reserved_channel;
