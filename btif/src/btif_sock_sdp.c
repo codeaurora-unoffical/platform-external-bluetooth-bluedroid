@@ -64,9 +64,12 @@
 #define RESERVED_PSM_MAPS_ID1 5253
 #define RESERVED_PSM_OPS 5255
 #define RESERVED_PSM_FTP 5257
+#define RESERVED_PSM_MAP_MNS BT_PSM_MAP_MNS_1_2
 int ops_sdp_handle = 0;
 int mas0_sdp_handle = 0;
 int mas1_sdp_handle = 0;
+int map_mns_sdp_handle = 0;
+
 #endif
 
 #define UUID_MAX_LENGTH 16
@@ -553,6 +556,141 @@ static int add_maps_sdp(const char* p_service_name, int scn)
     return sdp_handle;
 }
 
+#if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
+static int add_map_mns_sdp(const char* p_service_name, int scn, UINT16 psm)
+{
+
+    tSDP_PROTOCOL_ELEM  protoList [3];
+    UINT16              service = UUID_SERVCLASS_MESSAGE_NOTIFICATION;
+    UINT16              browse = UUID_SERVCLASS_PUBLIC_BROWSE_GROUP;
+    BOOLEAN             status = FALSE;
+    UINT32              sdp_handle = 0;
+    UINT32              mapSupportedFeatures = BTA_MAP_NotificationReg_Feature |
+                                        BTA_MAP_Notification_Feature | BTA_MAP_Browsing_Feature|
+                                        BTA_MAP_Uploading_Feature |BTA_MAP_Delete_Feature |
+                                        BTA_MAP_Instance_Feature | BTA_MAP_ExtendedEvent_Report;
+
+    APPL_TRACE_WARNING("%s:scn %d, psm %d, service name %s, map_mns_sdp_handle 0x%x",
+            __func__, scn, psm, p_service_name, map_mns_sdp_handle);
+
+    if (map_mns_sdp_handle > 0)
+    {
+        if (psm > 0)
+        {
+            /* rfcomm is already registed , Add the L2CAP profile descriptor*/
+            APPL_TRACE_WARNING("add_map_mns_sdp: adding  L2CAP profile descriptor");
+            /* Add in the Bluetooth Profile Descriptor List */
+            if (SDP_AddProfileDescriptorList(map_mns_sdp_handle,
+                    UUID_SERVCLASS_MESSAGE_NOTIFICATION,
+                    BTA_MAPS_DEFAULT_VERSION))
+            {
+                UINT8  pval[4];
+                UINT8  psmVal[2];
+                UINT32_TO_BE_FIELD (pval, mapSupportedFeatures);
+                UINT16_TO_BE_FIELD (psmVal, psm);
+                SDP_AddAttribute(map_mns_sdp_handle, ATTR_ID_MAP_SUPPORTED_FEATURES, UINT_DESC_TYPE,
+                                (UINT32)4, pval);
+                SDP_AddAttribute(map_mns_sdp_handle, ATTR_ID_OBX_OVR_L2CAP_PSM , UINT_DESC_TYPE,
+                                (UINT32)2, (UINT8*)&psmVal);
+                APPL_TRACE_WARNING("add_map_mns_sdp: adding  L2CAP profile descriptor added");
+             }
+         }
+         if (scn > 0)
+         {
+            APPL_TRACE_WARNING("add_map_mns_sdp: adding RFCOMM channel ");
+             memset( protoList, 0 , 3*sizeof(tSDP_PROTOCOL_ELEM) );
+             /* add protocol list, including RFCOMM scn */
+             protoList[0].protocol_uuid = UUID_PROTOCOL_L2CAP;
+             protoList[0].num_params = 0;
+             protoList[1].protocol_uuid = UUID_PROTOCOL_RFCOMM;
+             protoList[1].num_params = 1;
+             protoList[1].params[0] = scn;
+             protoList[2].protocol_uuid = UUID_PROTOCOL_OBEX;
+             protoList[2].num_params = 0;
+             SDP_AddProtocolList(map_mns_sdp_handle, 3, protoList);
+         }
+         return map_mns_sdp_handle;
+    }
+
+    if ((map_mns_sdp_handle = sdp_handle = SDP_CreateRecord()) == 0)
+    {
+        APPL_TRACE_ERROR("MAP SDP: Unable to register MAP MNS");
+        return sdp_handle;
+    }
+
+    /* add service class */
+    if (SDP_AddServiceClassIdList(sdp_handle, 1, &service))
+    {
+        memset( protoList, 0 , 3*sizeof(tSDP_PROTOCOL_ELEM) );
+        /* add protocol list, including RFCOMM scn */
+        protoList[0].protocol_uuid = UUID_PROTOCOL_L2CAP;
+        protoList[0].num_params = 0;
+        protoList[1].protocol_uuid = UUID_PROTOCOL_RFCOMM;
+        protoList[1].num_params = 1;
+        protoList[1].params[0] = scn;
+        protoList[2].protocol_uuid = UUID_PROTOCOL_OBEX;
+        protoList[2].num_params = 0;
+
+        if (SDP_AddProtocolList(sdp_handle, 3, protoList))
+        {
+            status = TRUE;  /* All mandatory fields were successful */
+
+            /* optional:  if name is not "", add a name entry */
+            SDP_AddAttribute(sdp_handle,
+                            (UINT16)ATTR_ID_SERVICE_NAME,
+                            (UINT8)TEXT_STR_DESC_TYPE,
+                            (UINT32)(strlen(p_service_name)+1),
+                            (UINT8 *)p_service_name);
+            if (psm > 0)
+            {
+                if (SDP_AddProfileDescriptorList(sdp_handle,
+                                UUID_SERVCLASS_MESSAGE_NOTIFICATION,
+                                BTA_MAPS_DEFAULT_VERSION))
+                {
+                    UINT8  pval[4];
+                    UINT8  psmVal[2];
+                    UINT32_TO_BE_FIELD (pval, mapSupportedFeatures);
+                    UINT16_TO_BE_FIELD (psmVal, psm);
+                    SDP_AddAttribute(sdp_handle, ATTR_ID_MAP_SUPPORTED_FEATURES, UINT_DESC_TYPE,
+                                    (UINT32)4, pval);
+                    SDP_AddAttribute(sdp_handle, ATTR_ID_OBX_OVR_L2CAP_PSM , UINT_DESC_TYPE,
+                                    (UINT32)2, (UINT8*)&psmVal);
+
+                }
+            }
+            else if (scn > 0)
+            {
+                SDP_AddProfileDescriptorList(sdp_handle,
+                                             UUID_SERVCLASS_MESSAGE_NOTIFICATION,
+                                             0x0101);
+             }
+
+        } /* end of setting mandatory protocol list */
+    } /* end of setting mandatory service class */
+
+    if (status)
+    {
+
+        /* Make the service browseable */
+        SDP_AddUuidSequence (sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse);
+    }
+
+    if (!status)
+    {
+        SDP_DeleteRecord(sdp_handle);
+        sdp_handle = 0;
+        APPL_TRACE_ERROR("add_map_mns_sdp FAILED");
+    }
+    else
+    {
+        bta_sys_add_uuid(service);  /* UUID_SERVCLASS_MESSAGE_NOTIFICATION */
+        APPL_TRACE_DEBUG("MAP MNS:  SDP Registered (handle 0x%08x)", sdp_handle);
+    }
+
+    return sdp_handle;
+}
+#endif
+
 
 /* object format lookup table */
 static const tBTA_OP_FMT bta_ops_obj_fmt[] =
@@ -849,7 +987,7 @@ static int add_rfc_sdp_by_uuid(const char* name, const uint8_t* uuid, int scn)
 {
     int handle = 0;
 
-    APPL_TRACE_DEBUG("name:%s, scn:%d", name, scn);
+    APPL_TRACE_WARNING("name:%s, scn:%d", name, scn);
 
     /*
         Bluetooth Socket API relies on having preregistered bluez sdp records for HSAG, HFAG, OPP & PBAP
@@ -904,6 +1042,12 @@ static int add_rfc_sdp_by_uuid(const char* name, const uint8_t* uuid, int scn)
     {
         handle = add_dun_sdp(name, final_scn);
     }
+#if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
+    else if (IS_UUID(UUID_MAP_MNS, uuid))
+    {
+        handle = add_map_mns_sdp(name, final_scn, 0);
+    }
+#endif
     else
     {
         handle = add_sdp_by_uuid(name, uuid, final_scn);
@@ -968,6 +1112,10 @@ int get_reserved_l2c_channel (const uint8_t* uuid, const char *name)
             return RESERVED_PSM_MAPS_ID1;
         }
     }
+    else if (IS_UUID(UUID_MAP_MNS,uuid))
+    {
+      return RESERVED_PSM_MAP_MNS;
+    }
     APPL_TRACE_ERROR("get_reserved_l2c_channel -1");
     return -1;
 }
@@ -1020,8 +1168,11 @@ int add_l2c_sdp_rec(const char* name, const uint8_t* uuid, int psm)
             case RESERVED_PSM_FTP:
                 uuid = UUID_FTP;
                 break;
-             case RESERVED_PSM_OPS:
+            case RESERVED_PSM_OPS:
                 uuid = UUID_OBEX_OBJECT_PUSH;
+                break;
+            case RESERVED_PSM_MAP_MNS:
+                uuid = UUID_MAP_MNS;
                 break;
         }
     }
@@ -1037,6 +1188,11 @@ int add_l2c_sdp_rec(const char* name, const uint8_t* uuid, int psm)
             psm = 0x8514;
         }
         sdp_handle = add_maps_sdp(name, 0, psm);
+    }
+    else if (IS_UUID(UUID_MAP_MNS,uuid))
+    {
+        psm = RESERVED_PSM_MAP_MNS;
+        sdp_handle = add_map_mns_sdp(name, 0, psm);
     }
     APPL_TRACE_DEBUG("add_l2c_sdp_rec: name:%s psm:%d 0x%x", name, psm, sdp_handle);
     return sdp_handle;
@@ -1055,6 +1211,8 @@ void del_rfc_sdp_rec(int handle)
             mas0_sdp_handle = 0;
         } else if(handle == mas1_sdp_handle) {
             mas1_sdp_handle = 0;
+        } else if(handle == map_mns_sdp_handle) {
+            map_mns_sdp_handle = 0;
         }
 #endif
         BTA_JvDeleteRecord( handle );
@@ -1123,6 +1281,23 @@ void del_l2c_sdp_rec(int handle, const uint8_t* uuid)
                         }
                     }
                 }
+             }
+        }
+        else if (IS_UUID(UUID_MAP_MNS, uuid))
+        {
+            if(map_mns_sdp_handle != 0 && map_mns_sdp_handle == handle)
+            {
+                /* don't delete the full record instead delete the attribute
+                and make the version as 1.1 */
+                if (SDP_DeleteAttribute(map_mns_sdp_handle, ATTR_ID_BT_PROFILE_DESC_LIST))
+                {
+                    if (SDP_AddProfileDescriptorList(map_mns_sdp_handle,
+                                                     UUID_SERVCLASS_MESSAGE_ACCESS, 0x0101))
+                    {
+                        SDP_DeleteAttribute(map_mns_sdp_handle, ATTR_ID_OBX_OVR_L2CAP_PSM);
+                        SDP_DeleteAttribute(map_mns_sdp_handle, ATTR_ID_MAP_SUPPORTED_FEATURES);
+                    }
+                 }
              }
         }
         else

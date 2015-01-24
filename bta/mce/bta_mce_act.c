@@ -99,6 +99,22 @@ static void bta_mce_search_cback(UINT16 result, void * user_data)
             evt_data.mas[found].p_srv_name = (char *) p_attr->attr_value.v.array;
             evt_data.mas[found].srv_name_len= SDP_DISC_ATTR_LEN(p_attr->attr_len_type);
 
+#if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
+            if ((p_attr = SDP_FindAttributeInRec(p_rec, ATTR_ID_OBX_OVR_L2CAP_PSM)) != NULL)
+            {
+                 evt_data.mas[found].l2cap_psm = p_attr->attr_value.v.u16;
+                 APPL_TRACE_DEBUG("bta_mce_start_discovery_cback l2cap_psm: 0x%x",
+                        evt_data.mas[found].l2cap_psm);
+            }
+            else
+#endif
+            {
+                APPL_TRACE_WARNING("bta_mce_start_discovery_cback: l2cap psm not found");
+                /* As L2cap_psm not found, So assigning invaild psm 0x0FFF in data structure,
+                BLUETOOTH SPECIFICATION Version 4.1 [Vol 3] page 64 of 668 */
+                evt_data.mas[found].l2cap_psm = 0x0FFF;
+            }
+
             if ((p_attr = SDP_FindAttributeInRec(p_rec, ATTR_ID_MAS_INSTANCE_ID)) == NULL)
                 break;
 

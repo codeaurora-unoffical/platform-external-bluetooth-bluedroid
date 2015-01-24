@@ -61,6 +61,7 @@ static void btif_mce_mas_discovery_comp_evt(UINT16 event, char *p_param)
     {
         insts[i].id = evt_data->mas[i].instance_id;
         insts[i].scn = evt_data->mas[i].scn;
+        insts[i].l2cap_psm = evt_data->mas[i].l2cap_psm;
         insts[i].msg_types = evt_data->mas[i].msg_type;
         insts[i].p_name = evt_data->mas[i].p_srv_name;
     }
