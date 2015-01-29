@@ -387,7 +387,7 @@ static int add_maps_sdp(const char* p_service_name, int scn)
                 if( SDP_DeleteAttribute(mas0_sdp_handle, ATTR_ID_BT_PROFILE_DESC_LIST))
                 {
                     if( SDP_AddProfileDescriptorList(mas0_sdp_handle,
-                        UUID_SERVCLASS_MESSAGE_ACCESS, BTA_MAPS_DEFAULT_VERSION))
+                        UUID_SERVCLASS_MAP_PROFILE , BTA_MAPS_DEFAULT_VERSION))
                     {
                         /* swap the bytes as SDP is expecting the BIG endian */
                         UINT8 pval[4];
@@ -442,7 +442,7 @@ static int add_maps_sdp(const char* p_service_name, int scn)
                 if( SDP_DeleteAttribute(mas1_sdp_handle, ATTR_ID_BT_PROFILE_DESC_LIST))
                 {
                     if( SDP_AddProfileDescriptorList(mas1_sdp_handle,
-                        UUID_SERVCLASS_MESSAGE_ACCESS, BTA_MAPS_DEFAULT_VERSION))
+                        UUID_SERVCLASS_MAP_PROFILE , BTA_MAPS_DEFAULT_VERSION))
                     {
                         /* swap the bytes as SDP is expecting the BIG endian */
                         UINT8 pval[4];
@@ -607,7 +607,7 @@ static int add_map_mns_sdp(const char* p_service_name, int scn, UINT16 psm)
             APPL_TRACE_WARNING("add_map_mns_sdp: adding  L2CAP profile descriptor");
             /* Add in the Bluetooth Profile Descriptor List */
             if (SDP_AddProfileDescriptorList(map_mns_sdp_handle,
-                    UUID_SERVCLASS_MESSAGE_NOTIFICATION,
+                    UUID_SERVCLASS_MAP_PROFILE,
                     BTA_MAPS_DEFAULT_VERSION))
             {
                 UINT8  pval[4];
@@ -670,7 +670,7 @@ static int add_map_mns_sdp(const char* p_service_name, int scn, UINT16 psm)
             if (psm > 0)
             {
                 if (SDP_AddProfileDescriptorList(sdp_handle,
-                                UUID_SERVCLASS_MESSAGE_NOTIFICATION,
+                                UUID_SERVCLASS_MAP_PROFILE,
                                 BTA_MAPS_DEFAULT_VERSION))
                 {
                     UINT8  pval[4];
@@ -687,7 +687,7 @@ static int add_map_mns_sdp(const char* p_service_name, int scn, UINT16 psm)
             else if (scn > 0)
             {
                 SDP_AddProfileDescriptorList(sdp_handle,
-                                             UUID_SERVCLASS_MESSAGE_NOTIFICATION,
+                                             UUID_SERVCLASS_MAP_PROFILE,
                                              0x0101);
              }
 
