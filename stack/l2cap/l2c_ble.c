@@ -1014,6 +1014,17 @@ void l2cble_process_sig_cmd (tL2C_LCB *p_lcb, UINT8 *p, UINT16 pkt_len)
             STREAM_TO_UINT16 (le_cb_conn_req.mps, p);
             STREAM_TO_UINT16 (le_cb_conn_req.init_credits, p);
 
+            if(p_lcb->link_state != LST_CONNECTED)
+            {
+                tBTM_SEC_DEV_REC *p_dev_rec = btm_find_or_alloc_dev (p_lcb->remote_bd_addr);
+                if(p_dev_rec)
+                {
+                    L2CAP_TRACE_WARNING ("LE-L2CAP: Creating thr ACL for LE COC channel");
+                    btm_acl_created (p_lcb->remote_bd_addr, NULL, p_dev_rec->sec_bd_name,
+                        p_lcb->handle,p_lcb->link_role, BT_TRANSPORT_LE);
+                    l2cble_notify_le_connection(p_lcb->remote_bd_addr);
+                }
+            }
 
             /* mtu/mps check */
             if((le_cb_conn_req.mtu < L2CAP_LE_MIN_MTU) ||
