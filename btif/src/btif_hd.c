@@ -427,14 +427,31 @@ static bt_status_t register_app(bthd_app_param_t *p_app_param, bthd_qos_param_t 
     }
 
     app_info.p_name = GKI_getbuf(BTIF_HD_APP_NAME_LEN);
+    if (app_info.p_name == NULL)
+        return BT_STATUS_NOMEM;
     memcpy(app_info.p_name, p_app_param->name, BTIF_HD_APP_NAME_LEN);
     app_info.p_description = GKI_getbuf(BTIF_HD_APP_DESCRIPTION_LEN);
+    if (app_info.p_description == NULL) {
+        GKI_freebuf(app_info.p_name);
+        return BT_STATUS_NOMEM;
+    }
     memcpy(app_info.p_description, p_app_param->description, BTIF_HD_APP_DESCRIPTION_LEN);
     app_info.p_provider = GKI_getbuf(BTIF_HD_APP_PROVIDER_LEN);
+    if (app_info.p_provider == NULL) {
+        GKI_freebuf(app_info.p_name);
+        GKI_freebuf(app_info.p_description);
+        return BT_STATUS_NOMEM;
+    }
     memcpy(app_info.p_provider, p_app_param->provider, BTIF_HD_APP_PROVIDER_LEN);
     app_info.subclass = p_app_param->subclass;
     app_info.descriptor.dl_len = p_app_param->desc_list_len;
     app_info.descriptor.dsc_list = GKI_getbuf(app_info.descriptor.dl_len);
+    if (app_info.descriptor.dsc_list == NULL) {
+        GKI_freebuf(app_info.p_name);
+        GKI_freebuf(app_info.p_description);
+        GKI_freebuf(app_info.p_provider);
+        return BT_STATUS_NOMEM;
+    }
     memcpy(app_info.descriptor.dsc_list, p_app_param->desc_list, p_app_param->desc_list_len);
 
     in_qos.service_type = p_in_qos->service_type;
