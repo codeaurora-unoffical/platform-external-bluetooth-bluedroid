@@ -173,10 +173,12 @@ static BOOLEAN btm_dev_authorized (tBTM_SEC_DEV_REC *p_dev_rec)
 *******************************************************************************/
 static BOOLEAN btm_serv_trusted(tBTM_SEC_DEV_REC *p_dev_rec, tBTM_SEC_SERV_REC *p_serv_rec)
 {
-    if(BTM_SEC_IS_SERVICE_TRUSTED(p_dev_rec->trusted_mask, p_serv_rec->service_id))
+    if(p_serv_rec->service_id <= BTM_SEC_MAX_SERVICES && BTM_SEC_IS_SERVICE_TRUSTED(p_dev_rec->trusted_mask, p_serv_rec->service_id))
     {
         return(TRUE);
     }
+    else
+        BTM_TRACE_ERROR("BTM_Sec: Service Id: %d not found", p_serv_rec->service_id);
     return(FALSE);
 }
 
@@ -4075,8 +4077,16 @@ void btm_sec_auth_complete (UINT16 handle, UINT8 status)
          &&  (memcmp (p_dev_rec->bd_addr, btm_cb.pairing_bda, BD_ADDR_LEN) == 0) )
         are_bonding = TRUE;
 
-    btm_sec_change_pairing_state (BTM_PAIR_STATE_IDLE);
-
+    if ( (btm_cb.pairing_state != BTM_PAIR_STATE_IDLE)
+          &&  (memcmp (p_dev_rec->bd_addr, btm_cb.pairing_bda, BD_ADDR_LEN) == 0) )
+    {
+        btm_sec_change_pairing_state (BTM_PAIR_STATE_IDLE);
+        BTM_TRACE_DEBUG("btm_sec_auth_complete: pair state moved to idle for bonding addr");
+    }
+    else
+    {
+        BTM_TRACE_DEBUG("btm_sec_auth_complete: Dont move pair state to idle for non bonding addr");
+    }
     if (p_dev_rec->sec_state != BTM_SEC_STATE_AUTHENTICATING)
     {
         if ( (btm_cb.api.p_auth_complete_callback && status != HCI_SUCCESS)
@@ -5535,8 +5545,7 @@ extern tBTM_STATUS btm_sec_execute_procedure (tBTM_SEC_DEV_REC *p_dev_rec)
     {
         BTM_TRACE_EVENT ("service id:%d, is trusted:%d",
                           p_dev_rec->p_cur_service->service_id,
-                          (BTM_SEC_IS_SERVICE_TRUSTED(p_dev_rec->trusted_mask,
-                                                      p_dev_rec->p_cur_service->service_id)));
+                          btm_serv_trusted(p_dev_rec,p_dev_rec->p_cur_service));
         if ((btm_sec_are_all_trusted(p_dev_rec->trusted_mask) == FALSE) &&
             (p_dev_rec->p_cur_service->service_id < BTM_SEC_MAX_SERVICES) &&
             (BTM_SEC_IS_SERVICE_TRUSTED(p_dev_rec->trusted_mask,
