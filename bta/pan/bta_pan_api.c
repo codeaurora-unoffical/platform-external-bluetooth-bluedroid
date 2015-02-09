@@ -210,6 +210,32 @@ BTA_API void BTA_PanClose(UINT16 handle)
         bta_sys_sendmsg(p_buf);
     }
 }
+
+
+/*******************************************************************************
+**
+** Function         BTA_PanSetPmState
+**
+** Description      Set PM State for PAN connection.
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+void BTA_PanSetPmState(UINT16 handle, tBTA_PAN_PM_CONN_STATE state)
+{
+    tBTA_PAN_API_SET_PM_STATE  *p_buf;
+
+    if ((p_buf = (tBTA_PAN_API_SET_PM_STATE *) GKI_getbuf(
+        sizeof(tBTA_PAN_API_SET_PM_STATE))) != NULL)
+    {
+        p_buf->hdr.event = BTA_PAN_API_SET_PM_STATE_EVT;
+        p_buf->state = state;
+        p_buf->handle = handle;
+        bta_sys_sendmsg(p_buf);
+    }
+}
+
 #else
 
 void BTA_PanEnable(tBTA_PAN_CBACK p_cback)
@@ -240,6 +266,12 @@ void BTA_PanOpen(BD_ADDR bd_addr, tBTA_PAN_ROLE local_role, tBTA_PAN_ROLE peer_r
 void BTA_PanClose(UINT16 handle)
 {
     UNUSED(handle);
+}
+
+void BTA_PanSetPmState(UINT16 handle, tBTA_PAN_PM_CONN_STATE state)
+{
+    UNUSED(handle);
+    UNUSED(state);
 }
 
 #endif /* BTA_PAN_INCLUDED */
