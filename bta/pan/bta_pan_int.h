@@ -53,7 +53,8 @@ enum
     BTA_PAN_API_ENABLE_EVT,
     BTA_PAN_API_DISABLE_EVT,
     BTA_PAN_API_SET_ROLE_EVT,
-    BTA_PAN_API_OPEN_EVT
+    BTA_PAN_API_OPEN_EVT,
+    BTA_PAN_API_SET_PM_STATE_EVT
 };
 
 /* state machine states */
@@ -64,12 +65,17 @@ enum
     BTA_PAN_CLOSING_ST
 };
 
-
-
-
 /*****************************************************************************
 **  Data types
 *****************************************************************************/
+/* data type for BTA_PAN_API_SET_PM_STATE_EVT */
+typedef struct
+{
+    BT_HDR              hdr;          /* Event header */
+    UINT16 handle;
+    tBTA_PAN_PM_CONN_STATE state;     /* PM state need to be set */
+} tBTA_PAN_API_SET_PM_STATE;
+
 
 /* data type for BTA_PAN_API_ENABLE_EVT */
 typedef struct
@@ -132,6 +138,7 @@ typedef union
     tBTA_PAN_API_OPEN        api_open;
     tBTA_PAN_CI_TX_FLOW      ci_tx_flow;
     tBTA_PAN_CONN            conn;
+    tBTA_PAN_API_SET_PM_STATE api_set_pm_state;
 } tBTA_PAN_DATA;
 
 /* state machine control block */
@@ -215,6 +222,7 @@ extern void bta_pan_conn_close(tBTA_PAN_SCB *p_scb, tBTA_PAN_DATA *p_data);
 extern void bta_pan_writebuf(tBTA_PAN_SCB *p_scb, tBTA_PAN_DATA *p_data);
 extern void bta_pan_write_buf(tBTA_PAN_SCB *p_scb, tBTA_PAN_DATA *p_data);
 extern void bta_pan_free_buf(tBTA_PAN_SCB *p_scb, tBTA_PAN_DATA *p_data);
+extern void bta_pan_set_pm_state(tBTA_PAN_DATA *p_data);
 
 
 #endif /* BTA_PAN_INT_H */
