@@ -69,7 +69,9 @@
                              BTA_AG_FEAT_EXTERR | \
                              BTA_AG_FEAT_BTRH   | \
                              BTA_AG_FEAT_VREC   | \
-                             BTA_AG_FEAT_CODEC |\
+                             BTA_AG_FEAT_CODEC  | \
+                             BTA_AG_FEAT_HFIND  | \
+                             BTA_AG_FEAT_S4     | \
                              BTA_AG_FEAT_UNAT)
 #endif
 #else
@@ -81,6 +83,8 @@
                              BTA_AG_FEAT_EXTERR | \
                              BTA_AG_FEAT_BTRH   | \
                              BTA_AG_FEAT_VREC   | \
+                             BTA_AG_FEAT_HFIND  | \
+                             BTA_AG_FEAT_S4     | \
                              BTA_AG_FEAT_UNAT)
 #endif
 #endif
@@ -622,6 +626,27 @@ static void btif_hf_upstreams_evt(UINT16 event, char* p_param)
                         BTHF_WBS_YES : BTHF_WBS_NO, &btif_hf_cb[idx].connected_bda);
             break;
 
+        case BTA_AG_AT_BIND_EVT:
+            switch(p_data->val.num)
+            {
+                case BTA_AG_AT_SET:
+                    HAL_CBACK(bt_hf_callbacks, bind_cmd_cb, p_data->val.str, BTHF_BIND_SET,
+                                               &btif_hf_cb[idx].connected_bda);
+                    break;
+                case BTA_AG_AT_READ:
+                    HAL_CBACK(bt_hf_callbacks, bind_cmd_cb, p_data->val.str, BTHF_BIND_READ,
+                                               &btif_hf_cb[idx].connected_bda);
+                    break;
+                case BTA_AG_AT_TEST:
+                    HAL_CBACK(bt_hf_callbacks, bind_cmd_cb, p_data->val.str, BTHF_BIND_TEST,
+                                               &btif_hf_cb[idx].connected_bda);
+                    break;
+            }
+            break;
+        case BTA_AG_AT_BIEV_EVT:
+            HAL_CBACK(bt_hf_callbacks, biev_cmd_cb, p_data->val.str,
+                                               &btif_hf_cb[idx].connected_bda);
+            break;
         default:
             BTIF_TRACE_WARNING("%s: Unhandled event: %d", __FUNCTION__, event);
             break;
@@ -1637,6 +1662,89 @@ static bt_status_t  configure_wbs( bt_bdaddr_t *bd_addr , bthf_wbs_config_t conf
     return BT_STATUS_SUCCESS;
 }
 
+/*******************************************************************************
+**
+** Function         bind_response
+**
+** Description      response for BIND READ command
+**                  Can be iteratively called for each Hf indicator.
+**
+** Returns          bt_status_t
+**
+*******************************************************************************/
+static bt_status_t bind_response(int anum, bthf_hf_indicator_status_t status,
+                               bt_bdaddr_t *bd_addr)
+{
+    CHECK_BTHF_INIT();
+
+    int idx = btif_hf_idx_by_bdaddr(bd_addr);
+
+    if ((idx < 0) || (idx >= BTIF_HF_NUM_CB))
+    {
+        BTIF_TRACE_ERROR("%s: Invalid index %d", __FUNCTION__, idx);
+        return BT_STATUS_FAIL;
+    }
+
+    if (is_connected(bd_addr) && (idx != BTIF_HF_INVALID_IDX))
+    {
+        tBTA_AG_RES_DATA    ag_res;
+        int                 xx;
+
+        memset (&ag_res, 0, sizeof (ag_res));
+
+        /* Format the response */
+        BTIF_TRACE_EVENT("bind_response: anum : [%d] status %d ", anum, status);
+        xx = sprintf (ag_res.str, "%d,%d", anum, status);
+
+        BTA_AgResult (btif_hf_cb[idx].handle, BTA_AG_BIND_RES, &ag_res);
+
+        return BT_STATUS_SUCCESS;
+    }
+
+    return BT_STATUS_FAIL;
+}
+
+/*******************************************************************************
+**
+** Function         bind_string_response
+**
+** Description      response for BIND TEST command
+**
+** Returns          bt_status_t
+**
+*******************************************************************************/
+static bt_status_t bind_string_response(const char* res,
+                               bt_bdaddr_t *bd_addr)
+{
+    CHECK_BTHF_INIT();
+
+    int idx = btif_hf_idx_by_bdaddr(bd_addr);
+
+    if ((idx < 0) || (idx >= BTIF_HF_NUM_CB))
+    {
+        BTIF_TRACE_ERROR("%s: Invalid index %d", __FUNCTION__, idx);
+        return BT_STATUS_FAIL;
+    }
+
+    if (is_connected(bd_addr) && (idx != BTIF_HF_INVALID_IDX))
+    {
+        tBTA_AG_RES_DATA    ag_res;
+        int                 xx;
+
+        memset (&ag_res, 0, sizeof (ag_res));
+
+        /* Format the response */
+        xx = sprintf (ag_res.str, res);
+
+        BTA_AgResult (btif_hf_cb[idx].handle, BTA_AG_BIND_RES, &ag_res);
+
+        return BT_STATUS_SUCCESS;
+    }
+
+    return BT_STATUS_FAIL;
+}
+
+
 static const bthf_interface_t bthfInterface = {
     sizeof(bthfInterface),
     init,
@@ -1658,6 +1766,8 @@ static const bthf_interface_t bthfInterface = {
     get_remote_features,
     cleanup,
     configure_wbs,
+    bind_response,
+    bind_string_response,
 };
 
 /*******************************************************************************
