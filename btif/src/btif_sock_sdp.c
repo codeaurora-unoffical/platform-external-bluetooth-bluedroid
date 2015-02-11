@@ -395,8 +395,8 @@ static int add_maps_sdp(const char* p_service_name, int scn)
                         pval[1] = 0x00;
                         pval[2] = 0x00;
                         pval[3] = p_bta_maps_cfg->map_supported_features;
-                        SDP_AddAttribute(sdp_handle, ATTR_ID_MAP_SUPPORTED_FEATURES, UINT_DESC_TYPE,
-                        (UINT32)4, pval);
+                        SDP_AddAttribute(mas0_sdp_handle, ATTR_ID_MAP_SUPPORTED_FEATURES,
+                                UINT_DESC_TYPE, (UINT32)4, pval);
                         /* swap the bytes of PSM as SDP is expecting the BIG endian */
                         psm = 0x8314;
                         APPL_TRACE_DEBUG("add_maps_sdd: name %s Modify psm %d supportedFeaters %d",
@@ -405,6 +405,19 @@ static int add_maps_sdp(const char* p_service_name, int scn)
                            UINT_DESC_TYPE, (UINT32)2, (UINT8*)&psm);
                     }
                 }
+            }
+            if (scn > 0)
+            {
+                memset( protoList, 0 , 3*sizeof(tSDP_PROTOCOL_ELEM) );
+                /* add protocol list, including RFCOMM scn */
+                protoList[0].protocol_uuid = UUID_PROTOCOL_L2CAP;
+                protoList[0].num_params = 0;
+                protoList[1].protocol_uuid = UUID_PROTOCOL_RFCOMM;
+                protoList[1].num_params = 1;
+                protoList[1].params[0] = scn;
+                protoList[2].protocol_uuid = UUID_PROTOCOL_OBEX;
+                protoList[2].num_params = 0;
+                SDP_AddProtocolList(mas0_sdp_handle, 3, protoList);
             }
             return mas0_sdp_handle;
         }
@@ -428,7 +441,7 @@ static int add_maps_sdp(const char* p_service_name, int scn)
                   l2cap */
                 if( SDP_DeleteAttribute(mas1_sdp_handle, ATTR_ID_BT_PROFILE_DESC_LIST))
                 {
-                    if( SDP_AddProfileDescriptorList(mas0_sdp_handle,
+                    if( SDP_AddProfileDescriptorList(mas1_sdp_handle,
                         UUID_SERVCLASS_MESSAGE_ACCESS, BTA_MAPS_DEFAULT_VERSION))
                     {
                         /* swap the bytes as SDP is expecting the BIG endian */
@@ -437,8 +450,8 @@ static int add_maps_sdp(const char* p_service_name, int scn)
                         pval[1] = 0x00;
                         pval[2] = 0x00;
                         pval[3] = p_bta_maps_cfg->map_supported_features;
-                        SDP_AddAttribute(sdp_handle, ATTR_ID_MAP_SUPPORTED_FEATURES, UINT_DESC_TYPE,
-                        (UINT32)4, pval);
+                        SDP_AddAttribute(mas1_sdp_handle, ATTR_ID_MAP_SUPPORTED_FEATURES,
+                                UINT_DESC_TYPE, (UINT32)4, pval);
                         /* swap the bytes of PSM as SDP is expecting the BIG endian */
                         psm = 0x8514;
                         APPL_TRACE_DEBUG("add_maps_sdd: name %s Modify psm %d supportedFeaters %d",
@@ -447,6 +460,19 @@ static int add_maps_sdp(const char* p_service_name, int scn)
                            UINT_DESC_TYPE, (UINT32)2, (UINT8*)&psm);
                     }
                 }
+            }
+            if (scn > 0)
+            {
+                memset( protoList, 0 , 3*sizeof(tSDP_PROTOCOL_ELEM) );
+                /* add protocol list, including RFCOMM scn */
+                protoList[0].protocol_uuid = UUID_PROTOCOL_L2CAP;
+                protoList[0].num_params = 0;
+                protoList[1].protocol_uuid = UUID_PROTOCOL_RFCOMM;
+                protoList[1].num_params = 1;
+                protoList[1].params[0] = scn;
+                protoList[2].protocol_uuid = UUID_PROTOCOL_OBEX;
+                protoList[2].num_params = 0;
+                SDP_AddProtocolList(mas1_sdp_handle, 3, protoList);
             }
             return mas1_sdp_handle;
         }
