@@ -2202,7 +2202,11 @@ void bta_dm_queue_search (tBTA_DM_MSG *p_data)
         GKI_freebuf(bta_dm_search_cb.p_search_queue);
     }
 
-    bta_dm_search_cb.p_search_queue = (tBTA_DM_MSG *)GKI_getbuf(sizeof(tBTA_DM_API_SEARCH));
+    if((bta_dm_search_cb.p_search_queue = (tBTA_DM_MSG *)GKI_getbuf(sizeof(tBTA_DM_API_SEARCH))) == NULL)
+    {
+        APPL_TRACE_ERROR("%s :GKI_getbuf failed to get a new buffer", __FUNCTION__);
+        return;
+    }
     memcpy(bta_dm_search_cb.p_search_queue, p_data, sizeof(tBTA_DM_API_SEARCH));
 
 }
@@ -2223,7 +2227,11 @@ void bta_dm_queue_disc (tBTA_DM_MSG *p_data)
         GKI_freebuf(bta_dm_search_cb.p_search_queue);
     }
 
-    bta_dm_search_cb.p_search_queue = (tBTA_DM_MSG *)GKI_getbuf(sizeof(tBTA_DM_API_DISCOVER));
+    if((bta_dm_search_cb.p_search_queue = (tBTA_DM_MSG *)GKI_getbuf(sizeof(tBTA_DM_API_DISCOVER))) == NULL)
+    {
+        APPL_TRACE_ERROR("%s :GKI_getbuf failed to get a new buffer", __FUNCTION__);
+        return;
+    }
     memcpy(bta_dm_search_cb.p_search_queue, p_data, sizeof(tBTA_DM_API_DISCOVER));
 
 }
@@ -2801,13 +2809,11 @@ static void bta_dm_rem_name_cback (BD_ADDR bd_addr, DEV_CLASS dc, BD_NAME bd_nam
 
     APPL_TRACE_DEBUG("bta_dm_rem_name_cback name=<%s>", bd_name);
 
-    if (strlen((char*)bd_name) > (BD_NAME_LEN))
-    {
-        sec_event.rem_name_evt.bd_name[(BD_NAME_LEN)] = 0;
-    }
     bdcpy(sec_event.rem_name_evt.bd_addr, bd_addr);
     BCM_STRNCPY_S((char*)sec_event.rem_name_evt.bd_name, sizeof(BD_NAME), (char*)bd_name,
         (BD_NAME_LEN));
+
+    sec_event.rem_name_evt.bd_name[(BD_NAME_LEN)] = 0;
     if( bta_dm_cb.p_sec_cback )
     {
         bta_dm_cb.p_sec_cback(BTA_DM_REM_NAME_EVT, &sec_event);
