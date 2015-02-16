@@ -1513,6 +1513,27 @@ static int btif_rc_get_idx_by_addr(BD_ADDR address)
 
 /***************************************************************************
  **
+ ** Function       btif_rc_get_connected_peer_handle
+ **
+ ** Description    Fetches the connected headset's handle if any
+ **
+ ***************************************************************************/
+UINT8 btif_rc_get_connected_peer_handle(BD_ADDR peer_addr)
+{
+    int i;
+    for  (i = 0; i < btif_max_rc_clients; i++)
+    {
+        if ((btif_rc_cb[i].rc_connected == TRUE)
+             &&(!bdcmp(peer_addr,btif_rc_cb[i].rc_addr)))
+        {
+            return btif_rc_cb[i].rc_handle;
+        }
+    }
+    return 0;
+}
+
+/***************************************************************************
+ **
  ** Function       btif_rc_check_handle_pending_play
  **
  ** Description    Clears the queued PLAY command. if bSend is TRUE, forwards to app
