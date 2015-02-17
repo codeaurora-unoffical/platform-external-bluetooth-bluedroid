@@ -165,29 +165,31 @@ static void bta_av_sco_chg_cback(tBTA_SYS_CONN_STATUS status, UINT8 id, UINT8
                                  app_id, BD_ADDR peer_addr);
 static void bta_av_sys_rs_cback (tBTA_SYS_CONN_STATUS status,UINT8 id, UINT8 app_id, BD_ADDR peer_addr);
 
+static void bta_av_api_enable_multicast(tBTA_AV_DATA *p_data);
 
 /* action functions */
 const tBTA_AV_NSM_ACT bta_av_nsm_act[] =
 {
-    bta_av_api_enable,      /* BTA_AV_API_ENABLE_EVT */
-    bta_av_api_register,    /* BTA_AV_API_REGISTER_EVT */
-    bta_av_api_deregister,  /* BTA_AV_API_DEREGISTER_EVT */
-    bta_av_api_disconnect,  /* BTA_AV_API_DISCONNECT_EVT */
-    bta_av_ci_data,         /* BTA_AV_CI_SRC_DATA_READY_EVT */
-    bta_av_sig_chg,         /* BTA_AV_SIG_CHG_EVT */
-    bta_av_sig_timer,       /* BTA_AV_SIG_TIMER_EVT */
-    bta_av_rc_disc_done,    /* BTA_AV_SDP_AVRC_DISC_EVT */
-    bta_av_rc_closed,       /* BTA_AV_AVRC_CLOSE_EVT */
-    bta_av_conn_chg,        /* BTA_AV_CONN_CHG_EVT */
-    bta_av_dereg_comp,      /* BTA_AV_DEREG_COMP_EVT */
+    bta_av_api_enable,              /* BTA_AV_API_ENABLE_EVT */
+    bta_av_api_register,            /* BTA_AV_API_REGISTER_EVT */
+    bta_av_api_deregister,          /* BTA_AV_API_DEREGISTER_EVT */
+    bta_av_api_disconnect,          /* BTA_AV_API_DISCONNECT_EVT */
+    bta_av_ci_data,                 /* BTA_AV_CI_SRC_DATA_READY_EVT */
+    bta_av_sig_chg,                 /* BTA_AV_SIG_CHG_EVT */
+    bta_av_sig_timer,               /* BTA_AV_SIG_TIMER_EVT */
+    bta_av_rc_disc_done,            /* BTA_AV_SDP_AVRC_DISC_EVT */
+    bta_av_rc_closed,               /* BTA_AV_AVRC_CLOSE_EVT */
+    bta_av_conn_chg,                /* BTA_AV_CONN_CHG_EVT */
+    bta_av_dereg_comp,              /* BTA_AV_DEREG_COMP_EVT */
 #if (BTA_AV_SINK_INCLUDED == TRUE)
-    bta_av_api_sink_enable, /* BTA_AV_API_SINK_ENABLE_EVT */
+    bta_av_api_sink_enable,         /* BTA_AV_API_SINK_ENABLE_EVT */
 #endif
 #if (AVDT_REPORTING == TRUE)
-    bta_av_rpc_conn,        /* BTA_AV_AVDT_RPT_CONN_EVT */
+    bta_av_rpc_conn,                /* BTA_AV_AVDT_RPT_CONN_EVT */
 #endif
-    bta_av_api_to_ssm,      /* BTA_AV_API_START_EVT */
-    bta_av_api_to_ssm,      /* BTA_AV_API_STOP_EVT */
+    bta_av_api_to_ssm,              /* BTA_AV_API_START_EVT */
+    bta_av_api_to_ssm,              /* BTA_AV_API_STOP_EVT */
+    bta_av_api_enable_multicast,    /* BTA_AV_ENABLE_MULTICAST_EVT */
 };
 
 /*****************************************************************************
@@ -203,6 +205,7 @@ tBTA_AV_CB  bta_av_cb;
 static char *bta_av_st_code(UINT8 state);
 #endif
 
+static BOOLEAN is_multicast_enabled = FALSE;
 /*******************************************************************************
 **
 ** Function         bta_av_timer_cback
@@ -827,9 +830,36 @@ static void bta_av_api_to_ssm(tBTA_AV_DATA *p_data)
 {
     int xx;
     UINT16 event = p_data->hdr.event - BTA_AV_FIRST_A2S_API_EVT + BTA_AV_FIRST_A2S_SSM_EVT;
-    //In Dual A2dp Handoff, process this fucntion on specific handles
-    APPL_TRACE_DEBUG("bta_av_api_to_ssm: on Handle 0x%x",p_data->hdr.layer_specific);
-    bta_av_ssm_execute(bta_av_hndl_to_scb(p_data->hdr.layer_specific), event, p_data);
+    if (is_multicast_enabled == TRUE)
+    {
+        /* Send START request to all Open Stream connections.*/
+        for(xx=0; xx<BTA_AV_NUM_STRS; xx++)
+        {
+            bta_av_ssm_execute(bta_av_cb.p_scb[xx], event, p_data);
+        }
+    }
+    else
+    {
+        /*In Dual A2dp Handoff, process this fucntion on specific handles.*/
+        APPL_TRACE_DEBUG("bta_av_api_to_ssm: on Handle 0x%x",p_data->hdr.layer_specific);
+        bta_av_ssm_execute(bta_av_hndl_to_scb(p_data->hdr.layer_specific), event, p_data);
+    }
+}
+
+/*******************************************************************************
+**
+** Function         bta_av_api_enable_multicast
+**
+** Description      Enable/Disable Avdtp multicast
+**
+**
+** Returns          void
+**
+*******************************************************************************/
+static void bta_av_api_enable_multicast(tBTA_AV_DATA *p_data)
+{
+    is_multicast_enabled = p_data->multicast_state.is_multicast_enabled;
+    APPL_TRACE_DEBUG("is_multicast_enabled :%d", is_multicast_enabled);
 }
 
 /*******************************************************************************
@@ -861,10 +891,16 @@ BOOLEAN bta_av_chk_start(tBTA_AV_SCB *p_scb)
                 p_scbi = bta_av_cb.p_scb[i];
                 if(p_scbi && p_scbi->chnl == BTA_AV_CHNL_AUDIO && p_scbi->co_started)
                 {
-                    // TRUE will be returned when DUAL A2dp streaming is implemented
-                    start = FALSE;
-                    APPL_TRACE_DEBUG("bta_av_chk_start: Already playing");
-                    break;
+                    if (is_multicast_enabled == TRUE)
+                    {
+                        start = TRUE;
+                    }
+                    else
+                    {
+                        start = FALSE;
+                        APPL_TRACE_DEBUG("bta_av_chk_start: Already playing");
+                        break;
+                    }
                     /* may need to update the flush timeout of this already started stream */
                     if(p_scbi->co_started != bta_av_cb.audio_open_cnt)
                     {
@@ -1319,7 +1355,20 @@ BOOLEAN bta_av_hdl_event(BT_HDR *p_msg)
     return TRUE;
 }
 
-
+/*******************************************************************************
+**
+** Function         bta_av_is_multicast_enabled
+**
+** Description      return status of Avdtp multicast
+**
+**
+** Returns          BOOLEAN
+**
+*******************************************************************************/
+BOOLEAN bta_av_is_multicast_enabled()
+{
+    return is_multicast_enabled;
+}
 /*****************************************************************************
 **  Debug Functions
 *****************************************************************************/
@@ -1419,6 +1468,7 @@ char *bta_av_evt_code(UINT16 evt_code)
 #endif
     case BTA_AV_API_START_EVT: return "API_START";
     case BTA_AV_API_STOP_EVT: return "API_STOP";
+    case BTA_AV_ENABLE_MULTICAST_EVT: return "MULTICAST_ENABLE";
     default:             return "unknown";
     }
 }

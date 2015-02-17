@@ -288,6 +288,7 @@ typedef struct
     BOOLEAN         starting;
     tBTA_AV_EDR     edr;        /* 0, if peer device does not support EDR */
     UINT8           sep;        /*  sep type of peer device */
+    UINT8           role;       /* 0x00 master, 0x01 slave , 0xFF unkown*/
 } tBTA_AV_OPEN;
 
 /* data associated with BTA_AV_CLOSE_EVT */
@@ -305,6 +306,7 @@ typedef struct
     tBTA_AV_STATUS  status;
     BOOLEAN         initiator; /* TRUE, if local device initiates the START */
     BOOLEAN         suspending;
+    UINT8           role;       /* 0x00 master, 0x01 slave , 0xFF unkown*/
 } tBTA_AV_START;
 
 /* data associated with BTA_AV_SUSPEND_EVT */
@@ -656,6 +658,17 @@ BTA_API void BTA_AvStart(tBTA_AV_HNDL hndl);
 **
 *******************************************************************************/
 BTA_API void BTA_AvStop(BOOLEAN suspend, tBTA_AV_HNDL handle);
+
+/*******************************************************************************
+**
+** Function         BTA_AvEnableMultiCast
+**
+** Description      Enable/disable Avdtp MultiCast
+**
+** Returns          void
+**
+*******************************************************************************/
+BTA_API void BTA_AvEnableMultiCast(BOOLEAN state, tBTA_AV_HNDL handle);
 
 /*******************************************************************************
 **

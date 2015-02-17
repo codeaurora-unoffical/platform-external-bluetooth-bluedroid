@@ -284,6 +284,7 @@ extern BOOLEAN btif_av_is_playing();
 extern BOOLEAN btif_av_is_device_connected(BD_ADDR address);
 extern void btif_av_trigger_dual_handoff(BOOLEAN handoff, BD_ADDR address);
 extern BOOLEAN btif_hf_is_call_idle();
+extern BOOLEAN btif_av_get_multicast_state();
 
 /*****************************************************************************
 **  Functions
@@ -769,7 +770,10 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
         BTIF_TRACE_ERROR("Passthrough on invalid index");
         return;
     }
-    if (btif_av_is_playing())
+
+    /* Trigger DUAL Handoff when support single streaming */
+    if (btif_av_is_playing() &&
+        (btif_av_get_multicast_state() == FALSE))
     {
         /*compare the bd addr of current playing dev and this dev*/
         btif_get_latest_playing_device(address);
@@ -807,7 +811,6 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
             return;
         }
     }
-
     BTIF_TRACE_DEBUG("%s: p_remote_cmd->rc_id=%d", __FUNCTION__, p_remote_cmd->rc_id);
 
     /* If AVRC is open and peer sends PLAY but there is no AVDT, then we queue-up this PLAY */
@@ -2179,7 +2182,9 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
                 /*This command will trigger playback or
                 * dual a2dp handoff.. Let it play on this device. */
                 btif_rc_cb[index].rc_play_processed = TRUE;
-                if (btif_av_is_playing())
+                /* Trigger DUAL Handoff when support single streaming */
+                if (btif_av_is_playing() &&
+                    (btif_av_get_multicast_state() == FALSE))
                 {
                     //compare the bd addr of current playing dev and this dev
                     btif_get_latest_playing_device(address);

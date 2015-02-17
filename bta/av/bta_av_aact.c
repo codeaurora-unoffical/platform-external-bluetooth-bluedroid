@@ -843,6 +843,7 @@ void bta_av_role_res (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     BOOLEAN         initiator = FALSE;
     tBTA_AV_START   start;
     tBTA_AV_OPEN    av_open;
+    UINT8 cur_role;
 
     APPL_TRACE_DEBUG("bta_av_role_res q_tag:%d, wait:x%x, role:x%x", p_scb->q_tag, p_scb->wait, p_scb->role);
     if (p_scb->role & BTA_AV_ROLE_START_INT)
@@ -885,6 +886,11 @@ void bta_av_role_res (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
                 bdcpy(av_open.bd_addr, p_scb->peer_addr);
                 av_open.chnl   = p_scb->chnl;
                 av_open.hndl   = p_scb->hndl;
+                // update Master/Slave Role for open event
+                if (BTM_GetRole (p_scb->peer_addr, &cur_role) == BTM_SUCCESS)
+                {
+                    av_open.role = cur_role;
+                }
                 start.status = BTA_AV_FAIL_ROLE;
                 if(p_scb->seps[p_scb->sep_idx].tsep == AVDT_TSEP_SRC )
                     av_open.sep = AVDT_TSEP_SNK;
@@ -1411,6 +1417,7 @@ void bta_av_str_opened (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     UINT8 *p;
     UINT16 mtu;
     char value[PROPERTY_VALUE_MAX];
+    UINT8 cur_role;
 
     msg.hdr.layer_specific = p_scb->hndl;
     msg.is_up = TRUE;
@@ -1455,6 +1462,11 @@ void bta_av_str_opened (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         open.status = BTA_AV_SUCCESS;
         open.starting = bta_av_chk_start(p_scb);
         open.edr    = 0;
+        // update Master/Slave Role for start
+        if (BTM_GetRole (p_scb->peer_addr, &cur_role) == BTM_SUCCESS)
+        {
+            open.role = cur_role;
+        }
         if( NULL != (p = BTM_ReadRemoteFeatures(p_scb->peer_addr)))
         {
             if(HCI_EDR_ACL_2MPS_SUPPORTED(p))
@@ -1838,6 +1850,7 @@ void bta_av_open_failed (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     tBTA_AV_SCB * p_opened_scb = NULL;
     UINT8 idx;
     tBTA_AV_OPEN    open;
+    UINT8 cur_role;
 
     APPL_TRACE_DEBUG("bta_av_open_failed");
     p_scb->open_status = BTA_AV_FAIL_STREAM;
@@ -1862,6 +1875,12 @@ void bta_av_open_failed (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         open.status = BTA_AV_FAIL_GET_CAP;
         open.starting = bta_av_chk_start(p_scb);
         open.edr    = 0;
+        // update Master/Slave Role for open event
+        if (BTM_GetRole (p_scb->peer_addr, &cur_role) == BTM_SUCCESS)
+        {
+            open.role = cur_role;
+        }
+
         /* set the state back to initial state */
         bta_av_set_scb_sst_init(p_scb);
 
@@ -2072,7 +2091,9 @@ void bta_av_do_start (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         if ( p_scb->wait == 0 ) {
             if (p_scb->role & BTA_AV_ROLE_SUSPEND) {
                 notify_start_failed(p_scb);
-            } else {
+            }
+            else
+            {
                 bta_av_start_ok(p_scb, NULL);
             }
         }
@@ -2465,7 +2486,24 @@ void bta_av_start_ok (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     }
     else if ((new_role & BTA_AV_ROLE_AD_ACP) && (new_role & BTA_AV_ROLE_SUSPEND_OPT))
     {
-        suspend = TRUE;
+
+        if (bta_av_is_multicast_enabled() == TRUE &&
+            (BTM_GetRole (p_scb->peer_addr, &cur_role) == BTM_SUCCESS)
+            && (cur_role == BTM_ROLE_MASTER))
+        {
+            /* If playing on other stream, dont suspend this. */
+            if (bta_av_chk_start(p_scb))
+            {
+                suspend = FALSE;
+                APPL_TRACE_DEBUG("cur_role: %d suspend: %d", suspend,cur_role);
+            }
+        }
+        else
+        {
+            suspend = TRUE;
+            APPL_TRACE_DEBUG("cur_role: %d suspend: %d", suspend,cur_role);
+
+        }
     }
 
     if (!suspend)
@@ -2506,6 +2544,11 @@ void bta_av_start_ok (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         start.chnl   = p_scb->chnl;
         start.status = BTA_AV_SUCCESS;
         start.hndl   = p_scb->hndl;
+        // update Master/Slave Role for start event
+        if (BTM_GetRole (p_scb->peer_addr, &cur_role) == BTM_SUCCESS)
+        {
+            start.role = cur_role;
+        }
         (*bta_av_cb.p_cback)(BTA_AV_START_EVT, (tBTA_AV *) &start);
 
         if(suspend)
