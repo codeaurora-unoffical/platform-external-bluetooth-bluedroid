@@ -155,6 +155,7 @@ static const btif_sm_handler_t btif_av_state_handlers[] =
 *************************************************************************/
 extern void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV *p_data);
 extern BOOLEAN btif_rc_get_connected_peer(BD_ADDR peer_addr);
+extern UINT8 btif_rc_get_connected_peer_handle(void);
 extern void btif_rc_check_handle_pending_play (BD_ADDR peer_addr, BOOLEAN bSendToApp);
 extern BOOLEAN btif_hf_is_call_idle();
 
@@ -508,6 +509,19 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
             {
                 BTIF_TRACE_WARNING("BTA_AV_OPEN_EVT::FAILED status: %d",
                                      p_bta_data->open.status );
+                if (p_bta_data->open.status != BTA_AV_FAIL_SDP)
+                {
+                    BD_ADDR peer_addr;
+                    if ((btif_rc_get_connected_peer(peer_addr))
+                        &&(!bdcmp(btif_av_cb.peer_bda.address, peer_addr)))
+                    {
+                        /* Disconnect AVRCP connection, if Remote has
+                         * both AVRCP and A2DP
+                         */
+                        BTIF_TRACE_WARNING(" Disconnecting AVRCP ");
+                        BTA_AvCloseRc(btif_rc_get_connected_peer_handle());
+                    }
+                }
                 state = BTAV_CONNECTION_STATE_DISCONNECTED;
                 av_state  = BTIF_AV_STATE_IDLE;
             }
