@@ -652,6 +652,10 @@ void GKI_add_to_timer_list (TIMER_LIST_Q *p_timer_listq, TIMER_LIST_ENT  *p_tle)
     if (p_tle->ticks < 0)
         return;
 
+    /* Only process valid tick values. */
+    if (p_tle->ticks < 0)
+        return;
+
     p_tle->p_prev = NULL;
     p_tle->p_next = NULL;
     p_tle->in_use = true;
