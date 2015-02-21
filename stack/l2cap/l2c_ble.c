@@ -1146,6 +1146,12 @@ void l2cble_process_sig_cmd (tL2C_LCB *p_lcb, UINT8 *p, UINT16 pkt_len)
             }
             p_ccb->le_rmt_conn_info.credits += credits;
 
+            /* Clearing the channel congestion if it is already congested */
+            if (p_ccb->cong_sent)
+            {
+                l2cu_check_channel_congestion (p_ccb);
+            }
+
             if(p_ccb->le_rmt_conn_info.credits)
             {
                 l2c_link_check_send_pkts (p_ccb->p_lcb, NULL, NULL);
