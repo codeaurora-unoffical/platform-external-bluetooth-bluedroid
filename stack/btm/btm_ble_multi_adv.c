@@ -337,6 +337,9 @@ tBTM_STATUS btm_ble_multi_adv_write_rpa (tBTM_BLE_MULTI_ADV_INST *p_inst, BD_ADD
     tBTM_STATUS     rt;
 
     BTM_TRACE_EVENT (" btm_ble_multi_adv_set_random_addr");
+    BTM_TRACE_EVENT ("LEP: MA Adv instance: %d, RPA address: %02x:%02x:%02x:%02x:%02x:%02x",
+            p_inst->inst_id, random_addr[0], random_addr[1], random_addr[2], random_addr[3],
+            random_addr[4], random_addr[5]);
 
     memset(param, 0, BTM_BLE_MULTI_ADV_SET_RANDOM_ADDR_LEN);
 
