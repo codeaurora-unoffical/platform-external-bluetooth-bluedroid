@@ -2123,7 +2123,7 @@ static bt_status_t get_player_app_value_rsp(btrc_player_settings_t *p_vals)
     {
         avrc_rsp.get_cur_app_val.status = AVRC_STS_BAD_PARAM;
     }
-    else if (p_vals->num_attr <= AVRC_MAX_APP_ATTR_SIZE)
+    else if (p_vals->num_attr <= BTRC_MAX_APP_SETTINGS)
     {
         memset(app_sett, 0, sizeof(tAVRC_APP_SETTING)*p_vals->num_attr );
         //update num_val
