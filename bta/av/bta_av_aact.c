@@ -1035,33 +1035,46 @@ void bta_av_do_disc_a2d (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
 
     bta_sys_conn_open(BTA_ID_AV, p_scb->app_id, p_scb->peer_addr);
 
-    /* allocate discovery database */
-    if (p_scb->p_disc_db == NULL)
+    if (p_scb->skip_sdp == TRUE)
     {
-        p_scb->p_disc_db = (tSDP_DISCOVERY_DB *) GKI_getbuf(BTA_AV_DISC_BUF_SIZE);
+        tA2D_Service a2d_ser;
+        a2d_ser.avdt_version = AVDT_VERSION;
+        p_scb->skip_sdp = FALSE;
+        /* only one A2D find service is active at a time */
+        bta_av_cb.handle = p_scb->hndl;
+        APPL_TRACE_DEBUG0("Skip Sdp for incoming A2dp connection");
+        bta_av_a2d_sdp_cback(TRUE, &a2d_ser);
     }
-
-    /* only one A2D find service is active at a time */
-    bta_av_cb.handle = p_scb->hndl;
-
-    if(p_scb->p_disc_db)
+    else
     {
-        /* set up parameters */
-        db_params.db_len = BTA_AV_DISC_BUF_SIZE;
-        db_params.num_attr = 3;
-        db_params.p_db = p_scb->p_disc_db;
-        db_params.p_attrs = attr_list;
-
-        if(A2D_FindService(UUID_SERVCLASS_AUDIO_SINK, p_scb->peer_addr, &db_params,
-                        bta_av_a2d_sdp_cback) == A2D_SUCCESS)
+        /* allocate discovery database */
+        if (p_scb->p_disc_db == NULL)
         {
-            return;
+            p_scb->p_disc_db = (tSDP_DISCOVERY_DB *) GKI_getbuf(BTA_AV_DISC_BUF_SIZE);
         }
-    }
 
-    /* when the code reaches here, either the DB is NULL
-     * or A2D_FindService is not successful */
-    bta_av_a2d_sdp_cback(FALSE, NULL);
+        /* only one A2D find service is active at a time */
+        bta_av_cb.handle = p_scb->hndl;
+
+        if(p_scb->p_disc_db)
+        {
+            /* set up parameters */
+            db_params.db_len = BTA_AV_DISC_BUF_SIZE;
+            db_params.num_attr = 3;
+            db_params.p_db = p_scb->p_disc_db;
+            db_params.p_attrs = attr_list;
+
+            if(A2D_FindService(UUID_SERVCLASS_AUDIO_SINK, p_scb->peer_addr, &db_params,
+                        bta_av_a2d_sdp_cback) == A2D_SUCCESS)
+            {
+                return;
+            }
+        }
+
+        /* when the code reaches here, either the DB is NULL
+         * or A2D_FindService is not successful */
+        bta_av_a2d_sdp_cback(FALSE, NULL);
+    }
 }
 
 /*******************************************************************************
@@ -1097,6 +1110,7 @@ void bta_av_cleanup(tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     p_scb->cur_psc_mask = 0;
     p_scb->wait = 0;
     p_scb->num_disc_snks = 0;
+    p_scb->skip_sdp = FALSE;
     bta_sys_stop_timer(&p_scb->timer);
     if (p_scb->deregistring)
     {
@@ -3049,13 +3063,15 @@ void bta_av_open_rc (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
 *******************************************************************************/
 void bta_av_open_at_inc (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
 {
-    tBTA_AV_SDP_RES *p_msg;
+    tBTA_AV_API_OPEN  *p_buf;
 
     if (!p_scb)
     {
         APPL_TRACE_WARNING0("scb is NULL, bailing out!");
         return;
     }
+
+    memcpy (&(p_scb->open_api), &(p_data->api_open), sizeof(tBTA_AV_API_OPEN));
 
     if (p_scb->coll_mask & BTA_AV_COLL_SETCONFIG_IND)
     {
@@ -3078,14 +3094,13 @@ void bta_av_open_at_inc (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         /* We need to switch to INIT state and start opening connection. */
         APPL_TRACE_ERROR0(" bta_av_open_at_inc ReSetting collision mask  ");
         p_scb->coll_mask = 0;
-        p_scb->state = BTA_AV_OPENING_SST;
+        bta_av_set_scb_sst_init (p_scb);
 
-        if ((p_msg = (tBTA_AV_SDP_RES *) GKI_getbuf(sizeof(tBTA_AV_SDP_RES))) != NULL)
+        if ((p_buf = (tBTA_AV_API_OPEN *) GKI_getbuf(sizeof(tBTA_AV_API_OPEN))) != NULL)
         {
-            p_msg->hdr.event = BTA_AV_SDP_DISC_OK_EVT;
-            p_scb->avdt_version = AVDT_VERSION;
-            p_msg->hdr.layer_specific = bta_av_cb.handle;
-            bta_sys_sendmsg(p_msg);
+            memcpy(p_buf, &(p_scb->open_api), sizeof(tBTA_AV_API_OPEN));
+            p_scb->skip_sdp = TRUE;
+            bta_sys_sendmsg(p_buf);
         }
     }
 }

@@ -509,6 +509,7 @@ typedef struct
     UINT8               wait;           /* set 0x1, when getting Caps as ACP, set 0x2, when started */
     UINT8               q_tag;          /* identify the associated q_info union member */
     BOOLEAN             no_rtp_hdr;     /* TRUE if add no RTP header*/
+    BOOLEAN             skip_sdp;       /* Decides if sdp to be done prior to profile connection */
 } tBTA_AV_SCB;
 
 #define BTA_AV_RC_ROLE_MASK     0x10
