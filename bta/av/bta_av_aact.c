@@ -2495,13 +2495,13 @@ void bta_av_start_ok (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
             if (bta_av_chk_start(p_scb))
             {
                 suspend = FALSE;
-                APPL_TRACE_DEBUG("cur_role: %d suspend: %d", suspend,cur_role);
+                APPL_TRACE_DEBUG("cur_role: %d suspend: %d", cur_role, suspend);
             }
         }
         else
         {
             suspend = TRUE;
-            APPL_TRACE_DEBUG("cur_role: %d suspend: %d", suspend,cur_role);
+            APPL_TRACE_DEBUG("cur_role: %d suspend: %d", cur_role, suspend);
 
         }
     }
