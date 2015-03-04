@@ -767,4 +767,41 @@ void bta_pan_free_buf(tBTA_PAN_SCB *p_scb, tBTA_PAN_DATA *p_data)
 
 }
 
+/*******************************************************************************
+ **
+ ** Function     bta_pan_pm_state_change
+ **
+ ** Description  Notify power manager there is state change
+ **
+ **
+ **
+ ** Returns      void
+ **
+ *******************************************************************************/
+void bta_pan_set_pm_state(tBTA_PAN_DATA *p_data)
+{
+    tBTA_PAN_API_SET_PM_STATE set_pm_state;
+    tBTA_PAN_SCB *p_scb;
+    set_pm_state.state = p_data->api_set_pm_state.state;
+    set_pm_state.handle = p_data->api_set_pm_state.handle;
+    p_scb = bta_pan_scb_by_handle(set_pm_state.handle);
+    APPL_TRACE_DEBUG("%s state: %d scb: %p", __func__, set_pm_state.state, p_scb);
+    switch (set_pm_state.state)
+    {
+        case BTA_PAN_PM_CONN_BUSY:
+            bta_pan_pm_conn_busy(p_scb);
+            break;
+
+        case BTA_PAN_PM_CONN_IDLE:
+            bta_pan_pm_conn_idle(p_scb);
+            break;
+
+        default:
+            APPL_TRACE_WARNING("bta_pan_pm_state_change(state: %d): unhandled state",
+                set_pm_state.state);
+            break;
+    }
+}
+
+
 #endif /* PAN_INCLUDED */
