@@ -109,7 +109,10 @@ void vendor_ssrcleanup(void) {
 int vendor_send_command(bt_vendor_opcode_t opcode, void *param) {
   assert(vendor_interface != NULL);
 
-  return vendor_interface->op(opcode, param);
+  if (vendor_interface)
+    return vendor_interface->op(opcode, param);
+  else
+    return -1;
 }
 
 // Called back from vendor library when the firmware configuration
