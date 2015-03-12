@@ -124,6 +124,8 @@ static btif_sm_event_t idle_rc_event;
 static tBTA_AV idle_rc_data;
 static int btif_max_av_clients = 1;
 static BOOLEAN enable_multicast = FALSE;
+static BOOLEAN is_multicast_supported = FALSE;
+static BOOLEAN multicast_disabled = FALSE;
 
 /* both interface and media task needs to be ready to alloc incoming request */
 #define CHECK_BTAV_INIT() if (((bt_av_src_callbacks == NULL) &&(bt_av_sink_callbacks == NULL)) \
@@ -160,7 +162,7 @@ static BOOLEAN btif_av_get_valid_idx(int idx);
 static UINT8 btif_av_idx_by_bdaddr( BD_ADDR bd_addr);
 static int btif_get_latest_playing_device_idx();
 static int btif_get_latest_device_idx_to_start();
-static int btif_av_get_valid_idx_for_rc_events(BD_ADDR bd_addr);
+static int btif_av_get_valid_idx_for_rc_events(BD_ADDR bd_addr, int rc_handle);
 static int btif_get_conn_state_of_device(BD_ADDR address);
 static bt_status_t connect_int(bt_bdaddr_t *bd_addr, uint16_t uuid);
 static void btif_av_update_current_playing_device(int index);
@@ -199,7 +201,8 @@ BOOLEAN btif_av_is_device_connected(BD_ADDR address);
 
 BOOLEAN btif_av_is_connected_on_other_idx(int current_index);
 BOOLEAN btif_av_is_playing();
-void btif_av_enable_disable_multicast();
+void btif_av_update_multicast_state(int index);
+BOOLEAN btif_av_get_ongoing_multicast();
 
 const char *dump_av_sm_state_name(btif_av_state_t state)
 {
@@ -350,6 +353,10 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
             btif_av_cb[index].current_playing = FALSE;
             btif_av_cb[index].is_slave_connected = FALSE;
             btif_av_cb[index].is_device_playing = FALSE;
+            for (int i = 0; i < btif_max_av_clients; i++)
+            {
+                btif_av_cb[i].dual_handoff = FALSE;
+            }
             /* This API will be called twice at initialization
             ** Idle can be moved when device is disconnected too.
             ** Take care of other connected device here.*/
@@ -471,8 +478,7 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
                     btif_av_cb[index].is_slave_connected = TRUE;
                  }
                  // update multicast state after new connection
-                 btif_av_enable_disable_multicast();
-                 BTA_AvEnableMultiCast(enable_multicast,btif_av_cb[index].bta_handle);
+                 btif_av_update_multicast_state(index);
 
                  btif_av_cb[index].peer_sep = p_bta_data->open.sep;
                  btif_a2dp_set_peer_sep(p_bta_data->open.sep);
@@ -601,8 +607,7 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
                     btif_av_cb[index].is_slave_connected = TRUE;
                  }
                  // update multicast state after new connection
-                 btif_av_enable_disable_multicast();
-                 BTA_AvEnableMultiCast(enable_multicast,btif_av_cb[index].bta_handle);
+                 btif_av_update_multicast_state(index);
 
                  btif_av_cb[index].peer_sep = p_bta_data->open.sep;
                  btif_a2dp_set_peer_sep(p_bta_data->open.sep);
@@ -872,11 +877,18 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
     BTIF_TRACE_DEBUG("%s event:%s flags %x and index = %d", __FUNCTION__,
                      dump_av_sm_event_name(event), btif_av_cb[index].flags, index);
 
-    if ( (event == BTA_AV_REMOTE_CMD_EVT) && (btif_av_cb[index].flags & BTIF_AV_FLAG_REMOTE_SUSPEND) &&
+    if ((event == BTA_AV_REMOTE_CMD_EVT) &&
          (p_av->remote_cmd.rc_id == BTA_AV_RC_PLAY) )
     {
-        BTIF_TRACE_EVENT("%s: Resetting remote suspend flag on RC PLAY", __FUNCTION__);
-        btif_av_cb[index].flags &= ~BTIF_AV_FLAG_REMOTE_SUSPEND;
+        for (int i = 0; i < btif_max_av_clients; i++)
+        {
+            if (btif_av_cb[i].flags & BTIF_AV_FLAG_REMOTE_SUSPEND)
+            {
+                BTIF_TRACE_EVENT("%s: Resetting remote suspend flag on RC PLAY",
+                        __FUNCTION__);
+                btif_av_cb[i].flags &= ~BTIF_AV_FLAG_REMOTE_SUSPEND;
+            }
+        }
     }
 
     switch (event)
@@ -894,8 +906,7 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
             /* update multicast state here if new device is connected
              * after A2dp connection. New A2dp device is connected
              * whlie playing */
-            btif_av_enable_disable_multicast();
-            BTA_AvEnableMultiCast(enable_multicast,btif_av_cb[index].bta_handle);
+            btif_av_update_multicast_state(index);
             if (btif_av_cb[index].peer_sep == AVDT_TSEP_SRC)
             {
                 BTA_AvStart(btif_av_cb[index].bta_handle);
@@ -961,8 +972,7 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
              * hence check for role before starting multicast, and
              * disable if we are in slave role for any connection
              */
-            btif_av_enable_disable_multicast();
-            BTA_AvEnableMultiCast(enable_multicast,btif_av_cb[index].bta_handle);
+            btif_av_update_multicast_state(index);
 
             if ((p_av->start.status == BTA_SUCCESS) && (p_av->start.suspending == TRUE))
                 return TRUE;
@@ -975,15 +985,26 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
             {
                 if (btif_av_cb[index].peer_sep == AVDT_TSEP_SNK)
                 {
-                    if (enable_multicast == TRUE)
+                    if (enable_multicast)
                     {
                         /* Stack will start the playback on newly connected
                          * A2dp device, if the playback is already happening on
                          * other connected device.*/
                         if (btif_av_is_playing())
                         {
+                            /* when HS2 is connected during HS1 playing, stack directly
+                             * sends start event hence update encoder so that least L2CAP
+                             *  MTU is selected.*/
+                            btif_a2dp_update_codec();
                             BTIF_TRACE_DEBUG("%s: A2dp Multicast playback",
                                     __FUNCTION__);
+                        }
+                        // initiate suspend if start is initiate by remote and multicast
+                        // is enabled.
+                        if (!p_av->start.initiator)
+                        {
+                            BTIF_TRACE_DEBUG("initiate suspend for remote start");
+                            btif_dispatch_sm_event(BTIF_AV_SUSPEND_STREAM_REQ_EVT, NULL, 0);
                         }
                     }
                     else
@@ -1237,6 +1258,30 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
                 BTIF_TRACE_EVENT("BTA_AV_SUSPEND_EVT: Dual handoff");
                 btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
             }
+            if (p_av->suspend.initiator != TRUE)
+            {
+                /* remote suspend, notify HAL and await audioflinger to
+                 * suspend/stop stream
+                 * set remote suspend flag to block media task from restarting
+                 * stream only if we did not already initiate a local suspend
+                 * set remote suspend flag before suspending stream as in race conditions
+                 * when stream is suspended, but flag is things ge tossed up
+                 */
+                 BTIF_TRACE_EVENT("Clear before suspending");
+                 if ((btif_av_cb[index].flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING) == 0)
+                     btif_av_cb[index].flags |= BTIF_AV_FLAG_REMOTE_SUSPEND;
+                 for (int i = 0; i < btif_max_av_clients; i++)
+                 {
+                    if ((i != index) && btif_av_get_ongoing_multicast())
+                    {
+                        multicast_disabled = TRUE;
+                        btif_av_update_multicast_state(index);
+                        BTIF_TRACE_EVENT("Initiate suspend for other HS also");
+                        btif_sm_dispatch(btif_av_cb[i].sm_handle,
+                                BTIF_AV_SUSPEND_STREAM_REQ_EVT, NULL);
+                    }
+                 }
+             }
 
             /* a2dp suspended, stop media task until resumed */
             btif_a2dp_on_suspended(&p_av->suspend);
@@ -1256,14 +1301,6 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
 
             if (p_av->suspend.initiator != TRUE)
             {
-                /* remote suspend, notify HAL and await audioflinger to
-                   suspend/stop stream */
-
-                /* set remote suspend flag to block media task from restarting
-                   stream only if we did not already initiate a local suspend */
-                if ((btif_av_cb[index].flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING) == 0)
-                    btif_av_cb[index].flags |= BTIF_AV_FLAG_REMOTE_SUSPEND;
-
                 btif_report_audio_state(BTAV_AUDIO_STATE_REMOTE_SUSPEND, &(btif_av_cb[index].peer_bda));
             }
             else
@@ -1357,7 +1394,7 @@ static void btif_av_handle_event(UINT16 event, char* p_param)
         case BTIF_AV_START_STREAM_REQ_EVT:
             /* Get the last connected device on which START can be issued
             * Get the Dual A2dp Handoff Device first, if none is present,
-            * go for lastest connected. 
+            * go for lastest connected.
             * In A2dp Multicast, the index selected can be any of the
             * connected device. Stack will ensure to START the steaming
             * on both the devices. */
@@ -1408,10 +1445,12 @@ static void btif_av_handle_event(UINT16 event, char* p_param)
         * Handled well in AV Opening, opened and started state
         * AV Idle handler needs to take care of this event properly.*/
         case BTA_AV_RC_OPEN_EVT:
-            index = btif_av_get_valid_idx_for_rc_events(p_bta_data->rc_open.peer_addr);
+            index = btif_av_get_valid_idx_for_rc_events(p_bta_data->rc_open.peer_addr,
+                    p_bta_data->rc_open.rc_handle);
             break;
         case BTA_AV_RC_CLOSE_EVT:
-            index = btif_av_get_valid_idx_for_rc_events(p_bta_data->rc_close.peer_addr);
+            index = btif_av_get_valid_idx_for_rc_events(p_bta_data->rc_close.peer_addr,
+                    p_bta_data->rc_open.rc_handle);
             break;
         /* Let the RC handler decide on these passthrough cmds
         * Use rc_handle to get the active AV device and use that mapping. */
@@ -1614,7 +1653,7 @@ static int btif_get_conn_state_of_device(BD_ADDR address)
 **
 *******************************************************************************/
 
-static int btif_av_get_valid_idx_for_rc_events(BD_ADDR bd_addr)
+static int btif_av_get_valid_idx_for_rc_events(BD_ADDR bd_addr, int rc_handle)
 {
     int index = 0;
     /* First try to find if it is first event in AV IF
@@ -1624,11 +1663,17 @@ static int btif_av_get_valid_idx_for_rc_events(BD_ADDR bd_addr)
 
     /*Get the index from connected SCBs*/
     index = btif_av_idx_by_bdaddr(bd_addr);
-    if (index >= btif_max_av_clients)
+    if (index == btif_max_av_clients)
     {
         /* None of the SCBS matched
-        * Allocate the first free SCB*/
-        index = 0;
+        * Allocate free SCB, null address SCB*/
+        index = btif_av_idx_by_bdaddr(bd_null);
+        BTIF_TRACE_EVENT("btif_av_get_valid_idx_for_rc_events is %d", index);
+        if (index >= btif_max_av_clients)
+        {
+            BTIF_TRACE_EVENT("disconnect only AVRCP device rc_handle %d", rc_handle);
+            BTA_AvCloseRc(rc_handle);
+        }
     }
     return index;
 }
@@ -1905,9 +1950,9 @@ static bt_status_t init_src(btav_callbacks_t* callbacks, int max_a2dp_connection
     }
     else
     {
-        if (a2dp_multicast_state == 1)
+        if (a2dp_multicast_state)
         {
-            enable_multicast = TRUE;
+            is_multicast_supported = TRUE;
         }
         btif_max_av_clients = max_a2dp_connections;
         status = btif_av_init(BTA_A2DP_SRC_SERVICE_ID);
@@ -1943,7 +1988,7 @@ static bt_status_t init_sink(btav_callbacks_t* callbacks, int max,
     }
     else
     {
-        enable_multicast = FALSE; // Clear multicast flag for sink 
+        enable_multicast = FALSE; // Clear multicast flag for sink
         if (max > 1)
         {
             BTIF_TRACE_ERROR("Only one Sink can be initialized");
@@ -2093,6 +2138,35 @@ void btif_av_trigger_dual_handoff(BOOLEAN handoff, BD_ADDR address)
     else
     {
         BTIF_TRACE_ERROR("Handoff on invalid index");
+    }
+}
+
+/*******************************************************************************
+**
+** Function         btif_av_trigger_suspend
+**
+** Description      Trigger suspend when multicast is ongoing for tuch tones
+**                  and new ACL is created.
+**
+** Returns          void
+**
+*******************************************************************************/
+
+void btif_av_trigger_suspend()
+{
+    int index;
+    /*Get the current playing device*/
+    BTIF_TRACE_DEBUG("%s", __FUNCTION__);
+    index = btif_get_latest_playing_device_idx();
+    if (index <= btif_max_av_clients)
+    {
+        /*Initiate SUSPEND for this device*/
+        BTIF_TRACE_DEBUG("Initiate SUSPEND for this device on index = %d", index);
+        btif_sm_dispatch(btif_av_cb[index].sm_handle, BTIF_AV_SUSPEND_STREAM_REQ_EVT, NULL);
+    }
+    else
+    {
+        BTIF_TRACE_ERROR("suspend on invalid index");
     }
 }
 
@@ -2475,14 +2549,15 @@ bt_status_t btif_av_execute_service(BOOLEAN b_enable)
 #if (AVRC_METADATA_INCLUDED == TRUE)
         BTA_AvEnable(BTA_SEC_AUTHENTICATE,
             BTA_AV_FEAT_RCTG|BTA_AV_FEAT_METADATA|BTA_AV_FEAT_VENDOR|BTA_AV_FEAT_NO_SCO_SSPD
+            |BTA_AV_FEAT_ACP_START
 #if (AVRC_ADV_CTRL_INCLUDED == TRUE)
             |BTA_AV_FEAT_RCCT
             |BTA_AV_FEAT_ADV_CTRL
 #endif
             ,bte_av_callback);
 #else
-        BTA_AvEnable(BTA_SEC_AUTHENTICATE, (BTA_AV_FEAT_RCTG | BTA_AV_FEAT_NO_SCO_SSPD),
-                    bte_av_callback);
+        BTA_AvEnable(BTA_SEC_AUTHENTICATE, (BTA_AV_FEAT_RCTG | BTA_AV_FEAT_NO_SCO_SSPD
+            |BTA_AV_FEAT_ACP_START), bte_av_callback);
 #endif
         for (i = 0; i < btif_max_av_clients; i++)
         {
@@ -2774,7 +2849,7 @@ int btif_av_get_num_connected_devices(void)
 
 /******************************************************************************
 **
-** Function        btif_av_enable_disable_multicast
+** Function        btif_av_update_multicast_state
 **
 ** Description     Enable Multicast only if below conditions are satisfied
 **                 1. Connected to only 2 EDR HS.
@@ -2788,14 +2863,28 @@ int btif_av_get_num_connected_devices(void)
 **
 ** Returns         void
 ******************************************************************************/
-void btif_av_enable_disable_multicast()
+void btif_av_update_multicast_state(int index)
 {
+    if (!is_multicast_supported)
+    {
+        BTIF_TRACE_DEBUG("Multicast is Disabled");
+        return;
+    }
+    if (multicast_disabled == TRUE)
+    {
+        multicast_disabled = FALSE;
+        enable_multicast = FALSE;
+        BTA_AvEnableMultiCast(FALSE, btif_av_cb[index].bta_handle);
+        return;
+    }
+    BTIF_TRACE_DEBUG("multicast state %d", enable_multicast);
     int num_connected_br_edr_devices = 0;
     int num_connected_le_devices = 0;
     int num_av_connected = 0;
     int i = 0;
     BOOLEAN is_slave = FALSE;
     BOOLEAN is_br_connected = FALSE;
+    BOOLEAN prev_multicast_state = enable_multicast;
     num_connected_br_edr_devices = btif_dm_get_br_edr_links();
     num_connected_le_devices = btif_dm_get_le_links();
     num_av_connected = btif_av_get_num_connected_devices();
@@ -2818,24 +2907,12 @@ void btif_av_enable_disable_multicast()
     {
         enable_multicast = FALSE;
     }
-    if (enable_multicast)
+    if (prev_multicast_state != enable_multicast)
     {
-        BTIF_TRACE_DEBUG("A2dp Multicast Enabled");
-        if (bt_av_src_callbacks != NULL)
-        {
-            HAL_CBACK(bt_av_src_callbacks, multicast_state_cb,
-                      TRUE);
-        }
-    }
-    else
-    {
-        BTIF_TRACE_DEBUG("A2dp Multicast Disabled");
-        if (bt_av_src_callbacks != NULL)
-        {
-            HAL_CBACK(bt_av_src_callbacks, multicast_state_cb,
-                      FALSE);
-        }
-
+        BTA_AvEnableMultiCast(enable_multicast,
+                btif_av_cb[index].bta_handle);
+        HAL_CBACK(bt_av_src_callbacks, multicast_state_cb,
+              enable_multicast);
     }
 }
 /******************************************************************************

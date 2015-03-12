@@ -260,7 +260,7 @@ extern bt_status_t btif_hd_execute_service(BOOLEAN b_enable);
 extern void bta_gatt_convert_uuid16_to_uuid128(UINT8 uuid_128[LEN_UUID_128], UINT16 uuid_16);
 extern void btif_av_move_idle(bt_bdaddr_t bd_addr);
 extern BOOLEAN btif_hh_find_added_dev_by_bda(bt_bdaddr_t *bd_addr);
-extern void btif_av_trigger_dual_handoff(BOOLEAN handoff, BD_ADDR address);
+extern void btif_av_trigger_suspend();
 extern BOOLEAN btif_av_get_ongoing_multicast();
 
 /******************************************************************************
@@ -1989,14 +1989,14 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
              * connection is initated, then tuch tones are send to both connected HS
              * over A2dp.Stream will be suspended after 3 secs and if remote has
              * initiated play in this duartion, multicast must not be enabled with
-             * 3 ACL's, hence trigger a2dp handsoff.
+             * 3 ACL's, hence trigger a2dp suspend.
              * During active muisc streaming no new connection can happen, hence
              * We will get this only when multistreaming is happening due to tuchtones
              */
             if (btif_av_get_ongoing_multicast())
             {
-                // trigger a2dp handsoff, NULL address will trigger handsoff at 0 index.
-                btif_av_trigger_dual_handoff(TRUE,NULL);
+                // trigger a2dp suspend
+                btif_av_trigger_suspend();
             }
 
             bd2str(&bd_addr, &bdstr);
