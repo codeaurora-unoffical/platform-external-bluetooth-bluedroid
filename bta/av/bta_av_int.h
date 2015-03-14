@@ -477,7 +477,7 @@ typedef struct
 {
     const tBTA_AV_ACT   *p_act_tbl;     /* the action table for stream state machine */
     const tBTA_AV_CO_FUNCTS *p_cos;     /* the associated callout functions */
-    tSDP_DISCOVERY_DB   *p_disc_db;     /* pointer to discovery database */
+    BOOLEAN             sdp_discovery_started;     /* pointer to discovery database */
     tBTA_AV_SEP         seps[BTA_AV_MAX_SEPS];
     tAVDT_CFG           *p_cap;         /* buffer used for get capabilities */
     tBTA_AV_Q_INFO      q_info;
