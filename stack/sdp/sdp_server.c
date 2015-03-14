@@ -77,7 +77,8 @@ static const UINT8 sdp_black_list_prefix[][3] = {{0x00, 0x1D, 0xBA},  /* JVC car
 /* Few carkits supports AVRCP1.4 but not AVRCP1.5
 *  In that case fall back to 1.4 to support browsing
 */
-static const UINT8 sdp_dev_support_avrcp_14[][3] = {{0x00, 0x02, 0x0C} /*Clarion*/};
+static const UINT8 sdp_dev_support_avrcp_14[][3] = {{0x00, 0x02, 0x0C}, /*Clarion*/
+                                                    {0x20, 0x02, 0xAF}  /*Corolla*/};
 /********************************************************************************/
 /*              L O C A L    F U N C T I O N     P R O T O T Y P E S            */
 /********************************************************************************/
@@ -402,6 +403,7 @@ static void process_service_search (tCONN_CB *p_ccb, UINT16 trans_num,
         }
         rem_handles = num_rsp_handles;
         cont_offset = 0;
+        p_ccb->cont_offset = 0;
     }
 
     /* Calculate how many handles will fit in one PDU */
