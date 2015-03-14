@@ -77,6 +77,7 @@
 #define PLAY_STATUS_PLAYING 1
 #define MAX_CMD_QUEUE_LEN 15
 #define ERR_PLAYER_NOT_ADDRESED 0x13
+#define BTIF_RC_HANDLE_NONE 0xFF
 
 #define CHECK_RC_CONNECTED                                                                  \
     BTIF_TRACE_DEBUG("## %s ##", __FUNCTION__);                                            \
@@ -707,7 +708,7 @@ void handle_rc_disconnect (tBTA_AV_RC_CLOSE *p_rc_close)
         BTIF_TRACE_ERROR("Got disconnect of unknown device");
         return;
     }
-    btif_rc_cb[index].rc_handle = 0;
+    btif_rc_cb[index].rc_handle = BTIF_RC_HANDLE_NONE;
     btif_rc_cb[index].rc_connected = FALSE;
     memset(btif_rc_cb[index].rc_addr, 0, sizeof(BD_ADDR));
     memset(btif_rc_cb[index].rc_notif, 0, sizeof(btif_rc_cb[index].rc_notif));
@@ -2297,6 +2298,7 @@ static bt_status_t init(btrc_callbacks_t* callbacks, int max_connections)
     {
         btif_rc_cb[i].rc_vol_label=MAX_LABEL;
         btif_rc_cb[i].rc_volume=MAX_VOLUME;
+        btif_rc_cb[i].rc_handle = BTIF_RC_HANDLE_NONE;
     }
     lbl_init();
 
