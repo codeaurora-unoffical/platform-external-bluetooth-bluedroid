@@ -154,7 +154,34 @@ tSMP_STATUS SMP_Pair (BD_ADDR bd_addr)
     }
 }
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+/*******************************************************************************
+**
+** Function         SMP_Pair_Bredr
+**
+** Description      This function call to perform a SMP pairing with peer device.
+**                  on BR/EDR transport
+**
+** Parameters       bd_addr - peer device bd address.
+**
+** Returns          status
+**
+*******************************************************************************/
 
+tSMP_STATUS SMP_Pair_Bredr(BD_ADDR bd_addr)
+{
+    BTM_TRACE_EVENT ("%s", __FUNCTION__);
+    tSMP_CB   *p_cb = &smp_cb;
+    if(p_cb->state != SMP_ST_IDLE)
+    {
+        SMP_TRACE_DEBUG("%s, smp busy:%d", __FUNCTION__, p_cb->state);
+        return SMP_BUSY;
+    }
+    /*simply copy the bda to the smp pairing bda, for the subsequent conn cback to trigger*/
+    memcpy (p_cb->pairing_bda, bd_addr, BD_ADDR_LEN);
+    return SMP_STARTED;
+}
+#endif
 /*******************************************************************************
 **
 ** Function         SMP_PairCancel
@@ -171,7 +198,12 @@ BOOLEAN SMP_PairCancel (BD_ADDR bd_addr)
     tSMP_CB   *p_cb = &smp_cb;
     UINT8     err_code = SMP_PAIR_FAIL_UNKNOWN;
     BOOLEAN   status = FALSE;
-
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    if(p_cb->cb_evt == SMP_PASSKEY_CONFIRM_EVT) /*LE SC confirm value failed*/
+    {
+        err_code = SMP_NUM_COMP_FAIL;
+    }
+#endif
     BTM_TRACE_EVENT ("SMP_CancelPair state=%d flag=0x%x ", p_cb->state, p_cb->flags);
     if ( (p_cb->state != SMP_ST_IDLE)  &&
          (!memcmp (p_cb->pairing_bda, bd_addr, BD_ADDR_LEN)) )
@@ -199,16 +231,29 @@ BOOLEAN SMP_PairCancel (BD_ADDR bd_addr)
 *******************************************************************************/
 void SMP_SecurityGrant(BD_ADDR bd_addr, UINT8 res)
 {
-    SMP_TRACE_EVENT ("SMP_SecurityGrant ");
+    SMP_TRACE_EVENT ("SMP_SecurityGrant cb_evt = %d, res=%d", smp_cb.cb_evt, res);
     if (smp_cb.state != SMP_ST_WAIT_APP_RSP ||
-        smp_cb.cb_evt != SMP_SEC_REQUEST_EVT ||
-        memcmp (smp_cb.pairing_bda, bd_addr, BD_ADDR_LEN))
+        (smp_cb.cb_evt != SMP_SEC_REQUEST_EVT
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+         && smp_cb.cb_evt != SMP_PASSKEY_REQ_EVT && smp_cb.cb_evt != SMP_PASSKEY_CONFIRM_EVT
+#endif
+        )
+        || memcmp (smp_cb.pairing_bda, bd_addr, BD_ADDR_LEN))
         return;
-
-    /* clear the SMP_SEC_REQUEST_EVT event after get grant */
-    /* avoid generate duplicate pair request */
-    smp_cb.cb_evt = 0;
-    smp_sm_event(&smp_cb, SMP_API_SEC_GRANT_EVT, &res);
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    if(smp_cb.cb_evt == SMP_PASSKEY_CONFIRM_EVT)
+    {
+        SMP_TRACE_DEBUG("%s: passkey confirm evt res= %d", __FUNCTION__, res);
+        smp_sm_event(&smp_cb, SMP_API_PASSKEY_CONF_EVT, &res);
+    }
+    else
+#endif
+    {
+        /* clear the SMP_SEC_REQUEST_EVT event after get grant */
+        /* avoid generate duplicate pair request */
+        smp_cb.cb_evt = 0;
+        smp_sm_event(&smp_cb, SMP_API_SEC_GRANT_EVT, &res);
+    }
 }
 
 /*******************************************************************************
@@ -236,7 +281,7 @@ void SMP_PasskeyReply (BD_ADDR bd_addr, UINT8 res, UINT32 passkey)
     /* If timeout already expired or has been canceled, ignore the reply */
     if (p_cb->cb_evt != SMP_PASSKEY_REQ_EVT)
     {
-        SMP_TRACE_WARNING ("SMP_PasskeyReply() - Wrong State: %d", p_cb->state);
+        SMP_TRACE_WARNING ("SMP_PasskeyReply() - Wrong State: %d, event=%d", p_cb->state, p_cb->cb_evt);
         return;
     }
 
@@ -337,6 +382,68 @@ BOOLEAN SMP_Encrypt (UINT8 *key, UINT8 key_len,
     status = smp_encrypt_data(key, key_len, plain_text, pt_len, p_out);
     return status;
 }
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+
+/*******************************************************************************
+**
+** Function         SMP_KeyNotify
+**
+** Description      This function is called to send keypress notification
+**                  key during an ongoing LE pairing process
+**
+** Parameters:      notification        - key press notification
+**
+**  Returns         void
+*******************************************************************************/
+void SMP_KeyNotify (UINT8 notification)
+{
+    tSMP_CB   *p_cb = &smp_cb;
+    SMP_TRACE_DEBUG("%s: notification:%d", __FUNCTION__, notification);
+    smp_sm_event(p_cb, SMP_LOCAL_KEYPRESS_EVT, &notification);
+}
+
+/*******************************************************************************
+**
+** Function         SMP_Generate_OOB_Confirm
+**
+** Description      This function is called to generate OOB
+**                  random and confirm pair
+**
+** Parameters:      void
+**
+**  Returns         void
+*******************************************************************************/
+void SMP_Generate_OOB_Confirm(void)
+{
+    tSMP_CB   *p_cb = &smp_cb;
+    SMP_TRACE_DEBUG("%s", __FUNCTION__);
+    smp_generate_nonce(p_cb, NULL);
+}
+
+/*******************************************************************************
+**
+** Function         SMP_Save_OOB_Data
+**
+** Description      This function is called to save remote
+**                  random and confirm pair
+**
+** Parameters:      void
+**
+**  Returns         void
+*******************************************************************************/
+void SMP_Save_OOB_Data(BT_OCTET16 confirm, BT_OCTET16 rand)
+{
+    tSMP_CB   *p_cb = &smp_cb;
+    UINT8 *p_rand = rand;
+    SMP_TRACE_DEBUG("%s", __FUNCTION__);
+    memcpy(p_cb->rconfirm, confirm, BT_OCTET16_LEN);
+    memcpy(p_cb->rrand, rand, BT_OCTET16_LEN);
+    /*if the copy of tk to zero block is changed we will need to reverse it here itself*/
+    memcpy(p_cb->roob, p_rand,  BT_OCTET16_LEN);
+}
+#endif
+
 #endif /* SMP_INCLUDED */
 
 

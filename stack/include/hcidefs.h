@@ -388,6 +388,12 @@
 /* tracking sub event */
 #define HCI_VSE_SUBCODE_BLE_TRACKING_SUB_EVT       0x56 /* Tracking event */
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+/* BLE SECURE CONN COMMANDS*/
+#define HCI_BLE_READ_PUBLIC_KEY         (0x0025 | HCI_GRP_BLE_CMDS)
+#define HCI_BLE_GENERATE_DHKEY          (0x0026 | HCI_GRP_BLE_CMDS)
+#endif
+
 /* LE supported states definition */
 #define HCI_LE_ADV_STATE          0x00000001
 #define HCI_LE_SCAN_STATE         0x00000002
@@ -692,6 +698,12 @@
 /* Definitions for LE Channel Map */
 #define HCI_BLE_CHNL_MAP_SIZE               5
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+
+#define HCI_BLE_PUBLIC_KEY_EVT              0x08
+#define HCI_BLE_DHKEY_GEN_EVT               0x09
+
+#endif
 
 #define HCI_EVENT_RSP_FIRST                 HCI_INQUIRY_COMP_EVT
 #define HCI_EVENT_RSP_LAST                  HCI_CLB_CHANNEL_CHANGE_EVT
@@ -702,8 +714,11 @@
                                                  specification compliant */
 
 /* the event mask for BLE event mask */
-#define HCI_BLE_EVENT_MASK_DEF               "\x00\x00\x00\x00\x00\x00\x00\x3f"
-
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define HCI_BLE_EVENT_MASK_DEF               "\x00\x00\x00\x00\x00\x00\x01\xbf"
+#else
+#define HCI_BLE_EVENT_MASK_DEF               "\x00\x00\x00\x00\x00\x00\x01\x3f"
+#endif
 
 
 /*

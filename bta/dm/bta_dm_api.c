@@ -638,6 +638,22 @@ void BTA_DmPinReply(BD_ADDR bd_addr, BOOLEAN accept, UINT8 pin_len, UINT8 *p_pin
 
 }
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+void BTA_DmKeyNotification(BD_ADDR bd_addr, UINT8 notification)
+{
+    tBTA_DM_API_KEY_NOT    *p_msg;
+
+    if ((p_msg = (tBTA_DM_API_KEY_NOT *) GKI_getbuf(sizeof(tBTA_DM_API_KEY_NOT))) != NULL)
+    {
+        p_msg->hdr.event = BTA_DM_API_KEY_NOT_EVT;
+        bdcpy(p_msg->bd_addr, bd_addr);
+        p_msg->notification = notification;
+        bta_sys_sendmsg(p_msg);
+    }
+    return;
+}
+#endif
+
 /*******************************************************************************
 **
 ** Function         BTA_DmLinkPolicy

@@ -36,6 +36,13 @@ const char * const smp_state_name [] =
     "SMP_ST_ENC_PENDING",
     "SMP_ST_BOND_PENDING",
     "SMP_ST_RELEASE_DELAY",
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    "SMP_ST_WAIT_PUB_KEY",
+    "SMP_ST_WAIT_NONCE",
+    "SMP_ST_WAIT_SC_CONFIRM",
+    "SMP_ST_COMMIT",
+    "SMP_ST_DERIVE_LTK",
+#endif
     "SMP_ST_MAX"
 };
 const char * const smp_event_name [] =
@@ -51,6 +58,11 @@ const char * const smp_event_name [] =
     "ID_ADDR_EVT",
     "SIGN_INFO_EVT",
     "SECURITY_REQ_EVT",
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    "REMOTE_PUBLIC_KEY_EVT",
+    "REMOTE_DHKEY_EVT",
+    "KEY_PRESS_NOT_EVT",
+#endif
     "KEY_READY_EVT",
     "ENCRYPTED_EVT",
     "L2CAP_CONN_EVT",
@@ -64,6 +76,14 @@ const char * const smp_event_name [] =
     "DISCARD_SEC_REQ_EVT",
     "RELEASE_DELAY_EVT",
     "RELEASE_DELAY_TOUT_EVT",
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    "SMP_DH_KEY_EVT",
+    "SMP_PASSKEY_CONF_EVT",
+    "SMP_INIT_SECURE_CONN_EVT",
+    "SMP_PUB_KEY_SENT_EVT",
+    "SMP_CONFIRM_REPEAT_EVT",
+    "SMP_LOCAL_KEYPRESS_EVT",
+#endif
     "MAX_EVT"
 };
 const char * smp_get_event_name(tSMP_EVENT event);
@@ -116,6 +136,23 @@ enum
     SMP_DELAY_TERMINATE,
     SMP_IDLE_TERMINATE,
     SMP_FAST_CONN_PARAM,
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    SMP_GEN_DHKEY,
+    SMP_SEND_PUB_KEY,
+    SMP_PROC_PUB_KEY,
+    SMP_GENERATE_NONCE,
+    SMP_GENERATE_SC_CONFIRM,
+    SMP_VERIFY_SC_CONFIRM,
+    SMP_GENERATE_VERIFIER,
+    SMP_COMPUTE_COMMIT,
+    SMP_SEND_COMMIT,
+    SMP_COMPUTE_SC_LTK,
+    SMP_PROCESS_COMMIT,
+    SMP_MODEL_SPEC_ACTION,
+    SMP_SEND_KEYPRESS_NOT,
+    SMP_PROC_KEYPRESS_NOT,
+    SMP_DERIVE_LTK,
+#endif
     SMP_SM_NO_ACTION
 };
 
@@ -159,8 +196,72 @@ static const tSMP_ACT smp_sm_action[] =
     smp_proc_release_delay_tout,
     smp_delay_terminate,
     smp_idle_terminate,
-    smp_fast_conn_param
+    smp_fast_conn_param,
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    smp_generate_dhkey,
+    smp_send_public_key,
+    smp_proc_public_key,
+    smp_generate_nonce,
+    smp_generate_sc_confirm,
+    smp_verify_sc_confirm,
+    smp_generate_verifier,
+    smp_compute_commit,
+    smp_send_commit,
+    smp_compute_sc_ltk,
+    smp_process_commit,
+    smp_model_spec_action,
+    smp_send_keypress_notification,
+    smp_proc_keypress_notification,
+    smp_derive_LTK,
+#endif
 };
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+
+/************ SMP Master FSM State/Event Indirection Table for LE secure conn**************/
+static const UINT8 smp_ma_entry_map[][SMP_ST_MAX] =
+{
+/* state name:           Idle WaitApp SecReq Pair   Wait Confirm Init Enc   Bond  Rel   wait   wait  wait_sc  commit  derive_ltk
+                               Rsp    Pend   ReqRsp Cfm              Pend  Pend   Delay pubkey nonce confirm                  */
+/* PAIR_REQ           */{ 0,    0,     0,      0,     0,   0,    0,   0,    0,     0,     0,     0,     0,     0,     0},
+/* PAIR_RSP           */{ 0,    0,     0,      1,     0,   0,    0,   0,    0,     0,     0,     0,     0,     0,     0},
+/* CONFIRM            */{ 0,    0,     0,      0,     0,   1,    0,   0,    0,     0,     0,     0,     1,     0,     0},
+/* INIT               */{ 0,    0,     0,      0,     0,   0,    1,   0,    0,     0,     0,     1,     0,     0,     0},
+/* PAIR_FAIL          */{ 0,    0x81,  0,      0x81,  0x81,0x81, 0x81,0,    0,     0,     0x81,  0x81,  0x81,  0x81,  0x81},
+/* ENC_INFO           */{ 0,    0,     0,      0,     0,   0,    0,   0,    1,     0,     0,     0,     0,     0,     0},
+/* MASTER_ID          */{ 0,    0,     0,      0,     0,   0,    0,   0,    4,     0,     0,     0,     0,     0,     0},
+/* ID_INFO            */{ 0,    0,     0,      0,     0,   0,    0,   0,    2,     0,     0,     0,     0,     0,     0},
+/* ID_ADDR            */{ 0,    0,     0,      0,     0,   0,    0,   0,    5,     0,     0,     0,     0,     0,     0},
+/* SIGN_INFO          */{ 0,    0,     0,      0,     0,   0,    0,   0,    3,     0,     0,     0,     0,     0,     0},
+/* SEC_REQ            */{ 2,    0,     0,      0,     0,   0,    0,   0,    0,     0,     0,     0,     0,     0,     0},
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+/* PUB_KEY            */{ 0,    0,     0,      0,     0,   0,    0,   0,    0,     0,     1,     0,     0,     0,     0},
+/* DH_KEYCHECK        */{ 0,    0,     0,      0,     0,   0,    0,   0,    0,     0,     0,     0,     0,     1,     0},
+/* KEY_PRESS          */{ 0,    7,     0,      5,     2,   2,    0,   0,    0,     0,     0,     0,     0,     0,     0},
+#endif
+/* KEY_READY          */{ 0,    3,     0,      3,     1,   0,    2,   1,    6,     0,     0,     0,     0,     0,     0},
+/* ENC_CMPL           */{ 0,    0,     0,      0,     0,   0,    0,   2,    0,     0,     0,     0,     0,     0,     0},
+/* L2C_CONN           */{ 1,    0,     0,      0,     0,   0,    0,   0,    0,     0,     0,     0,     0,     0,     0},
+/* L2C_DISC           */{ 0x83,	0x83,  0,      0x83,  0x83,0x83, 0x83,0x83, 0x83,  3,     0x83,  0x83,  0x83,  0x83, 0x83},
+/* IO_RSP             */{ 0,    2,     0,      0,     0,   0,    0,   0,    0,     0,     0,     0,     0,     0,     0},
+/* SEC_GRANT          */{ 0,    1,     0,      0,     0,   0,    0,   0,    0,     0,     0,     0,     0,     0,     0},
+/* TK_REQ             */{ 0,    0,     0,      2,     0,   0,    0,   0,    0,     0,     0,     0,     0,     0,     0},
+/* AUTH_CMPL          */{ 0,    0x82,  0,      0x82,  0x82,0x82, 0x82,0x82, 0x82,  0,     0x82,  0x82,  0x82,  0x82,  0x82},
+/* ENC_REQ            */{ 0,    4,     0,      0,     0,   0,    3,   0,    0,     0,     0,     0,     0,     2,     0},
+/* BOND_REQ           */{ 0,    0,     0,      0,     0,   0,    0,   3,    0,     0,     0,     0,     0,     0,     1},
+/* DISCARD_SEC_REQ    */{ 0,    5,     0,      0,     0,   0,    0,   3,    0,     0,     0,     0,     0,     0,     0},
+/* RELEASE_DELAY      */{ 0,    0,     0,      0,     0,   0,    0,   0,    0,     1,     0,     0,     0,     0,     0},
+/* RELEASE_DELAY_TOUT */{ 0,    0,     0,      0,     0,   0,    0,   0,    0,     2,     0,     0,     0,     0,     0},
+/* DHKEY EVT          */{ 0,    0,     0,      0,     0,   0,    4,   0,    0,     0,     0,     2,     0,     0,     0},
+/* PASSKEY_CONF_EVT   */{ 0,    6,     0,      0,     0,   0,    0,   0,    0,     0,     0,     0,     0,     0,     0},
+/* INIT_SEC_EVT       */{ 0,    0,     0,      4,     0,   0,    0,   0,    0,     0,     0,     0,     0,     0,     0},
+/* PUB_KEY_EVT        */{ 0,    0,     0,      0,     0,   0,    0,   0,    0,     0,     0,     0,     0,     0,     0},
+/* CONF_REPEAT        */{ 0,    0,     0,      0,     0,   0,    5,   0,    0,     0,     0,     0,     0,     0,     0},
+/* LOC_KEYPRESS       */{ 0,    8,     0,      0,     0,   0,    0,   0,    0,     0,     0,     0,     0,     0,     0},
+};
+
+#else
+
 /************ SMP Master FSM State/Event Indirection Table **************/
 static const UINT8 smp_ma_entry_map[][SMP_ST_MAX] =
 {
@@ -177,6 +278,11 @@ static const UINT8 smp_ma_entry_map[][SMP_ST_MAX] =
 /* ID_ADDR            */{ 0,    0,     0,      0,     0,   0,    0,   0,    5,     0   },
 /* SIGN_INFO          */{ 0,    0,     0,      0,     0,   0,    0,   0,    3,     0   },
 /* SEC_REQ            */{ 2,    0,     0,      0,     0,   0,    0,   0,    0,     0   },
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+/* PUB_KEY            */{ 0,    0,     0,      0,     0,   0,    0,   0,    0,     0   },
+/* DH_KEY             */{ 0,    0,     0,      0,     0,   0,    0,   0,    0,     0   },
+/* KEY_PRESS          */{ 0,    0,     0,      0,     0,   0,    0,   0,    0,     0   },
+#endif
 /* KEY_READY          */{ 0,    3,     0,      3,     1,   0,    2,   1,    6,     0   },
 /* ENC_CMPL           */{ 0,    0,     0,      0,     0,   0,    0,   2,    0,     0   },
 /* L2C_CONN           */{ 1,    0,     0,      0,     0,   0,    0,   0,    0,     0   },
@@ -191,6 +297,8 @@ static const UINT8 smp_ma_entry_map[][SMP_ST_MAX] =
 /* RELEASE_DELAY      */{ 0,    0,     0,      0,     0,   0,    0,   0,    0,     1   },
 /* RELEASE_DELAY_TOUT */{ 0,    0,     0,      0,     0,   0,    0,   0,    0,     2   },
 };
+
+#endif
 
 static const UINT8 smp_all_table[][SMP_SM_NUM_COLS] = {
 /* Event       			Action                              Next State */
@@ -213,6 +321,12 @@ static const UINT8 smp_ma_wait_app_rsp_table[][SMP_SM_NUM_COLS] = {
 /* KEY_READY            */ { SMP_GENERATE_CONFIRM, SMP_SM_NO_ACTION,   SMP_ST_WAIT_CONFIRM},/* TK ready */
 /* ENC_REQ              */ { SMP_START_ENC,        SMP_FAST_CONN_PARAM,   SMP_ST_ENC_PENDING},/* start enc mode setup */
 /* DISCARD_SEC_REQ      */ { SMP_PROC_DISCARD,     SMP_SM_NO_ACTION,   SMP_ST_IDLE}
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+,
+/*SMP_API_PASSKEY_CONF_EVT*/{SMP_COMPUTE_COMMIT, SMP_SEND_COMMIT, SMP_ST_COMMIT},
+/*KEY_PASS NOT*/            {SMP_PROC_KEYPRESS_NOT, SMP_SM_NO_ACTION,   SMP_ST_WAIT_APP_RSP},
+/*LOCAL KP NOT*/            {SMP_SEND_KEYPRESS_NOT,SMP_SM_NO_ACTION,   SMP_ST_WAIT_APP_RSP}
+#endif
 };
 
 static const UINT8 smp_ma_pair_req_rsp_table [][SMP_SM_NUM_COLS] = {
@@ -220,16 +334,29 @@ static const UINT8 smp_ma_pair_req_rsp_table [][SMP_SM_NUM_COLS] = {
 /* PAIR_RSP */ { SMP_PROC_PAIR_CMD,     SMP_DECIDE_ASSO_MODEL,  SMP_ST_PAIR_REQ_RSP},
 /* TK_REQ   */ { SMP_SEND_APP_CBACK,    SMP_SM_NO_ACTION,       SMP_ST_WAIT_APP_RSP},
 /* KEY_READY */{ SMP_GENERATE_CONFIRM,  SMP_SM_NO_ACTION,       SMP_ST_WAIT_CONFIRM} /* TK ready */
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+,
+/* INIT_SECURE */{ SMP_SEND_PUB_KEY,  SMP_SM_NO_ACTION,       SMP_ST_WAIT_PUB_KEY}, /* TK ready */
+/*KEY_PASS NOT*/ {SMP_PROC_KEYPRESS_NOT, SMP_SM_NO_ACTION,    SMP_ST_PAIR_REQ_RSP}
+#endif
 };
 
 static const UINT8 smp_ma_wait_confirm_table[][SMP_SM_NUM_COLS] = {
 /* Event       			Action          Next State */
 /* KEY_READY*/ {SMP_SEND_CONFIRM,       SMP_SM_NO_ACTION,       SMP_ST_CONFIRM}/* CONFIRM ready */
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+,
+/*KEY_PASS NOT*/{SMP_PROC_KEYPRESS_NOT, SMP_SM_NO_ACTION,       SMP_ST_WAIT_CONFIRM}
+#endif
 };
 
 static const UINT8 smp_ma_confirm_table [][SMP_SM_NUM_COLS] = {
 /* Event       			Action          Next State */
 /* CONFIRM  */ { SMP_PROC_CONFIRM,      SMP_SEND_INIT,          SMP_ST_RAND}
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+,
+/*KEY_PASS NOT*/{SMP_PROC_KEYPRESS_NOT, SMP_SM_NO_ACTION,       SMP_ST_CONFIRM}
+#endif
 };
 
 static const UINT8 smp_ma_init_table [][SMP_SM_NUM_COLS] = {
@@ -237,6 +364,11 @@ static const UINT8 smp_ma_init_table [][SMP_SM_NUM_COLS] = {
 /* INIT     */ { SMP_PROC_INIT,         SMP_GENERATE_COMPARE,    SMP_ST_RAND},
 /* KEY_READY*/ { SMP_PROC_COMPARE,      SMP_SM_NO_ACTION,   SMP_ST_RAND},  /* Compare ready */
 /* ENC_REQ  */ { SMP_GENERATE_STK,      SMP_SM_NO_ACTION,   SMP_ST_ENC_PENDING}
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+,
+/* DHKEY EVT*/ { SMP_GENERATE_VERIFIER,   SMP_SM_NO_ACTION,  SMP_ST_WAIT_APP_RSP},
+/* REPEAT_EVT*/{ SMP_GENERATE_CONFIRM,    SMP_SM_NO_ACTION,  SMP_ST_WAIT_CONFIRM}
+#endif
 };
 static const UINT8 smp_ma_enc_pending_table[][SMP_SM_NUM_COLS] = {
 /* Event       			Action          Next State */
@@ -261,7 +393,76 @@ static const UINT8 smp_ma_rel_delay_table[][SMP_SM_NUM_COLS] = {
 /* L2C_DISC*/            {SMP_DELAY_TERMINATE,     SMP_SM_NO_ACTION,     SMP_ST_IDLE}
 };
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+static const UINT8 smp_ma_wait_pubkey_table[][SMP_SM_NUM_COLS] = {
+/*PUB_KEY_EVT*/  {SMP_PROC_PUB_KEY,    SMP_MODEL_SPEC_ACTION,   SMP_ST_WAIT_SC_CONFIRM}
+};
 
+static const UINT8 smp_ma_wait_sc_conf_table[][SMP_SM_NUM_COLS] = {
+/*CONFIRM_EVT*/  {SMP_PROC_CONFIRM,    SMP_GENERATE_NONCE,   SMP_ST_WAIT_NONCE}
+/*KEY READY EVT from OOB app cback {VERIFY_SC_CONFIRM_2} which will send a confirm evt*/
+};
+
+static const UINT8 smp_ma_wait_nonce_table[][SMP_SM_NUM_COLS] = {
+/*NONCE*/    {SMP_PROC_INIT,    SMP_VERIFY_SC_CONFIRM,    SMP_ST_WAIT_NONCE},
+/*DHKEY*/    {SMP_GENERATE_VERIFIER,   SMP_SM_NO_ACTION,  SMP_ST_WAIT_APP_RSP}
+};
+
+static const UINT8 smp_ma_commit_table[][SMP_SM_NUM_COLS] = {
+/*COMMIT EVT*/{SMP_PROCESS_COMMIT, SMP_SM_NO_ACTION, SMP_ST_COMMIT},
+/*ENC_REQ_EVT*/{SMP_COMPUTE_SC_LTK, SMP_SM_NO_ACTION, SMP_ST_ENC_PENDING}
+};
+
+static const UINT8 smp_ma_derive_table[][SMP_SM_NUM_COLS] = {
+/*BOND_REQ_EVT*/{SMP_DERIVE_LTK, SMP_KEY_DISTRIBUTE, SMP_ST_BOND_PENDING}
+};
+#endif
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+/************ SMP Slave FSM State/Event LE Secure conn Indirection Table **************/
+static const UINT8 smp_sl_entry_map[][SMP_ST_MAX] =
+{
+/* state name:            Idle Wait   SecReq Pair   Wait Confirm Init Enc   Bond  Rel     wait   wait  wait_sc  commit  derive_LTK
+                               AppRsp Pend   ReqRsp Cfm              Pend  Pend   Delay   pubkey nonce confirm                  */
+/* PAIR_REQ */           { 2,    0,    1,      0,     0,   0,    0,   0,    0,     0,       0,     0,     0,     0,     0},
+/* PAIR_RSP */           { 0,    0,    0,      0,     0,   0,    0,   0,    0,     0,       0,     0,     0,     0,     0},
+/* CONFIRM  */           { 0,    4,    0,      1,     1,   0,    0,   0,    0,     0,       0,     0,     2,     0,     0},
+/* INIT     */           { 0,    0,    0,      0,     0,   1,    2,   0,    0,     0,       0,     2,     3,     0,     0},
+/* PAIR_FAIL*/           { 0,    0x81, 0x81,   0x81,  0x81,0x81, 0x81,0x81, 0,     0,       0x81,  0x81,  0x81,  0x81, 0x81},
+/* ENC_INFO */           { 0,    0,    0,      0,     0,   0,    0,   0,    3,     0,       0,     0,     0,     0,     0},
+/* MASTER_ID*/           { 0,    0,    0,      0,     0,   0,    0,   0,    5,     0,       0,     0,     0,     0,     0},
+/* ID_INFO  */           { 0,    0,    0,      0,     0,   0,    0,   0,    4,     0,       0,     0,     0,     0,     0},
+/* ID_ADDR  */           { 0,    0,    0,      0,     0,   0,    0,   0,    6,     0,       0,     0,     0,     0,     0},
+/* SIGN_INFO*/           { 0,    0,    0,      0,     0,   0,    0,   0,    2,     0,       0,     0,     0,     0,     0},
+/* SEC_REQ  */           { 0,    0,    0,      0,     0,   0,    0,   0,    0,     0,       0,     0,     0,     0,     0},
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+/* PUB_KEY  */           { 0,    0,     0,      4,     0,   0,    0,   0,    0,    0,       0,     0,     0,     0,     0},
+/* DH_KEY_CHECK*/        { 0,    6,     0,      0,     0,   0,    0,   0,    0,    0,       0,     0,     0,     1,     0},
+/* KEY_PRESS*/           { 0,    7,     0,      5,     3,   3,    0,   0,    0,    0,       0,     0,     0,     0,     0},
+#endif
+/* KEY_READY*/           { 0,    3,    0,      3,     2,   2,    1,   2,    1,     0,       0,     1,     0,     2,     0},
+/* ENC_CMPL */           { 0,    0,    2,      0,     0,   0,    0,   3,    0,     0,       0,     0,     0,     0,     0},
+/* L2C_CONN */           { 1,    0,    0,      0,     0,   0,    0,   0,    0,     0,       0,     0,     0,     0,     0},
+/* L2C_DISC */           { 0,    0x83, 3,   0x83,  0x83,0x83, 0x83,0x83, 0x83,     2,       0x83,  0x83,  0x83,  0x83, 0x83},
+/* IO_RSP   */           { 0,    1,    0,      0,     0,   0,    0,   0,    0,     0,       0,     0,     0,     0,     0},
+/* SEC_GRANT*/           { 0,    2,    0,      0,     0,   0,    0,   0,    0,     0,       0,     0,     0,     0,     0},
+
+/* TK_REQ   */           { 0,    0,    0,      2,     0,   0,    0,   0,    0,     0,       0,     0,     0,     0,     0},
+/* AUTH_CMPL*/           { 0,    0x82, 0x82,   0x82,  0x82,0x82, 0x82,0x82, 0x82,  0,       0x82,  0x82,  0x82,  0x82, 0x82},
+/* ENC_REQ  */           { 0,    0,    0,      0,     0,   0,    0,   1,    0,     0,       0,     0,     0,     0,     0},
+/* BOND_REQ */           { 0,    0,    0,      0,     0,   0,    0,   4,    0,     0,       0,     0,     0,     0,     1},
+/* DISCARD_SEC_REQ    */ { 0,    0,    0,      0,     0,   0,    0,   0,    0,     0,       0,     0,     0,     0,     0},
+/* RELEASE_DELAY      */ { 0,    0,    0,      0,     0,   0,    0,   0,    0,     1,       0,     0,     0,     0,     0},
+/* RELEASE_DELAY_TOUT */ { 0,    0,    0,      0,     0,   0,    0,   0,    0,     2,       0,     0,     0,     0,     0},
+/* DHKEY EVT          */ { 0,    0,    0,      0,     0,   0,    3,   0,    0,     0,       0,     3,     0,     0,     0},
+/* PASSKEY_CONF_EVT   */ { 0,    5,    0,      0,     0,   0,    0,   0,    0,     0,       0,     0,     0,     0,     0},
+/* INIT_SEC_EVT       */ { 0,    0,    0,      0,     0,   0,    0,   0,    0,     0,       0,     0,     0,     0,     0},
+/* PUB_KEY_EVT        */ { 0,    0,    0,      0,     0,   0,    0,   0,    0,     0,       0,     0,     1,     0,     0},
+/* CONF_REPEAT        */ { 0,    0,    0,      0,     0,   0,    4,   0,    0,     0,       0,     0,     0,     0,     0},
+/* LOC_KEYPRESS       */ { 0,    8,    0,      0,     0,   4,    0,   0,    0,     0,       0,     0,     0,     0,     0},
+};
+#else
 /************ SMP Slave FSM State/Event Indirection Table **************/
 static const UINT8 smp_sl_entry_map[][SMP_ST_MAX] =
 {
@@ -279,6 +480,11 @@ static const UINT8 smp_sl_entry_map[][SMP_ST_MAX] =
 /* SIGN_INFO*/           { 0,    0,    0,      0,     0,   0,    0,   0,    2,     0       },
 /* SEC_REQ  */           { 0,    0,    0,      0,     0,   0,    0,   0,    0,     0       },
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+/* PUB_KEY  */           { 0,    0,     0,      0,     0,   0,    0,   0,    0,     0   },
+/* DH_KEY   */           { 0,    0,     0,      0,     0,   0,    0,   0,    0,     0   },
+/* KEY_PRESS*/           { 0,    0,     0,      0,     0,   0,    0,   0,    0,     0   },
+#endif
 /* KEY_READY*/           { 0,    3,    0,      3,     2,   2,    1,   2,    1,     0       },
 /* ENC_CMPL */           { 0,    0,    2,      0,     0,   0,    0,   3,    0,     0       },
 /* L2C_CONN */           { 1,    0,    0,      0,     0,   0,    0,   0,    0,     0       },
@@ -294,7 +500,7 @@ static const UINT8 smp_sl_entry_map[][SMP_ST_MAX] =
 /* RELEASE_DELAY      */ { 0,    0,    0,      0,     0,   0,    0,   0,    0,     1       },
 /* RELEASE_DELAY_TOUT */ { 0,    0,    0,      0,     0,   0,    0,   0,    0,     2       },
 };
-
+#endif
 static const UINT8 smp_sl_idle_table[][SMP_SM_NUM_COLS] = {
 /* Event       			Action                              Next State */
 /* L2C_CONN */      {SMP_SEND_APP_CBACK,  SMP_SM_NO_ACTION,       SMP_ST_WAIT_APP_RSP},
@@ -307,6 +513,13 @@ static const UINT8 smp_sl_wait_app_rsp_table [][SMP_SM_NUM_COLS] = {
 /* SEC_GRANT */ {SMP_PROC_SEC_GRANT,    SMP_SEND_APP_CBACK,     SMP_ST_WAIT_APP_RSP},
 /* KEY_READY */ {SMP_PROC_SL_KEY,       SMP_SM_NO_ACTION,       SMP_ST_WAIT_APP_RSP},/* TK ready */
 /* CONFIRM   */ {SMP_PROC_CONFIRM,      SMP_SM_NO_ACTION,       SMP_ST_CONFIRM}
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+,
+/*KEY_CFM_EVT*/ {SMP_COMPUTE_COMMIT,    SMP_SM_NO_ACTION,       SMP_ST_COMMIT},
+/*DHKEY_CHECK*/ {SMP_PROCESS_COMMIT,    SMP_SM_NO_ACTION,       SMP_ST_WAIT_APP_RSP},
+/*KEY_PASS NOT*/{SMP_PROC_KEYPRESS_NOT, SMP_SM_NO_ACTION,       SMP_ST_WAIT_APP_RSP},
+/*LOCAL KP NOT*/{SMP_SEND_KEYPRESS_NOT, SMP_SM_NO_ACTION,       SMP_ST_WAIT_APP_RSP}
+#endif
 };
 
 static const UINT8 smp_sl_sec_request_table[][SMP_SM_NUM_COLS] = {
@@ -320,23 +533,41 @@ static const UINT8 smp_sl_pair_req_rsp_table[][SMP_SM_NUM_COLS] = {
 /* CONFIRM  */ {SMP_PROC_CONFIRM,       SMP_SM_NO_ACTION,   SMP_ST_CONFIRM},
 /* TK_REQ   */ {SMP_SEND_APP_CBACK,     SMP_SM_NO_ACTION,   SMP_ST_WAIT_APP_RSP},
 /* KEY_READY */{SMP_PROC_SL_KEY,        SMP_SM_NO_ACTION,   SMP_ST_PAIR_REQ_RSP} /* TK/Confirm ready */
-
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+,
+/*PUB_KEY_EVT*/{SMP_PROC_PUB_KEY,   SMP_MODEL_SPEC_ACTION,  SMP_ST_WAIT_SC_CONFIRM},
+/*KEY_PASS NOT*/{SMP_PROC_KEYPRESS_NOT, SMP_SM_NO_ACTION,       SMP_ST_PAIR_REQ_RSP}
+#endif
 };
 
 static const UINT8 smp_sl_wait_confirm_table[][SMP_SM_NUM_COLS] = {
 /* Event       			Action                   			Next State */
 /* CONFIRM  */ {SMP_PROC_CONFIRM,       SMP_SEND_CONFIRM,   SMP_ST_CONFIRM},
 /* KEY_READY*/ {SMP_PROC_SL_KEY,        SMP_SM_NO_ACTION,   SMP_ST_WAIT_CONFIRM}
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+,
+/*KEY_PASS NOT*/{SMP_PROC_KEYPRESS_NOT, SMP_SM_NO_ACTION,       SMP_ST_WAIT_CONFIRM}
+#endif
 };
 static const UINT8 smp_sl_confirm_table [][SMP_SM_NUM_COLS] = {
 /* Event       			Action                   		Next State */
 /* INIT_EVT */{ SMP_PROC_INIT,          SMP_GENERATE_COMPARE,   SMP_ST_RAND},
 /* KEY_READY*/ {SMP_PROC_SL_KEY,        SMP_SM_NO_ACTION,       SMP_ST_CONFIRM} /* TK/Confirm ready */
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+,
+/*KEY_PASS NOT*/{SMP_PROC_KEYPRESS_NOT, SMP_SM_NO_ACTION,       SMP_ST_CONFIRM},
+/*LOCAL KP NOT*/{SMP_SEND_KEYPRESS_NOT, SMP_SM_NO_ACTION,       SMP_ST_WAIT_APP_RSP}
+#endif
 };
 static const UINT8 smp_sl_init_table [][SMP_SM_NUM_COLS] = {
 /* Event       			Action                   		        Next State */
 /* KEY_READY */ {SMP_PROC_COMPARE,      SMP_SM_NO_ACTION,       SMP_ST_RAND},   /* compare match */
 /* INIT_EVT  */ {SMP_SEND_INIT,         SMP_SM_NO_ACTION,       SMP_ST_ENC_PENDING}
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+,
+/* DHKEY EVT*/ { SMP_SEND_INIT,    SMP_GENERATE_VERIFIER,  SMP_ST_WAIT_APP_RSP},
+/* REPEAT_EVT*/{ SMP_SEND_INIT,    SMP_GENERATE_CONFIRM,   SMP_ST_PAIR_REQ_RSP}
+#endif
 };
 static const UINT8 smp_sl_enc_pending_table[][SMP_SM_NUM_COLS] = {
 /* Event       			Action                   		Next State */
@@ -362,6 +593,30 @@ static const UINT8 smp_sl_rel_delay_table[][SMP_SM_NUM_COLS] = {
 /* RELEASE_DELAY_TOUT*/  {SMP_PROC_REL_DELAY_TOUT, SMP_SM_NO_ACTION,      SMP_ST_IDLE}
 };
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+static const UINT8 smp_sl_wait_sc_conf_table[][SMP_SM_NUM_COLS] = {
+/*SMP_PUB_KEY_SENT_EVT*/ {SMP_GENERATE_NONCE, SMP_SM_NO_ACTION,    SMP_ST_WAIT_NONCE},
+/*CONFIRM EVT early resp from master*/{SMP_PROC_CONFIRM,   SMP_SM_NO_ACTION,    SMP_ST_PAIR_REQ_RSP},
+/*INIT_EVT(OOB)*/        {SMP_PROC_INIT,    SMP_SM_NO_ACTION,    SMP_ST_WAIT_SC_CONFIRM}
+/*KEY_READY EVT for OOB {SMP_VERIFY_SC_CONFIRM2 and sends a smp_pub_key_Sent_evt*/
+};
+
+static const UINT8 smp_sl_wait_nonce_table[][SMP_SM_NUM_COLS] = {
+/*KEY_READY EVT*/    {SMP_SEND_CONFIRM, SMP_SM_NO_ACTION,        SMP_ST_WAIT_NONCE},
+/*INIT EVT*/         {SMP_PROC_INIT,    SMP_SEND_INIT,           SMP_ST_WAIT_NONCE},
+/*DHKEY EVT*/        {SMP_GENERATE_VERIFIER, SMP_SM_NO_ACTION,    SMP_ST_WAIT_APP_RSP}
+};
+
+static const UINT8 smp_sl_commit_table[][SMP_SM_NUM_COLS] = {
+/*COMMIT_EVT*/   {SMP_PROCESS_COMMIT,   SMP_SM_NO_ACTION,        SMP_ST_COMMIT},
+/*KEY_READY*/    {SMP_SEND_COMMIT,      SMP_SM_NO_ACTION,        SMP_ST_ENC_PENDING}
+};
+
+static const UINT8 smp_sl_derive_table[][SMP_SM_NUM_COLS] = {
+/*BOND_REQ_EVT*/{SMP_DERIVE_LTK, SMP_KEY_DISTRIBUTE, SMP_ST_BOND_PENDING}
+};
+#endif
+
 static const tSMP_SM_TBL smp_state_table[][2] = {
     {smp_ma_idle_table,          smp_sl_idle_table},                  /* SMP_ST_IDLE*/
     {smp_ma_wait_app_rsp_table,  smp_sl_wait_app_rsp_table},           /* SMP_ST_WAIT_APP_RSP */
@@ -373,6 +628,14 @@ static const tSMP_SM_TBL smp_state_table[][2] = {
     {smp_ma_enc_pending_table,   smp_sl_enc_pending_table},            /* SMP_ST_ENC_PENDING */
     {smp_ma_bond_pending_table,  smp_sl_bond_pending_table},           /* SMP_ST_BOND_PENDING */
     {smp_ma_rel_delay_table,     smp_sl_rel_delay_table}               /* SMP_ST_RELEASE_DELAY */
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    ,
+    {smp_ma_wait_pubkey_table,   NULL},                              /* SMP_ST_WAIT_PUB_KEY */
+    {smp_ma_wait_nonce_table,    smp_sl_wait_nonce_table},            /* SMP_ST_WAIT_NONCE */
+    {smp_ma_wait_sc_conf_table,  smp_sl_wait_sc_conf_table},          /* SMP_ST_WAIT_SC_CONFIRM */
+    {smp_ma_commit_table,        smp_sl_commit_table},                 /* SMP_ST_COMMIT */
+    {smp_ma_derive_table,        smp_sl_derive_table}                 /*SMP_ST_DERIVE_LTK*/
+#endif
 };
 
 typedef const UINT8 (*tSMP_ENTRY_TBL)[SMP_ST_MAX];

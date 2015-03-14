@@ -256,6 +256,7 @@ typedef struct
 #define ARRAY16_TO_STREAM(p, a)  {register int ijk; for (ijk = 0; ijk < 16;           ijk++) *(p)++ = (UINT8) a[15 - ijk];}
 #define ARRAY8_TO_STREAM(p, a)   {register int ijk; for (ijk = 0; ijk < 8;            ijk++) *(p)++ = (UINT8) a[7 - ijk];}
 #define BDADDR_TO_STREAM(p, a)   {register int ijk; for (ijk = 0; ijk < BD_ADDR_LEN;  ijk++) *(p)++ = (UINT8) a[BD_ADDR_LEN - 1 - ijk];}
+#define BDADDR_TO_STREAM_BIGEND(p, a)   {register int ijk; for (ijk = 0; ijk < BD_ADDR_LEN;  ijk++) *(p)++ = (UINT8) a[ijk];}
 #define LAP_TO_STREAM(p, a)      {register int ijk; for (ijk = 0; ijk < LAP_LEN;      ijk++) *(p)++ = (UINT8) a[LAP_LEN - 1 - ijk];}
 #define DEVCLASS_TO_STREAM(p, a) {register int ijk; for (ijk = 0; ijk < DEV_CLASS_LEN;ijk++) *(p)++ = (UINT8) a[DEV_CLASS_LEN - 1 - ijk];}
 #define ARRAY_TO_STREAM(p, a, len) {register int ijk; for (ijk = 0; ijk < len;        ijk++) *(p)++ = (UINT8) a[ijk];}
@@ -336,6 +337,12 @@ typedef UINT8 AMP_LINK_KEY[AMP_LINK_KEY_LEN];   /* Dedicated AMP and GAMP Link K
 
 #define BT_OCTET16_LEN    16
 typedef UINT8 BT_OCTET16[BT_OCTET16_LEN];   /* octet array: size 16 */
+
+#define BT_OCTET32_LEN 32
+typedef UINT8 BT_OCTET32[BT_OCTET32_LEN];   /*octet array: size 32 */
+
+#define BT_OCTET64_LEN 64
+typedef UINT8 BT_OCTET64[BT_OCTET64_LEN];   /*octet array: size 64 */
 
 #define PIN_CODE_LEN    16
 typedef UINT8 PIN_CODE[PIN_CODE_LEN];       /* Pin Code (upto 128 bits) MSB is 0 */

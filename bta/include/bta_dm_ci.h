@@ -61,6 +61,22 @@ BTA_API extern void bta_dm_ci_io_req(BD_ADDR bd_addr, tBTA_IO_CAP io_cap,
 *******************************************************************************/
 BTA_API extern void bta_dm_ci_rmt_oob(BOOLEAN accept, BD_ADDR bd_addr,
                                       BT_OCTET16 c, BT_OCTET16 r);
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+/*******************************************************************************
+**
+** Function         bta_dm_ci_ble_rmt_oob
+**
+** Description      This function must be called
+**                  to provide the OOB data associated
+**                  with the remote device.
+**
+** Returns          void
+**
+*******************************************************************************/
+BTA_API extern void bta_dm_ci_ble_rmt_oob(BOOLEAN accept, BD_ADDR bd_addr,
+                                      BT_OCTET16 c, BT_OCTET16 r);
+#endif
+
 /*******************************************************************************
 **
 ** Function         bta_dm_sco_ci_data_ready

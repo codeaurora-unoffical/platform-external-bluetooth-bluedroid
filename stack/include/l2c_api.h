@@ -966,7 +966,7 @@ typedef void (tL2CA_FIXED_CHNL_CB) (BD_ADDR, BOOLEAN, UINT16, tBT_TRANSPORT);
 **      BD Address of remote
 **      Pointer to buffer with data
 */
-typedef void (tL2CA_FIXED_DATA_CB) (BD_ADDR, BT_HDR *);
+typedef void (tL2CA_FIXED_DATA_CB) (BD_ADDR, BT_HDR *, tBT_TRANSPORT);
 
 /* Congestion status callback protype. This callback is optional. If
 ** an application tries to send data when the transmit queue is full,
@@ -1017,6 +1017,21 @@ L2C_API extern BOOLEAN  L2CA_RegisterFixedChannel (UINT16 fixed_cid, tL2CAP_FIXE
 **
 *******************************************************************************/
 L2C_API extern BOOLEAN L2CA_ConnectFixedChnl (UINT16 fixed_cid, BD_ADDR bd_addr);
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+/*******************************************************************************
+**
+**  Function        L2CA_CrossTransportPair
+**
+**  Description     Send SMP pair request on BR/EDR link
+**
+**  Parameters:     BD Address of remote
+**
+**  Return value:   TRUE if pairing started
+**
+*******************************************************************************/
+L2C_API extern BOOLEAN L2CA_CrossTransportPair(BD_ADDR rem_bda);
+#endif
 
 /*******************************************************************************
 **

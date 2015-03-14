@@ -144,6 +144,11 @@ static void btu_hcif_encryption_key_refresh_cmpl_evt (UINT8 *p);
 static void btu_ble_rc_param_req_evt(UINT8 *p);
 #endif
     #endif
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+static void btu_ble_proc_public_key(UINT8 *p, UINT16 evt_len);
+static void btu_ble_proc_dhkey(UINT8 *p, UINT16 evt_len);
+#endif
 /*******************************************************************************
 **
 ** Function         btu_hcif_store_cmd
@@ -428,6 +433,14 @@ void btu_hcif_process_event (UINT8 controller_id, BT_HDR *p_msg)
                     break;
 #endif
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+                case HCI_BLE_PUBLIC_KEY_EVT:
+                    btu_ble_proc_public_key(p, hci_evt_len);
+                    break;
+                case HCI_BLE_DHKEY_GEN_EVT:
+                    btu_ble_proc_dhkey(p, hci_evt_len);
+                    break;
+#endif
             }
             break;
 #endif /* BLE_INCLUDED */
@@ -2351,6 +2364,18 @@ static void btu_ble_proc_ltk_req (UINT8 *p)
 #endif
     /* This is empty until an upper layer cares about returning event */
 }
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+static void btu_ble_proc_public_key(UINT8 *p, UINT16 evt_len)
+{
+    btm_ble_proc_public_key(p, evt_len);
+}
+
+static void btu_ble_proc_dhkey(UINT8 *p, UINT16 evt_len)
+{
+    btm_ble_proc_dhkey(p, evt_len);
+}
+#endif
 /**********************************************
 ** End of BLE Events Handler
 ***********************************************/

@@ -33,8 +33,8 @@
 #include "l2cdefs.h"
 #include "l2c_int.h"
 #include "btu.h"
-#include "btm_api.h"
-
+#include "btm_int.h"
+#include "smp_api.h"
 /*******************************************************************************
 **
 ** Function         L2CA_Register
@@ -1346,6 +1346,118 @@ BOOLEAN  L2CA_RegisterFixedChannel (UINT16 fixed_cid, tL2CAP_FIXED_CHNL_REG *p_f
     return (TRUE);
 }
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+/*******************************************************************************
+**
+**  Function        L2CA_CrossTransportPair
+**
+**  Description     SMP pair over BR/EDR link
+**
+**  Parameters:     rem bda
+**
+**  Return value:   TRUE if SMP pair starts
+**
+*******************************************************************************/
+BOOLEAN L2CA_CrossTransportPair(BD_ADDR rem_bda)
+{
+    tL2C_LCB        *p_lcb;
+    tBT_TRANSPORT   transport = BT_TRANSPORT_BR_EDR;
+    UINT16 fixed_cid = L2CAP_SMP_BREDR_CID;
+    tBTM_SEC_DEV_REC    *p_dev_info = NULL;
+    tBTM_SEC_DEV_REC    *p_dev_info_static = NULL;
+
+    L2CAP_TRACE_DEBUG("%s", __FUNCTION__);
+    /* Fail if BT is not yet up */
+    if (!BTM_IsDeviceUp())
+    {
+        L2CAP_TRACE_WARNING ("L2CA_CrossTransportPair(0x%04x) - BTU not ready", fixed_cid);
+        return (FALSE);
+    }
+
+    /*get the device record*/
+    if ((p_dev_info = btm_find_dev (rem_bda)) != NULL)
+    {
+        L2CAP_TRACE_DEBUG("%s, linkkey type=%d, sec_flags=0x%2x", __FUNCTION__, p_dev_info->link_key_type, p_dev_info->sec_flags);
+        if(!(p_dev_info->sec_flags & BTM_SEC_LINK_KEY_KNOWN) || !(p_dev_info->sec_flags & BTM_SEC_ENCRYPTED))
+        {
+            L2CAP_TRACE_WARNING ("L2CA_CrossTransportPair - link not paired or encrypted yet");
+            return FALSE;
+        }
+        if(p_dev_info->sec_flags & BTM_SEC_LE_LINK_KEY_KNOWN)
+        {
+            L2CAP_TRACE_ERROR("%s, device already LE encrypted with same addr sec_flag=0x%x, linkkeytype=%d", __FUNCTION__, p_dev_info->sec_flags, p_dev_info->link_key_type);
+            /* LTK is already authenticated or linkkey is not authenticated*/
+            if((p_dev_info->sec_flags & BTM_SEC_LE_LINK_KEY_AUTHED) ||
+               ((p_dev_info->link_key_type != HCI_LKEY_TYPE_AUTH_COMB) && (p_dev_info->link_key_type != HCI_LKEY_TYPE_AUTH_COMB_P256)))
+            {
+                return FALSE;
+            }
+        }
+    }
+    else
+    {
+        L2CAP_TRACE_WARNING ("L2CA_CrossTransportPair - dev record not found");
+        return FALSE;
+    }
+
+    /*we do not want an SMP pair if LTK has already been created for this rem*/
+    p_dev_info_static = btm_find_dev_by_public_static_addr(rem_bda);
+
+    if(p_dev_info != NULL && p_dev_info_static != NULL && (p_dev_info_static->sec_flags & BTM_SEC_LE_LINK_KEY_KNOWN))
+    {
+        L2CAP_TRACE_ERROR("%s, LE remote is already SMP paired, sec_flag=0x%x, linkyetype=%d", __FUNCTION__, p_dev_info_static->sec_flags, p_dev_info->link_key_type);
+        /* LTK is already authenticated or linkkey is not authenticated*/
+        if((p_dev_info_static->sec_flags & BTM_SEC_LE_LINK_KEY_AUTHED) ||
+           ((p_dev_info->link_key_type != HCI_LKEY_TYPE_AUTH_COMB) && (p_dev_info->link_key_type != HCI_LKEY_TYPE_AUTH_COMB_P256)))
+        {
+            return FALSE;
+        }
+    }
+
+    /* If we already have a link to the remote, check for SMP pairing conditions */
+    if ((p_lcb = l2cu_find_lcb_by_bd_addr (rem_bda, transport)) != NULL)
+    {
+        L2CAP_TRACE_DEBUG("%s, mask=0x%2x", __FUNCTION__, p_lcb->peer_chnl_mask[0]);
+        if (!(p_lcb->peer_chnl_mask[0] & (1 << fixed_cid)))
+        {
+            L2CAP_TRACE_EVENT  ("L2CA_CrossTransportPair CID:0x%04x  BDA: %08x%04x not supported",
+                fixed_cid,(rem_bda[0]<<24)+(rem_bda[1]<<16)+(rem_bda[2]<<8)+rem_bda[3],
+                (rem_bda[4]<<8)+rem_bda[5]);
+            return (FALSE);
+        }
+        /* Get a CCB and link the lcb to it */
+        if (!l2cu_initialize_fixed_ccb (p_lcb, fixed_cid,
+            &l2cb.fixed_reg[fixed_cid - L2CAP_FIRST_FIXED_CHNL].fixed_chnl_opts))
+        {
+            L2CAP_TRACE_WARNING ("L2CA_CrossTransportPair(0x%04x) - LCB but no CCB", fixed_cid);
+            return (FALSE);
+        }
+
+        /* racing with disconnecting, queue the connection request */
+        if (p_lcb->link_state == LST_DISCONNECTING)
+        {
+            L2CAP_TRACE_DEBUG ("L2CA_CrossTransportPair - link disconnecting: RETRY LATER");
+            /* Save ccb so it can be started after disconnect is finished */
+            p_lcb->p_pending_ccb = p_lcb->p_fixed_ccbs[fixed_cid - L2CAP_FIRST_FIXED_CHNL];
+            return (FALSE);
+        }
+        if(SMP_Pair_Bredr (rem_bda) == SMP_STARTED)
+        {
+            (*l2cb.fixed_reg[fixed_cid - L2CAP_FIRST_FIXED_CHNL].pL2CA_FixedConn_Cb)
+            (p_lcb->remote_bd_addr, TRUE, 0, p_lcb->transport);
+            return (TRUE);
+        }
+        else
+        {
+            return FALSE;
+        }
+    }
+    else
+    {
+        return (FALSE);
+    }
+}
+#endif
 /*******************************************************************************
 **
 **  Function        L2CA_ConnectFixedChnl
@@ -1475,6 +1587,14 @@ UINT16 L2CA_SendFixedChnlData (UINT16 fixed_cid, BD_ADDR rem_bda, BT_HDR *p_buf)
 #if BLE_INCLUDED == TRUE
     if (fixed_cid >= L2CAP_ATT_CID && fixed_cid <= L2CAP_SMP_CID)
         transport = BT_TRANSPORT_LE;
+#endif
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    if(fixed_cid == L2CAP_SMP_BREDR_CID)
+    {
+        transport = BT_TRANSPORT_BR_EDR;
+        L2CAP_TRACE_DEBUG("%s, SMP over BR/EDR", __FUNCTION__);
+    }
 #endif
 
     /* Check CID is valid and registered */

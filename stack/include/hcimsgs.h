@@ -1274,6 +1274,9 @@ HCI_API extern void btsnd_hcie_ext_inquiry_result(void *buffer, UINT8 num_resp, 
 #define HCIC_PARAM_SIZE_BLE_ENCRYPT             32
 #define HCIC_PARAM_SIZE_BLE_RAND                0
 #define HCIC_PARAM_SIZE_WRITE_LE_HOST_SUPPORTED	2
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define HCIC_PARAM_SIZE_GEN_DHKEY_SIZE          64
+#endif
 
 #define HCIC_BLE_RAND_DI_SIZE                   8
 #define HCIC_BLE_ENCRYT_KEY_SIZE                16
@@ -1374,7 +1377,11 @@ HCI_API extern BOOLEAN btsnd_hcic_ble_rc_param_req_neg_reply(UINT16 handle, UINT
 
 #endif /* BLE_LLT_INCLUDED */
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+HCI_API extern BOOLEAN btsnd_hcic_ble_generate_pub_key (void);
 
+HCI_API extern BOOLEAN btsnd_hcic_ble_generate_dhkey (BT_OCTET64 pub_key);
+#endif /* LE SC*/
 #endif /* BLE_INCLUDED */
 
 #ifdef __cplusplus

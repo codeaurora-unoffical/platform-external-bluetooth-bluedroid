@@ -133,6 +133,11 @@ const tBTA_DM_ACTION bta_dm_action[] =
     bta_dm_execute_callback,     /*  BTA_DM_API_EXECUTE_CBACK_EVT        */
     bta_dm_set_afh_channel_assesment,     /* BTA_DM_API_SET_AFH_CHANNEL_ASSESMENT_EVT */
     bta_dm_hci_raw_command    /* BTA_DM_API_HCI_RAW_COMMAND_EVT */
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    ,
+    bta_dm_send_key_press_notify, /*BTA_DM_API_KEY_NOT_EVT*/
+    bta_dm_ci_ble_rmt_oob_act     /*BTA_DM_CI_BLE_RMT_OOB_EVT*/
+#endif
 };
 
 

@@ -35,7 +35,7 @@
 
 
 static void smp_connect_cback (BD_ADDR bd_addr, BOOLEAN connected, UINT16 reason, tBT_TRANSPORT transport);
-static void smp_data_ind (BD_ADDR bd_addr, BT_HDR *p_buf);
+static void smp_data_ind (BD_ADDR bd_addr, BT_HDR *p_buf, tBT_TRANSPORT transport);
 
 /*******************************************************************************
 **
@@ -63,6 +63,9 @@ void smp_l2cap_if_init (void)
 
     /* Now, register with L2CAP */
     L2CA_RegisterFixedChannel (L2CAP_SMP_CID, &fixed_reg);
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    L2CA_RegisterFixedChannel (L2CAP_SMP_BREDR_CID, &fixed_reg);
+#endif
 }
 
 /*******************************************************************************
@@ -82,9 +85,37 @@ static void smp_connect_cback (BD_ADDR bd_addr, BOOLEAN connected, UINT16 reason
 
     SMP_TRACE_EVENT ("SMDBG l2c smp_connect_cback ");
 
-    if (transport == BT_TRANSPORT_BR_EDR)
+    if (transport == BT_TRANSPORT_BR_EDR) /*&& memcmp(bd_addr, p_cb->pairing_bda, BD_ADDR_LEN) == 0*/
     {
-        SMP_TRACE_ERROR ("smp_connect_cback : Wrong transport");
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+        if(p_cb->state != SMP_ST_IDLE)
+        {
+            SMP_TRACE_EVENT ("SMDBG l2c smp_connect_cback SMP busy");
+            return;
+        }
+
+        if (connected)
+        {
+            if(!p_cb->connect_initialized)
+            {
+                p_cb->connect_initialized = TRUE;
+                /* initiating connection established */
+                /*change role to send sec req instead of pair req*/
+                p_cb->role = HCI_ROLE_MASTER;
+                /*Copy the BDA for short pairing*/
+                memcpy (p_cb->pairing_bda, bd_addr, BD_ADDR_LEN);
+                p_cb->flags = SMP_PAIR_FLAGS_WE_STARTED_DD;
+                p_cb->smp_bredr = TRUE;
+
+                /* initialize local i/r key to be default keys */
+                p_cb->loc_r_key = p_cb->loc_i_key =  SMP_SEC_DEFAULT_KEY;
+                p_cb->loc_auth_req = p_cb->peer_auth_req = SMP_DEFAULT_AUTH_REQ;
+                p_cb->cb_evt = SMP_IO_CAP_REQ_EVT;
+                smp_sm_event(p_cb, SMP_L2CAP_CONN_EVT, NULL);
+            }
+        }
+#endif
+        SMP_TRACE_ERROR ("smp_connect_cback : BR-EDR transport");
         return;
     }
 
@@ -129,12 +160,12 @@ static void smp_connect_cback (BD_ADDR bd_addr, BOOLEAN connected, UINT16 reason
 ** Returns          void
 **
 *******************************************************************************/
-static void smp_data_ind (BD_ADDR bd_addr, BT_HDR *p_buf)
+static void smp_data_ind (BD_ADDR bd_addr, BT_HDR *p_buf, tBT_TRANSPORT transport)
 {
     tSMP_CB *p_cb = &smp_cb;
     UINT8   *p = (UINT8 *)(p_buf + 1) + p_buf->offset;
     UINT8   cmd ;
-    SMP_TRACE_EVENT ("SMDBG l2c smp_data_ind");
+    SMP_TRACE_EVENT ("SMDBG l2c smp_data_ind, transport = %d", transport);
 
     SMP_TRACE_EVENT ("Got smp_data_ind");
 
@@ -153,7 +184,21 @@ static void smp_data_ind (BD_ADDR bd_addr, BT_HDR *p_buf)
     {
         if (p_cb->state == SMP_ST_IDLE)
         {
-            p_cb->role = L2CA_GetBleConnRole(bd_addr);
+            if(transport == BT_TRANSPORT_LE)
+            {
+                p_cb->role = L2CA_GetBleConnRole(bd_addr);
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+                p_cb->smp_bredr = FALSE;
+#endif
+            }
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+            else
+            {
+                p_cb->role = (cmd == SMP_OPCODE_PAIRING_REQ) ? \
+                              HCI_ROLE_SLAVE : HCI_ROLE_MASTER;
+                p_cb->smp_bredr = TRUE;
+            }
+#endif
             memcpy(&p_cb->pairing_bda[0], bd_addr, BD_ADDR_LEN);
         }
         else if (memcmp(&bd_addr[0], p_cb->pairing_bda, BD_ADDR_LEN))

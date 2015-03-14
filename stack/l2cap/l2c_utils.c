@@ -2958,6 +2958,10 @@ void l2cu_process_fixed_chnl_resp (tL2C_LCB *p_lcb)
             xx + L2CAP_FIRST_FIXED_CHNL >= L2CAP_ATT_CID &&
             xx + L2CAP_FIRST_FIXED_CHNL <= L2CAP_SMP_CID)
             continue;
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+        if(xx + L2CAP_FIRST_FIXED_CHNL == L2CAP_SMP_BREDR_CID)
+            continue;
+#endif
 #endif
         if (l2cb.fixed_reg[xx].pL2CA_FixedConn_Cb != NULL)
         {

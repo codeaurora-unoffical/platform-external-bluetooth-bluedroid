@@ -379,6 +379,27 @@ static int pin_reply(const bt_bdaddr_t *bd_addr, uint8_t accept,
     return btif_dm_pin_reply(bd_addr, accept, pin_len, pin_code);
 }
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+static int key_notify(const bt_bdaddr_t *bd_addr, uint8_t notification)
+{
+    /* sanity check */
+    if (interface_ready() == FALSE)
+        return BT_STATUS_NOT_READY;
+
+    return btif_dm_key_notify(bd_addr, notification);
+}
+
+static int smp_pair_on_bredr(const bt_bdaddr_t *bd_addr)
+{
+    /* sanity check */
+    if (interface_ready() == FALSE)
+        return BT_STATUS_NOT_READY;
+    BD_ADDR remote_bda;
+    bdcpy(remote_bda, bd_addr->address);
+    return L2CA_CrossTransportPair(remote_bda);
+}
+#endif
+
 static int ssp_reply(const bt_bdaddr_t *bd_addr, bt_ssp_variant_t variant,
                        uint8_t accept, uint32_t passkey)
 {
@@ -769,6 +790,14 @@ static const bt_interface_t bluetoothInterface = {
     bt_le_lpp_write_rssi_threshold,
     bt_le_lpp_enable_rssi_monitor,
     bt_le_lpp_read_rssi_threshold,
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    key_notify,
+    smp_pair_on_bredr
+#else
+    NULL,
+    NULL
+#endif
+
 };
 
 const bt_interface_t* bluetooth__get_bluetooth_interface ()

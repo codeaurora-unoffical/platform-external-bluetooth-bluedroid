@@ -263,6 +263,18 @@ uint16_t btif_dm_get_connection_state(const bt_bdaddr_t *bd_addr);
 *******************************************************************************/
 bt_status_t btif_dm_pin_reply( const bt_bdaddr_t *bd_addr, uint8_t accept,
                                uint8_t pin_len, bt_pin_code_t *pin_code);
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+/*******************************************************************************
+**
+** Function         btif_dm_key_notif
+**
+** Description      BT key press notifications
+**
+** Returns          bt_status_t
+**
+*******************************************************************************/
+bt_status_t btif_dm_key_notify( const bt_bdaddr_t *bd_addr, uint8_t notification);
+#endif
 
 /*******************************************************************************
 **
@@ -391,4 +403,9 @@ void btif_dm_read_energy_info();
 **
 *******************************************************************************/
 bt_status_t btif_config_hci_snoop_log(uint8_t enable);
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+bt_status_t btif_in_get_remote_device_properties(bt_bdaddr_t *bd_addr);
+#endif
+
 #endif /* BTIF_API_H */

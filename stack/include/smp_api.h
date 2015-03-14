@@ -37,6 +37,11 @@
 #define SMP_OOB_REQ_EVT         5       /* OOB request event */
 #define SMP_COMPLT_EVT          6       /* SMP complete event */
 #define SMP_DELAY_EVT           7       /* Release delay to prevent another encryption*/
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define SMP_PASSKEY_CONFIRM_EVT 8       /*passkey confirm evt for le secure conn*/
+#define SMP_DERIVE_LTK_EVT      9       /* LEK derivation from link is complete*/
+#define SMP_DHKEY_REQ_EVT       10       /* wait for dhkey generate evt from controller*/
+#endif
 typedef UINT8   tSMP_EVT;
 
 
@@ -50,6 +55,28 @@ typedef UINT8   tSMP_EVT;
 #define SMP_INVALID_CMD             0x07
 #define SMP_PAIR_FAIL_UNKNOWN       0x08
 #define SMP_REPEATED_ATTEMPTS       0x09
+/*Codes for LE secure conn*/
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define SMP_DHKEY_CHECK_FAIL        0x0B
+#define SMP_NUM_COMP_FAIL           0x0C
+#define SMP_BREDR_BUSY              0x0D
+#define SMP_NO_CROSS_TX             0x0E
+#define SMP_PAIR_FAILURE_MAX        SMP_NO_CROSS_TX
+/* self defined error code */
+#define SMP_PAIR_INTERNAL_ERR       0x0F
+#define SMP_UNKNOWN_IO_CAP          0x10    /* unknown IO capability, unable to decide associatino model */
+#define SMP_INIT_FAIL               0x11
+#define SMP_CONFIRM_FAIL            0x12
+#define SMP_BUSY                    0x13
+#define SMP_ENC_FAIL                0x14
+#define SMP_STARTED                 0x15
+#define SMP_RSP_TIMEOUT             0x16
+#define SMP_DIV_NOT_AVAIL           0x17
+#define SMP_FAIL                    0x18 /* unspecified failed reason */
+#define SMP_CONN_TOUT               0x19 /* unspecified failed reason */
+#define SMP_SEC_REQ_TOUT            0x1A
+#else
+/*codes for legacy only*/
 #define SMP_PAIR_FAILURE_MAX        SMP_REPEATED_ATTEMPTS
 /* self defined error code */
 #define SMP_PAIR_INTERNAL_ERR       0x0A
@@ -63,6 +90,9 @@ typedef UINT8   tSMP_EVT;
 #define SMP_DIV_NOT_AVAIL           0x12
 #define SMP_FAIL                    0x13 /* unspecified failed reason */
 #define SMP_CONN_TOUT               0x14 /* unspecified failed reason */
+#define SMP_SEC_REQ_TOUT            0x15
+#endif
+
 #define SMP_SUCCESS                 0
 
 typedef UINT8 tSMP_STATUS;
@@ -92,10 +122,18 @@ typedef UINT8  tSMP_OOB_FLAG;
 
 #define SMP_AUTH_NO_BOND        0x00
 #define SMP_AUTH_GEN_BOND       0x01 //todo sdh change GEN_BOND to BOND
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define SMP_SECURE_CONN         (1 << 3)
+#define SMP_KEY_PRESS_NOT       (1 << 4)
+#endif
 
 /* SMP Authentication requirement */
 #define SMP_AUTH_YN_BIT           (1 << 2)
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define SMP_AUTH_MASK           (SMP_AUTH_GEN_BOND|SMP_AUTH_YN_BIT|SMP_SECURE_CONN|SMP_KEY_PRESS_NOT)
+#else
 #define SMP_AUTH_MASK           (SMP_AUTH_GEN_BOND|SMP_AUTH_YN_BIT)
+#endif
 
 
 #define SMP_AUTH_BOND           SMP_AUTH_GEN_BOND
@@ -111,16 +149,30 @@ typedef UINT8 tSMP_AUTH_REQ;
 #define SMP_SEC_NONE                 0
 #define SMP_SEC_UNAUTHENTICATE      (1 << 0)
 #define SMP_SEC_AUTHENTICATED       (1 << 2)
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define SMP_SEC_LE_SECURE           (1 << 3)
+#endif
 typedef UINT8 tSMP_SEC_LEVEL;
 
 /* SMP key types */
 #define SMP_SEC_KEY_TYPE_ENC                (1 << 0)    /* encryption key */
 #define SMP_SEC_KEY_TYPE_ID                 (1 << 1)    /* identity key */
 #define SMP_SEC_KEY_TYPE_CSRK               (1 << 2)    /* slave CSRK */
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define SMP_SEC_KEY_TYPE_LINK               (1 << 3)    /*linkkey derivation*/
+#endif
 typedef UINT8 tSMP_KEYS;
 
 /* default security key distribution value */
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+#define SMP_SEC_DEFAULT_KEY                  (SMP_SEC_KEY_TYPE_ENC | SMP_SEC_KEY_TYPE_ID | SMP_SEC_KEY_TYPE_CSRK|SMP_SEC_KEY_TYPE_LINK)
+#else
 #define SMP_SEC_DEFAULT_KEY                  (SMP_SEC_KEY_TYPE_ENC | SMP_SEC_KEY_TYPE_ID | SMP_SEC_KEY_TYPE_CSRK)
+#endif
+
+/*define masks for key distribution*/
+#define SMP_SEC_KEY_MASK                     (SMP_SEC_KEY_TYPE_ENC | SMP_SEC_KEY_TYPE_ID | SMP_SEC_KEY_TYPE_CSRK)
+#define SMP_SEC_KEY_MASK_SECURE              (SMP_SEC_KEY_TYPE_ENC | SMP_SEC_KEY_TYPE_ID | SMP_SEC_KEY_TYPE_CSRK|SMP_SEC_KEY_TYPE_LINK)
 
 /* data type for BTM_SP_IO_REQ_EVT */
 typedef struct
@@ -220,6 +272,12 @@ extern "C"
 **
 *******************************************************************************/
     SMP_API extern tSMP_STATUS SMP_Pair (BD_ADDR bd_addr);
+
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    SMP_API extern tSMP_STATUS SMP_Pair_Bredr (BD_ADDR bd_addr);
+    SMP_API extern void SMP_KeyNotify (UINT8 notification);
+#endif
+
 /*******************************************************************************
 **
 ** Function         SMP_PairCancel
@@ -295,7 +353,10 @@ extern "C"
     SMP_API extern BOOLEAN SMP_Encrypt (UINT8 *key, UINT8 key_len,
                                         UINT8 *plain_text, UINT8 pt_len,
                                         tSMP_ENC *p_out);
-
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+    SMP_API extern void SMP_Generate_OOB_Confirm (void);
+    SMP_API extern void SMP_Save_OOB_Data(BT_OCTET16 confirm, BT_OCTET16 rand);
+#endif
 #ifdef __cplusplus
 }
 #endif

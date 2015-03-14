@@ -85,6 +85,34 @@ void bta_dm_ci_rmt_oob(BOOLEAN accept, BD_ADDR bd_addr, BT_OCTET16 c, BT_OCTET16
         bta_sys_sendmsg(p_msg);
     }
 }
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+/*******************************************************************************
+**
+** Function         bta_dm_ci_ble_rmt_oob
+**
+** Description      This function must be called
+**                  to provide the OOB data associated
+**                  with the remote device.
+**
+** Returns          void
+**
+*******************************************************************************/
+void bta_dm_ci_ble_rmt_oob(BOOLEAN accept, BD_ADDR bd_addr, BT_OCTET16 c, BT_OCTET16 r)
+{
+    tBTA_DM_CI_RMT_OOB    *p_msg;
+
+    if ((p_msg = (tBTA_DM_CI_RMT_OOB *) GKI_getbuf(sizeof(tBTA_DM_CI_RMT_OOB))) != NULL)
+    {
+        p_msg->hdr.event = BTA_DM_CI_BLE_RMT_OOB_EVT;
+        bdcpy(p_msg->bd_addr, bd_addr);
+        p_msg->accept    = accept;
+        memcpy(p_msg->c, c, BT_OCTET16_LEN);
+        memcpy(p_msg->r, r, BT_OCTET16_LEN);
+        bta_sys_sendmsg(p_msg);
+    }
+}
+#endif
+
 #endif /* BTM_OOB_INCLUDED */
 
 #if (BTM_SCO_HCI_INCLUDED == TRUE)

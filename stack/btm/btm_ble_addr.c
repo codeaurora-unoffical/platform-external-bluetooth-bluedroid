@@ -488,6 +488,12 @@ void btm_ble_refresh_rra(BD_ADDR static_bda, BD_ADDR rra)
 {
 #if BLE_PRIVACY_SPT == TRUE
     tBTM_SEC_DEV_REC    *p_sec_rec = btm_find_dev_by_public_static_addr(static_bda);
+    if(p_sec_rec == NULL)
+    {
+        BTM_TRACE_ERROR("%s: device record not found", __FUNCTION__);
+        return;
+    }
+
     tACL_CONN           *p_acl = btm_bda_to_acl (p_sec_rec->bd_addr, BT_TRANSPORT_LE);
     UINT8               rra_dummy = FALSE;
     BD_ADDR             dummy_bda = {0};

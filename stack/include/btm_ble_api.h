@@ -1096,6 +1096,22 @@ BTM_API extern tBTM_STATUS BTM_BleObserve(BOOLEAN start, UINT8 duration,
 *******************************************************************************/
 BTM_API extern void BTM_GetDeviceIDRoot (BT_OCTET16 ir);
 
+#if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
+/*******************************************************************************
+**
+** Function         BTM_GetDevicePubKey
+**
+** Description      This function is called to read the local device public
+**                  key
+**
+** Returns          void
+**                  the local device ER is copied into er
+**
+*******************************************************************************/
+
+BTM_API extern void BTM_GetDevicePubKey ( BT_OCTET64 pk);
+#endif
+
 /*******************************************************************************
 **
 ** Function         BTM_GetDeviceEncRoot
