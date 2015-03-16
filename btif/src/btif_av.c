@@ -1008,7 +1008,7 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
             }
             else
             {
-                btif_report_audio_state(BTAV_AUDIO_STATE_STOPPED, &(btif_av_cb.peer_bda));
+                btif_report_audio_state(BTAV_AUDIO_STATE_REMOTE_SUSPEND, &(btif_av_cb.peer_bda));
             }
 
             btif_sm_change_state(btif_av_cb.sm_handle, BTIF_AV_STATE_OPENED);
