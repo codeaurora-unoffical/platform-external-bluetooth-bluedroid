@@ -1419,7 +1419,31 @@ static void btif_av_handle_event(UINT16 event, char* p_param)
             index = HANDLE_TO_INDEX(p_bta_data->open.hndl);
             break;
         case BTA_AV_PENDING_EVT:
+            /* In race conditions, outgoing and incoming connections
+             * at same time check for BD address at index and if it
+             * does not match then check for first avialable index.
+             */
             index = HANDLE_TO_INDEX(p_bta_data->pend.hndl);
+            if (index >= 0 && index < btif_max_av_clients &&
+                memcmp (((tBTA_AV*)p_bta_data)->pend.bd_addr,
+                &(btif_av_cb[index].peer_bda),
+                sizeof(btif_av_cb[index].peer_bda)) == 0)
+            {
+                BTIF_TRACE_EVENT("incomming connection at index %d", index);
+            }
+            else
+            {
+                index = btif_av_idx_by_bdaddr(bd_null);
+                if (index >= btif_max_av_clients)
+                {
+                    BTIF_TRACE_ERROR("No free SCB available");
+                    BTA_AvDisconnect(p_bta_data->pend.bd_addr);
+                }
+                else
+                {
+                    BTIF_TRACE_EVENT("updated index for connection %d", index);
+                }
+            }
             break;
         case BTA_AV_REJECT_EVT:
             index = HANDLE_TO_INDEX(p_bta_data->reject.hndl);
@@ -2938,6 +2962,11 @@ BOOLEAN btif_av_get_multicast_state()
 BOOLEAN btif_av_get_ongoing_multicast()
 {
     int i = 0, j = 0;
+    if (!is_multicast_supported)
+    {
+        BTIF_TRACE_DEBUG("Multicast is Disabled");
+        return FALSE;
+    }
     for (i = 0; i < btif_max_av_clients; i++)
     {
         if (btif_av_cb[i].is_device_playing)
