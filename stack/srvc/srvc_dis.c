@@ -456,9 +456,6 @@ BOOLEAN DIS_ReadDISInfo(BD_ADDR peer_bda, tDIS_READ_CBACK *p_cback, tDIS_ATTR_MA
 {
     UINT16             conn_id;
 
-    /* Initialize the DIS client if it hasn't been initialized already. */
-    srvc_eng_init();
-
     /* For now we only handle one at a time */
     if (dis_cb.dis_read_uuid_idx != 0xff)
         return(FALSE);
