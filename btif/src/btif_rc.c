@@ -3227,6 +3227,16 @@ static void register_volumechange (UINT8 lbl, int index)
     rc_transaction_t *p_transaction=NULL;
     BTIF_TRACE_DEBUG("%s called with label:%d",__FUNCTION__,lbl);
 
+    for (int i = 0; i < btif_max_rc_clients; i++)
+    {
+        if (btif_rc_cb[i].rc_connected &&
+            !((btif_rc_cb[i].rc_features & BTA_AV_FEAT_ADV_CTRL) &&
+            (btif_rc_cb[i].rc_features & BTA_AV_FEAT_RCTG)))
+        {
+            BTIF_TRACE_DEBUG("ABS volume is not supported at %d", i);
+            return;
+        }
+    }
     avrc_cmd.cmd.opcode=0x00;
     avrc_cmd.pdu = AVRC_PDU_REGISTER_NOTIFICATION;
     avrc_cmd.reg_notif.event_id = AVRC_EVT_VOLUME_CHANGE;
