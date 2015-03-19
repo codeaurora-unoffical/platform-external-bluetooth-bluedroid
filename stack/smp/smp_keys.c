@@ -920,7 +920,6 @@ void smp_process_commit (tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
 
     BTM_ReadConnectionAddr( p_cb->pairing_bda, p_cb->local_bda, &p_cb->addr_type);
 
-    UINT8 res= *(UINT8 *)p_data;
     /*generate the mackey first*/
     if(p_cb->flags & SMP_PAIR_FLAGS_MACKEY_COMP) /*mackey already computed*/
     {
