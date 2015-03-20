@@ -103,7 +103,7 @@ static tGATT_PROFILE_CLCB *gatt_profile_find_clcb_by_bd_addr(BD_ADDR bda, tBT_TR
         }
     }
 
-    return p_clcb;
+    return NULL;
 }
 
 /*******************************************************************************
@@ -132,7 +132,10 @@ tGATT_PROFILE_CLCB *gatt_profile_clcb_alloc (UINT16 conn_id, BD_ADDR bda, tBT_TR
             break;
         }
     }
-    return p_clcb;
+    if(i_clcb < GATT_MAX_APPS)
+        return p_clcb;
+    else /*no available clcb*/
+        return NULL;
 }
 /*******************************************************************************
 **
