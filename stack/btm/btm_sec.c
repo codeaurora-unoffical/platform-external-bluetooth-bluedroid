@@ -3089,6 +3089,7 @@ void btm_sec_rmt_name_request_complete (UINT8 *p_bd_addr, UINT8 *p_bd_name, UINT
     int              i;
     DEV_CLASS        dev_class;
     UINT8            old_sec_state;
+    BOOLEAN          process_rnr = FALSE;
 
     BTM_TRACE_EVENT ("btm_sec_rmt_name_request_complete");
     if (((p_bd_addr == NULL) && !BTM_ACL_IS_CONNECTED(btm_cb.connecting_bda))
@@ -3143,6 +3144,8 @@ void btm_sec_rmt_name_request_complete (UINT8 *p_bd_addr, UINT8 *p_bd_name, UINT
     if (p_dev_rec)
     {
         old_sec_state = p_dev_rec->sec_state;
+        process_rnr = p_dev_rec->process_existing_rnr;
+        p_dev_rec->process_existing_rnr = FALSE;
         if (status == HCI_SUCCESS)
         {
             BCM_STRNCPY_S ((char *)p_dev_rec->sec_bd_name, sizeof (p_dev_rec->sec_bd_name), (char *)p_bd_name, BTM_MAX_REM_BD_NAME_LEN);
@@ -3308,8 +3311,12 @@ void btm_sec_rmt_name_request_complete (UINT8 *p_bd_addr, UINT8 *p_bd_name, UINT
         return;
     }
 
-    if (old_sec_state != BTM_SEC_STATE_GETTING_NAME)
+    if ((old_sec_state != BTM_SEC_STATE_GETTING_NAME) &&
+        (process_rnr == FALSE))
+    {
+        BTM_TRACE_ERROR ("Ignoring RNR as the state is not BTM_SEC_STATE_GETTING_NAME");
         return;
+    }
 
     /* If get name failed, notify the waiting layer */
     if (status != HCI_SUCCESS)
@@ -5411,6 +5418,8 @@ extern tBTM_STATUS btm_sec_execute_procedure (tBTM_SEC_DEV_REC *p_dev_rec)
     BTM_TRACE_EVENT ("btm_sec_execute_procedure: Required:0x%x Flags:0x%x State:%d",
                       p_dev_rec->security_required, p_dev_rec->sec_flags, p_dev_rec->sec_state);
 
+    tBTM_INQUIRY_VAR_ST *p_inq = &btm_cb.btm_inq_vars;
+
     /* There is a chance that we are getting name.  Wait until done. */
     if (p_dev_rec->sec_state != 0)
         return(BTM_CMD_STARTED);
@@ -5420,7 +5429,15 @@ extern tBTM_STATUS btm_sec_execute_procedure (tBTM_SEC_DEV_REC *p_dev_rec)
         && (p_dev_rec->hci_handle != BTM_SEC_INVALID_HANDLE))
     {
         BTM_TRACE_EVENT ("Security Manager: Start get name");
-        if (!btm_sec_start_get_name (p_dev_rec))
+        if((p_inq->remname_active) && (!memcmp(p_inq->remname_bda, p_dev_rec->bd_addr, BD_ADDR_LEN)))
+        {
+            BTM_TRACE_WARNING ("Security Manager:Other module started RNR already %02x:%02x:%02x:%02x:%02x:%02x",
+                    p_dev_rec->bd_addr[0], p_dev_rec->bd_addr[1], p_dev_rec->bd_addr[2],
+                    p_dev_rec->bd_addr[3], p_dev_rec->bd_addr[4], p_dev_rec->bd_addr[5]);
+            p_dev_rec->process_existing_rnr = TRUE;
+            return (BTM_CMD_STARTED);
+        }
+        else if (!btm_sec_start_get_name (p_dev_rec))
         {
             return(BTM_NO_RESOURCES);
         }
