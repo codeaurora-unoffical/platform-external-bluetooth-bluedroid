@@ -165,6 +165,7 @@ void btsock_rfc_cleanup()
         if(rfc_slots[i].id) {
             cleanup_rfc_slot(&rfc_slots[i]);
             list_free(rfc_slots[i].incoming_queue);
+            rfc_slots[i].incoming_queue = NULL;
         }
     }
     unlock_slot(&slot_lock);
@@ -666,7 +667,10 @@ static void cleanup_rfc_slot(rfc_slot_t* rs)
         rs->rfc_handle = 0;
     }
     free_rfc_slot_scn(rs);
-    list_clear(rs->incoming_queue);
+    if(rs->incoming_queue)
+    {
+        list_clear(rs->incoming_queue);
+    }
 
     rs->rfc_port_handle = 0;
     //cleanup the flag
