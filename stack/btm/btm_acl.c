@@ -353,8 +353,7 @@ void btm_acl_created (BD_ADDR bda, DEV_CLASS dc, BD_NAME bdn,
                     // Retrieve remote name only if not already in progress by security module
                     if (!(p_dev_rec->sec_state & BTM_SEC_STATE_GETTING_NAME))
                     {
-                        btsnd_hcic_rmt_name_req (p->remote_addr, HCI_PAGE_SCAN_REP_MODE_R1,
-                            HCI_MANDATARY_PAGE_SCAN_MODE, 0);
+                        BTM_ReadRemoteDeviceName(p->remote_addr, NULL, BT_TRANSPORT_BR_EDR);
                     }
 
                     btm_establish_continue (p);
