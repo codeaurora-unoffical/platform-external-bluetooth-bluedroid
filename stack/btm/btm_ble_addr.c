@@ -51,6 +51,7 @@ static void btm_gen_resolve_paddr_cmpl(tSMP_ENC *p)
     tBTM_LE_RANDOM_CB *p_cb = &btm_cb.ble_ctr_cb.addr_mgnt_cb;
     BTM_TRACE_EVENT ("btm_gen_resolve_paddr_cmpl");
 
+    UINT8 own_addr_type_old = p_cb->own_addr_type;
     if (p)
     {
         /* set hash to be LSB of rpAddress */
@@ -70,6 +71,12 @@ static void btm_gen_resolve_paddr_cmpl(tSMP_ENC *p)
 #else
         btu_start_timer_oneshot(&p_cb->raddr_timer_ent, BTU_TTYPE_BLE_RANDOM_ADDR,
                          BTM_BLE_PRIVATE_ADDR_INT);
+#endif
+#if (defined BLE_PRIVACY_SPT && BLE_PRIVACY_SPT == TRUE)
+        if (own_addr_type_old == BLE_ADDR_PUBLIC && btm_ble_get_conn_st() == BLE_BG_CONN) {
+            BTM_TRACE_EVENT ("suspending bg connection");
+            btm_ble_suspend_bg_conn();
+        }
 #endif
     }
     else

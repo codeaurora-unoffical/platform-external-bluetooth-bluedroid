@@ -1766,6 +1766,7 @@ void btm_ble_conn_complete(UINT8 *p, UINT16 evt_len)
         if (status != HCI_ERR_DIRECTED_ADVERTISING_TIMEOUT)
         {
             btm_ble_set_conn_st(BLE_CONN_IDLE);
+            BTM_TRACE_DEBUG ("cancel connection complete");
         }
         /* this is to work around broadcom firmware problem to handle
          * unsolicited command complete event for HCI_LE_Create_Connection_Cancel

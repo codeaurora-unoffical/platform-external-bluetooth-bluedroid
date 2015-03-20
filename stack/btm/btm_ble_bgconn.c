@@ -206,7 +206,6 @@ BOOLEAN btm_update_dev_to_white_list(BOOLEAN to_add, BD_ADDR bd_addr)
 
     /* enq pending WL device operation */
     btm_enq_wl_dev_operation(to_add, bd_addr);
-
     btm_resume_wl_activity(wl_state);
 
     return TRUE;
@@ -401,6 +400,7 @@ BOOLEAN btm_ble_start_auto_conn(BOOLEAN start)
     BD_ADDR dummy_bda = {0};
     BOOLEAN exec = TRUE;
     UINT16 scan_int, scan_win;
+    BTM_TRACE_DEBUG("btm_ble_start_auto_conn privacy = %d, start = %d", p_cb->privacy, start);
 
     if (start)
     {
