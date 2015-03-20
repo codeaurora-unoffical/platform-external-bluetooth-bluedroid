@@ -627,6 +627,7 @@ typedef struct
 #define BTM_SEC_RS_PENDING              1           /* Role Switch in progress */
 #define BTM_SEC_DISC_PENDING            2           /* Disconnect is pending */
     UINT8           rs_disc_pending;
+    BOOLEAN         process_existing_rnr;           /* process the existing RNR */
 #endif
 // btla-specific --
 #define BTM_SEC_NO_LAST_SERVICE_ID      0
