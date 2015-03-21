@@ -448,7 +448,7 @@ tBTTRC_FUNC_MAP bttrc_set_level_map[] = {
     {BTTRC_ID_STK_OBEX, BTTRC_ID_STK_OBEX, OBX_SetTraceLevel, "TRC_OBEX", DEFAULT_CONF_TRACE_LEVEL},
 #endif
 #if (AVCT_INCLUDED==TRUE)
-    //{BTTRC_ID_STK_AVCT, BTTRC_ID_STK_AVCT, NULL, "TRC_AVCT", DEFAULT_CONF_TRACE_LEVEL},
+    {BTTRC_ID_STK_AVCT, BTTRC_ID_STK_AVCT, AVCT_SetTraceLevel, "TRC_AVCT", DEFAULT_CONF_TRACE_LEVEL},
 #endif
 #if (AVDT_INCLUDED==TRUE)
     {BTTRC_ID_STK_AVDT, BTTRC_ID_STK_AVDT, AVDT_SetTraceLevel, "TRC_AVDT", DEFAULT_CONF_TRACE_LEVEL},
@@ -545,7 +545,7 @@ BT_API void BTE_InitTraceLevels( void )
 
         while (p_f_map->trc_name != NULL)
         {
-            ALOGI("BTE_InitTraceLevels -- %s", p_f_map->trc_name);
+            ALOGI("BTE_InitTraceLevels -- %s : Level %d", p_f_map->trc_name, p_f_map->trace_level);
 
             if (p_f_map->p_f)
                 p_f_map->p_f(p_f_map->trace_level);
