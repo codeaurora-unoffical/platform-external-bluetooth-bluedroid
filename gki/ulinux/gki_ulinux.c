@@ -24,6 +24,7 @@
 **              settop projects that already use pthreads and not pth.
 **
 *****************************************************************************/
+#include "bt_target.h"
 
 #include <assert.h>
 #include <sys/times.h>
@@ -95,11 +96,6 @@ static timer_t posix_timer;
 static bool timer_created;
 
 
-// If the next wakeup time is less than this threshold, we should acquire
-// a wakelock instead of setting a wake alarm so we're not bouncing in
-// and out of suspend frequently.
-static const uint32_t TIMER_INTERVAL_FOR_WAKELOCK_IN_MS = 3000;
-
 /*****************************************************************************
 **  Externs
 ******************************************************************************/
@@ -153,9 +149,18 @@ static bool set_nonwake_alarm(UINT64 delay_millis)
 /** Callback from Java thread after alarm from AlarmService fires. */
 static void bt_alarm_cb(void *data)
 {
+    UINT32 ticks_taken = 0;
+
     alarm_service.timer_last_expired_us = now_us();
-    UINT32 ticks_taken = GKI_MS_TO_TICKS((alarm_service.timer_last_expired_us
-                                        - alarm_service.timer_started_us) / 1000);
+    if (alarm_service.timer_last_expired_us > alarm_service.timer_started_us)
+    {
+        ticks_taken = GKI_MS_TO_TICKS((alarm_service.timer_last_expired_us
+                                       - alarm_service.timer_started_us) / 1000);
+    } else {
+        // this could happen on some platform
+        ALOGE("%s now_us %lld less than %lld", __func__, alarm_service.timer_last_expired_us,
+              alarm_service.timer_started_us);
+    }
 
     GKI_timer_update(ticks_taken > alarm_service.ticks_scheduled
                    ? ticks_taken : alarm_service.ticks_scheduled);
@@ -208,11 +213,11 @@ void alarm_service_reschedule()
     }
 
     UINT64 ticks_in_millis = GKI_TICKS_TO_MS(ticks_till_next_exp);
-    if (ticks_in_millis <= TIMER_INTERVAL_FOR_WAKELOCK_IN_MS)
+    if (ticks_in_millis <= GKI_TIMER_INTERVAL_FOR_WAKELOCK)
     {
         // The next deadline is close, just take a wakelock and set a regular (non-wake) timer.
         // check if it's already acquired
-        if(!alarm_service.wakelock)
+        if (!alarm_service.wakelock)
         {
             int rc = bt_os_callouts->acquire_wake_lock(WAKE_LOCK_ID);
             if (rc != BT_STATUS_SUCCESS)
@@ -239,7 +244,7 @@ void alarm_service_reschedule()
             ALOGV("%s set long alarm (%lldms), releasing wake lock.", __func__, ticks_in_millis);
         }
         // check if it's already released
-        if(alarm_service.wakelock)
+        if (alarm_service.wakelock)
         {
             alarm_service.wakelock = false;
             bt_os_callouts->release_wake_lock(WAKE_LOCK_ID);
