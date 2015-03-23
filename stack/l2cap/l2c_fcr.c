@@ -1475,7 +1475,20 @@ static BOOLEAN do_sar_reassembly (tL2C_CCB *p_ccb, BT_HDR *p_buf, UINT16 ctrl_wo
 
                 p_fcrb->p_rx_sdu->len += p_buf->len;
 
+#if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
+                if(p_ccb->ertm_info.user_rx_pool_id == GKI_POOL_ID_10)
+                {
+                    p_buf->event = 0x00;
+                    l2c_csm_execute (p_ccb, L2CEVT_L2CAP_DATA, p_buf);
+                }
+                else
+                {
+                    GKI_freebuf (p_buf);
+                }
+#else
                 GKI_freebuf (p_buf);
+#endif
+
                 p_buf = NULL;
 
                 if (sar_type == L2CAP_FCR_END_SDU)
@@ -1501,6 +1514,12 @@ static BOOLEAN do_sar_reassembly (tL2C_CCB *p_ccb, BT_HDR *p_buf, UINT16 ctrl_wo
                 (*l2cb.fixed_reg[p_ccb->local_cid - L2CAP_FIRST_FIXED_CHNL].pL2CA_FixedData_Cb)(p_ccb->p_lcb->remote_bd_addr, p_buf);
         }
         else
+#endif
+#if (defined(OBX_OVER_L2CAP_INCLUDED) && OBX_OVER_L2CAP_INCLUDED == TRUE)
+            if(p_ccb->ertm_info.user_rx_pool_id == GKI_POOL_ID_10)
+            {
+                p_buf->event = 0xffff;
+            }
 #endif
             l2c_csm_execute (p_ccb, L2CEVT_L2CAP_DATA, p_buf);
     }
