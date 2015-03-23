@@ -2847,7 +2847,6 @@ static void btif_get_num_aa_frame(UINT8 *num_of_iterations, UINT8 *num_of_frames
             } else {
                 result = 0;
             }
-
             VERBOSE("WRITE %d FRAMES", result);
         }
         break;
@@ -3227,6 +3226,7 @@ static void btif_media_aa_prep_sbc_2_send(UINT8 nb_frame)
             GKI_freebuf(p_buf);
         }
 
+
         if (btif_media_cb.TxAaQ.count >= MAX_OUTPUT_A2DP_FRAME_QUEUE_SZ) {
             UINT32 reset_rate_bytes = btif_media_cb.media_feeding_state.pcm.bytes_per_tick *
                                 (RESET_RATE_COUNTER_THRESHOLD_MS / BTIF_MEDIA_TIME_TICK);
@@ -3268,6 +3268,7 @@ static void btif_media_aa_prep_sbc_2_send(UINT8 nb_frame)
 
 static void btif_media_aa_prep_2_send(UINT8 nb_frame)
 {
+
     VERBOSE("btif_media_aa_prep_2_send : %d frames (queue %d)", nb_frame,
                        btif_media_cb.TxAaQ.count);
 
