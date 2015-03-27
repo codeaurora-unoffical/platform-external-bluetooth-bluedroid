@@ -92,6 +92,7 @@ void bta_av_del_rc(tBTA_AV_RCB *p_rcb)
 {
     tBTA_AV_SCB  *p_scb;
     UINT8        rc_handle;      /* connected AVRCP handle */
+    UINT16       status;
 
     p_scb = NULL;
     if(p_rcb->handle != BTA_AV_RC_HANDLE_NONE)
@@ -127,7 +128,12 @@ void bta_av_del_rc(tBTA_AV_RCB *p_rcb)
             p_rcb->lidx = 0;
         }
         /* else ACP && connected. do not clear the handle yet */
-        AVRC_Close(rc_handle);
+        status = AVRC_Close(rc_handle);
+        if(status != AVRC_SUCCESS)
+        {
+            APPL_TRACE_ERROR("bta_av_del_rc: Error in AVRC_Close %d", status);
+        }
+
         if (rc_handle == bta_av_cb.rc_acp_handle)
             bta_av_cb.rc_acp_handle = BTA_AV_RC_HANDLE_NONE;
         APPL_TRACE_EVENT("end del_rc handle: %d status=0x%x, rc_acp_handle:%d, lidx:%d",
