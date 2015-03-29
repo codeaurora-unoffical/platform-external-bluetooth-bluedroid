@@ -990,6 +990,7 @@ void btm_acl_encrypt_change (UINT16 handle, UINT8 status, UINT8 encr_enable)
     tBTM_SEC_DEV_REC  *p_dev_rec;
 #if (defined(BTM_BUSY_LEVEL_CHANGE_INCLUDED) && BTM_BUSY_LEVEL_CHANGE_INCLUDED == TRUE)
     tBTM_BL_ROLE_CHG_DATA   evt;
+    BD_ADDR btm_role_chg_data_bda;
 #endif
 
     BTM_TRACE_DEBUG ("btm_acl_encrypt_change handle=%d status=%d encr_enabl=%d",
@@ -1036,6 +1037,13 @@ void btm_acl_encrypt_change (UINT16 handle, UINT8 status, UINT8 encr_enable)
     {
         p->switch_role_state = BTM_ACL_SWKEY_STATE_IDLE;
         p->encrypt_state = BTM_ACL_ENCRYPT_STATE_IDLE;
+#if (defined(BTM_BUSY_LEVEL_CHANGE_INCLUDED) && BTM_BUSY_LEVEL_CHANGE_INCLUDED == TRUE)
+        BTM_TRACE_DEBUG ("btm_acl_encrypt_change storing role change bdaddr");
+        for(int i =0;i<6;i++)
+        {
+            btm_role_chg_data_bda[i] =  btm_cb.devcb.switch_role_ref_data.remote_bd_addr[i];
+        }
+#endif
         btm_acl_report_role_change(btm_cb.devcb.switch_role_ref_data.hci_status, p->remote_addr);
 
 #if (defined(BTM_BUSY_LEVEL_CHANGE_INCLUDED) && BTM_BUSY_LEVEL_CHANGE_INCLUDED == TRUE)
@@ -1044,7 +1052,7 @@ void btm_acl_encrypt_change (UINT16 handle, UINT8 status, UINT8 encr_enable)
         {
             evt.event       = BTM_BL_ROLE_CHG_EVT;
             evt.new_role    = btm_cb.devcb.switch_role_ref_data.role;
-            evt.p_bda       = btm_cb.devcb.switch_role_ref_data.remote_bd_addr;
+            evt.p_bda       = (UINT8 *)&btm_role_chg_data_bda;
             evt.hci_status  = btm_cb.devcb.switch_role_ref_data.hci_status;
             (*btm_cb.p_bl_changed_cb)((tBTM_BL_EVENT_DATA *)&evt);
 
