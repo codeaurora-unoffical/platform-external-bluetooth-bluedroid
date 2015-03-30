@@ -1857,8 +1857,17 @@ void bta_av_rc_disc_done(tBTA_AV_DATA *p_data)
     }
 
     APPL_TRACE_DEBUG("rc_handle %d", rc_handle);
-    /* check peer version and whether support CT and TG role */
-    peer_features = bta_av_check_peer_features (UUID_SERVCLASS_AV_REMOTE_CONTROL);
+    if ((p_cb->features & BTA_AV_FEAT_RCCT) && !(p_cb->features & BTA_AV_FEAT_RCTG))
+    {
+        /* In this case we are AVRCP controller and A2DP Sink. We shld check for TG
+         * on remote */
+        peer_features = bta_av_check_peer_features (UUID_SERVCLASS_AV_REM_CTRL_TARGET);
+    }
+    else
+    {
+        /* check peer version and whether support CT and TG role */
+        peer_features = bta_av_check_peer_features (UUID_SERVCLASS_AV_REMOTE_CONTROL);
+    }
     if ((p_cb->features & BTA_AV_FEAT_ADV_CTRL) && ((peer_features&BTA_AV_FEAT_ADV_CTRL) == 0))
     {
         /* if we support advance control and peer does not, check their support on TG role
