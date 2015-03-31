@@ -2723,10 +2723,18 @@ static void btif_av_update_current_playing_device(int index)
 *******************************************************************************/
 BOOLEAN btif_av_is_peer_edr(void)
 {
-    int index =0;
+    int index = 0;
     btif_sm_state_t state;
+    BOOLEAN peer_edr = FALSE;
+
     ASSERTC(btif_av_is_connected(), "No active a2dp connection", 0);
 
+    /* If any of the remote in streaming state is BR
+     * return FALSE to ensure proper configuration
+     * is used. Ideally, since multicast is not supported
+     * if any of the connected device is BR device,
+     * we should not see both devices in START state.
+     */
     for (index; index < btif_max_av_clients; index ++)
     {
         state = btif_sm_get_state(btif_av_cb[index].sm_handle);
@@ -2734,7 +2742,45 @@ BOOLEAN btif_av_is_peer_edr(void)
             || (state == BTIF_AV_STATE_STARTED))
         {
             if (btif_av_cb[index].edr)
+            {
+                peer_edr = TRUE;
+            }
+            else
+            {
+                return FALSE;
+            }
+        }
+    }
+    return peer_edr;
+}
+
+/*******************************************************************************
+**
+** Function         btif_av_any_br_peer
+**
+** Description      Check if the any of connected devices is BR device.
+**
+** Returns          TRUE if connected to any BR device, FALSE otherwise.
+**
+*******************************************************************************/
+BOOLEAN btif_av_any_br_peer(void)
+{
+    int index = 0;
+    btif_sm_state_t state;
+    bdstr_t addr_string;
+
+    for (index; index < btif_max_av_clients; index ++)
+    {
+        state = btif_sm_get_state(btif_av_cb[index].sm_handle);
+        if (state >= BTIF_AV_STATE_OPENED)
+        {
+            if (!btif_av_cb[index].edr)
+            {
+                BTIF_TRACE_WARNING("%s : Connected to BR device : %s",
+                    __FUNCTION__, bd2str(&btif_av_cb[index].peer_bda,
+                    &addr_string));
                 return TRUE;
+            }
         }
     }
     return FALSE;
@@ -2832,10 +2878,10 @@ void btif_av_move_idle(bt_bdaddr_t bd_addr)
 **
 ** Returns         int
 ******************************************************************************/
-int btif_av_get_num_connected_devices(void)
+UINT16 btif_av_get_num_connected_devices(void)
 {
-    int i;
-    int connected_devies = 0;
+    UINT16 i;
+    UINT16 connected_devies = 0;
     for (i = 0; i < btif_max_av_clients; i++)
     {
         btif_av_cb[i].state = btif_sm_get_state(btif_av_cb[i].sm_handle);
@@ -2845,6 +2891,8 @@ int btif_av_get_num_connected_devices(void)
             connected_devies++;
         }
     }
+    BTIF_TRACE_DEBUG("AV Connection count: %d", connected_devies);
+
     return connected_devies;
 }
 
@@ -2866,11 +2914,21 @@ int btif_av_get_num_connected_devices(void)
 ******************************************************************************/
 void btif_av_update_multicast_state(int index)
 {
+    UINT16 num_connected_br_edr_devices = 0;
+    UINT16 num_connected_le_devices = 0;
+    UINT16 num_av_connected = 0;
+    UINT16 i = 0;
+    BOOLEAN is_slave = FALSE;
+    BOOLEAN is_br_hs_connected = FALSE;
+    BOOLEAN prev_multicast_state = enable_multicast;
+    bdstr_t addr_string;
+
     if (!is_multicast_supported)
     {
-        BTIF_TRACE_DEBUG("Multicast is Disabled");
+        BTIF_TRACE_DEBUG("%s Multicast is Disabled", __FUNCTION__);
         return;
     }
+
     if (multicast_disabled == TRUE)
     {
         multicast_disabled = FALSE;
@@ -2878,29 +2936,29 @@ void btif_av_update_multicast_state(int index)
         BTA_AvEnableMultiCast(FALSE, btif_av_cb[index].bta_handle);
         return;
     }
-    BTIF_TRACE_DEBUG("multicast state %d", enable_multicast);
-    int num_connected_br_edr_devices = 0;
-    int num_connected_le_devices = 0;
-    int num_av_connected = 0;
-    int i = 0;
-    BOOLEAN is_slave = FALSE;
-    BOOLEAN is_br_connected = FALSE;
-    BOOLEAN prev_multicast_state = enable_multicast;
+
+    BTIF_TRACE_DEBUG("%s Multicast previous state : %s", __FUNCTION__,
+        enable_multicast ? "Enabled" : "Disabled" );
+
     num_connected_br_edr_devices = btif_dm_get_br_edr_links();
     num_connected_le_devices = btif_dm_get_le_links();
     num_av_connected = btif_av_get_num_connected_devices();
+    is_br_hs_connected = btif_av_any_br_peer();
+
     for (i = 0; i < btif_max_av_clients; i++)
     {
-        BTIF_TRACE_DEBUG("role is slave connected [i] %d", btif_av_cb[i].is_slave_connected);
-        if (btif_av_cb[i].is_slave_connected == HOST_ROLE_SLAVE)
+        if (btif_av_cb[i].is_slave_connected == TRUE)
         {
+            BTIF_TRACE_WARNING("Conected as slave to : %s",
+                bd2str(&btif_av_cb[i].peer_bda, &addr_string));
             is_slave = TRUE;
             break;
         }
     }
-    if (num_av_connected <= 2 && (is_slave == FALSE)
-        && ((num_connected_br_edr_devices <= 2) &&
-        num_connected_le_devices <=1))
+
+    if ((num_av_connected <= 2) && (is_br_hs_connected != TRUE) &&
+        (is_slave == FALSE) && ((num_connected_br_edr_devices <= 2) &&
+        (num_connected_le_devices <= 1)))
     {
         enable_multicast = TRUE;
     }
@@ -2908,6 +2966,10 @@ void btif_av_update_multicast_state(int index)
     {
         enable_multicast = FALSE;
     }
+
+    BTIF_TRACE_DEBUG("%s Multicast current state : %s", __FUNCTION__,
+        enable_multicast ? "Enabled" : "Disabled" );
+
     if (prev_multicast_state != enable_multicast)
     {
         BTA_AvEnableMultiCast(enable_multicast,
@@ -2955,5 +3017,4 @@ BOOLEAN btif_av_get_ongoing_multicast()
         return FALSE;
     }
 }
-
 

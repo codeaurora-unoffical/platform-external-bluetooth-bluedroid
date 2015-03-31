@@ -4079,7 +4079,7 @@ static char* btif_get_default_local_name() {
 *******************************************************************************/
 UINT16 btif_dm_get_br_edr_links()
 {
-    BTIF_TRACE_DEBUG("active br edr links %d ", num_active_br_edr_links);
+    BTIF_TRACE_DEBUG("BR/EDR Link count: %d", num_active_br_edr_links);
     return num_active_br_edr_links;
 }
 
@@ -4094,7 +4094,7 @@ UINT16 btif_dm_get_br_edr_links()
 *******************************************************************************/
 UINT16 btif_dm_get_le_links()
 {
-    BTIF_TRACE_DEBUG("active links %d ", num_active_le_links);
+    BTIF_TRACE_DEBUG("LE Link count: %d", num_active_le_links);
     return num_active_le_links;
 }
 
