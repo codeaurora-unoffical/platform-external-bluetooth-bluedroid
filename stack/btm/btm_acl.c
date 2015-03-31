@@ -1716,10 +1716,7 @@ void btm_establish_continue (tACL_CONN *p_acl_cb)
         tBTM_BL_EVENT_DATA  evt_data;
 #endif
     BTM_TRACE_DEBUG ("btm_establish_continue");
-    if(p_acl_cb != NULL)
-    {
-        p_dev_rec = btm_find_dev(p_acl_cb->remote_addr);
-    }
+    p_dev_rec = btm_find_dev(p_acl_cb->remote_addr);
 #if (!defined(BTM_BYPASS_EXTRA_ACL_SETUP) || BTM_BYPASS_EXTRA_ACL_SETUP == FALSE)
 #if (defined BLE_INCLUDED && BLE_INCLUDED == TRUE)
         if (p_acl_cb->transport == BT_TRANSPORT_BR_EDR)
@@ -1752,8 +1749,8 @@ void btm_establish_continue (tACL_CONN *p_acl_cb)
             evt_data.conn.transport = p_acl_cb->transport;
             if(p_dev_rec != NULL)
             {
-                BTM_TRACE_DEBUG ("btm_establish_continue:: Remote dev Addr type:: %d", p_dev_rec->ble.ble_addr_type);
-                evt_data.conn.remote_addr_type = p_dev_rec->ble.ble_addr_type;
+               BTM_TRACE_DEBUG ("Remote dev Addr type:: %d", p_dev_rec->ble.ble_addr_type);
+               evt_data.conn.remote_addr_type = p_dev_rec->ble.ble_addr_type;
             }
 #endif
 
