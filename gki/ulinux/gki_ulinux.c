@@ -591,9 +591,6 @@ void GKI_shutdown(void)
     int result;
 #endif
 
-#ifdef GKI_USE_DEFERED_ALLOC_BUF_POOLS
-    gki_dealloc_free_queue();
-#endif
 
     /* release threads and set as TASK_DEAD. going from low to high priority fixes
      * GKI_exception problem due to btu->hci sleep request events  */
@@ -636,6 +633,10 @@ void GKI_shutdown(void)
      pthread_cond_destroy (&thread_delay_cond); */
 #if ( FALSE == GKI_PTHREAD_JOINABLE )
     i = 0;
+#endif
+
+#ifdef GKI_USE_DEFERED_ALLOC_BUF_POOLS
+    gki_dealloc_free_queue();
 #endif
 
     if (timer_created) {

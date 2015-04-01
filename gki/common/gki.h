@@ -195,6 +195,7 @@ GKI_API extern void   *GKI_getpoolbuf (UINT8);
 GKI_API extern UINT16  GKI_poolcount (UINT8);
 GKI_API extern UINT16  GKI_poolfreecount (UINT8);
 GKI_API extern UINT16  GKI_poolutilization (UINT8);
+GKI_API extern UINT8 GKI_get_task_state (UINT8 task_id);
 
 
 /* User buffer queue management
