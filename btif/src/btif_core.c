@@ -41,6 +41,7 @@
 #include "bt_utils.h"
 #include "bta_api.h"
 #include "gki.h"
+#include "gki_common.h"
 #include "btu.h"
 #include "bte.h"
 #include "bd.h"
@@ -214,6 +215,11 @@ bt_status_t btif_transfer_context (tBTIF_CBACK *p_cback, UINT16 event, char* p_p
 
     BTIF_TRACE_VERBOSE("btif_transfer_context event %d, len %d", event, param_len);
 
+    if( GKI_get_task_state( BTIF_TASK) == TASK_DEAD)
+    {
+        BTIF_TRACE_WARNING("btif_transfer_context: BT-IF thread already exited");
+        return BT_STATUS_FAIL;
+    }
     /* allocate and send message that will be executed in btif context */
     if ((p_msg = (tBTIF_CONTEXT_SWITCH_CBACK *) GKI_getbuf(sizeof(tBTIF_CONTEXT_SWITCH_CBACK) + param_len)) != NULL)
     {

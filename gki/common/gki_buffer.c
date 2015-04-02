@@ -546,6 +546,31 @@ void *GKI_getpoolbuf (UINT8 pool_id)
 
 /*******************************************************************************
 **
+** Function         GKI_get_task_state
+**
+** Description      Called by an application to get state of task.
+**
+** Parameters       task_id - (input) task id.
+**
+** Returns          status of task
+**
+*******************************************************************************/
+UINT8 GKI_get_task_state (UINT8 task_id)
+{
+    tGKI_COM_CB *p_cb = &gki_cb.com;
+    /* return the task state */
+    if(task_id < GKI_MAX_TASKS)
+    {
+        return p_cb->OSRdyTbl[task_id];
+    }
+    else
+    {
+        return TASK_DEAD;
+    }
+}
+
+/*******************************************************************************
+**
 ** Function         GKI_freebuf
 **
 ** Description      Called by an application to return a buffer to the free pool.
