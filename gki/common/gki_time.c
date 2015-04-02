@@ -646,7 +646,11 @@ void GKI_add_to_timer_list (TIMER_LIST_Q *p_timer_listq, TIMER_LIST_ENT  *p_tle)
 
     /* Only process valid tick values. */
     if (p_tle->ticks < 0)
+    {
+        BT_ERROR_TRACE(TRACE_LAYER_GKI, "ERROR :GKI_add_to_timer_list:no valid ticks");
+        pthread_mutex_unlock(&gki_cb.os.gki_timerupdate_mutex);
         return;
+    }
 
     p_tle->p_prev = NULL;
     p_tle->p_next = NULL;
