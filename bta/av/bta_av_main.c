@@ -1013,11 +1013,17 @@ static void bta_av_sys_rs_cback (tBTA_SYS_CONN_STATUS status,UINT8 id, UINT8 app
         {
             APPL_TRACE_DEBUG ("bta_av_sys_rs_cback: rs_idx(%d), hndl:x%x q_tag: %d",
                 bta_av_cb.rs_idx, p_scb->hndl, p_scb->q_tag);
-
+            /* Multicast:
+             * As per Multicast feature implementation, fallback
+             * happens to soft hand-off when DUT is in scatternet
+             * scenario. Hence, don't fail the connection if
+             * role switch fails because of remote disallowing.
+             * Set switch_res to BTA_AV_RS_DONE on failure.
+             */
             if(HCI_SUCCESS == app_id || HCI_ERR_NO_CONNECTION == app_id)
                 p_scb->q_info.open.switch_res = BTA_AV_RS_OK;
             else
-                p_scb->q_info.open.switch_res = BTA_AV_RS_FAIL;
+                p_scb->q_info.open.switch_res = BTA_AV_RS_DONE;
 
             /* Continue av open process */
             bta_av_do_disc_a2d (p_scb, (tBTA_AV_DATA *)&(p_scb->q_info.open));

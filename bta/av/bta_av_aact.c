@@ -1176,6 +1176,11 @@ void bta_av_config_ind (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         p_scb->coll_mask |= BTA_AV_COLL_SETCONFIG_IND;
     }
     bta_sys_stop_timer(&bta_av_cb.acp_sig_tmr);
+    /* As there is no API currently to check if the
+     * timer is active, p_cback is used to identify
+     * the state of acp_sig_tmr. NULL means not active.
+     */
+    bta_av_cb.acp_sig_tmr.p_cback = NULL;
 
     /* if no codec parameters in configuration, fail */
     if ((p_evt_cfg->num_codec == 0) ||

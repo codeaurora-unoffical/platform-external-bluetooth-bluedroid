@@ -1547,6 +1547,20 @@ void bta_av_sig_chg(tBTA_AV_DATA *p_data)
             {
                 APPL_TRACE_DEBUG("Already connected to LCBs: 0x%x", p_cb->conn_lcb);
             }
+            /* Check if busy processing incoming connection,
+             * if yes, Reject the new incoming connection.
+             * This is very rare case to happen as the timeout
+             * to start signalling procedure is just 2 sec.
+             * Also sink initiators will have retry machanism.
+             */
+            if((p_data->hdr.offset == AVDT_ACP) && (p_cb->acp_sig_tmr.p_cback != NULL))
+            {
+                APPL_TRACE_ERROR("%s Another Incoming conn while processing one.. Reject",
+                    __FUNCTION__);
+                AVDT_DisconnectReq (p_data->str_msg.bd_addr, NULL);
+                return;
+            }
+
             /* if the address does not have an LCB yet, alloc one */
             for(xx=0; xx<BTA_AV_NUM_LINKS; xx++)
             {
@@ -1703,6 +1717,19 @@ static void bta_av_acp_sig_timer_cback (TIMER_LIST_ENT *p_tle)
     tBTA_AV_CB  *p_cb = &bta_av_cb;
     tBTA_AV_SCB *p_scb = NULL;
     tBTA_AV_API_OPEN  *p_buf;
+
+    /* Clean up p_cback in AV Control Block to
+     * indicate that device is not busy processing
+     * incoming connection.
+     * This assignment is safe here as there is only
+     * one task context(BTU) executing this callback
+     * and bta_av_sig_chg.
+     * As there is no API currently to check if the
+     * timer is active, p_cback is used to identify
+     * the state of acp_sig_tmr. NULL means not active
+     */
+    p_cb->acp_sig_tmr.p_cback = NULL;
+
     if (inx < BTA_AV_NUM_STRS)
     {
         p_scb = p_cb->p_scb[inx];
