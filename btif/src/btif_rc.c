@@ -718,6 +718,8 @@ void handle_rc_disconnect (tBTA_AV_RC_CLOSE *p_rc_close)
     btif_rc_cb[index].rc_features = 0;
     btif_rc_cb[index].rc_vol_label = MAX_LABEL;
     btif_rc_cb[index].rc_volume = MAX_VOLUME;
+    btif_rc_cb[index].rc_play_processed = FALSE;
+    btif_rc_cb[index].rc_pending_play = FALSE;
     //CLose Uinput only when all RCs are disconnected
     if (!btif_rc_get_connection_state())
     {
