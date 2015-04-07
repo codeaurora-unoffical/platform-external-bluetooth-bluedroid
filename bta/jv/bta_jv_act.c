@@ -1895,7 +1895,8 @@ void bta_jv_l2cap_connect(tBTA_JV_MSG *p_data)
     {
         bta_jv_free_sec_id(&sec_id);
     }
-    cc->p_cback(BTA_JV_L2CAP_CL_INIT_EVT, (tBTA_JV *)&evt_data, cc->user_data);
+    if(cc->p_cback)
+        cc->p_cback(BTA_JV_L2CAP_CL_INIT_EVT, (tBTA_JV *)&evt_data, cc->user_data);
 #endif
 }
 
@@ -1912,9 +1913,16 @@ static int bta_jv_l2c_data_co_cback (UINT16 sock_handle, UINT8* p_buf, UINT16 le
             case L2C_SOCK_DATA_CBACK_TYPE_INCOMING:
                 APPL_TRACE_DEBUG("bta_jv_l2c_data_co_cback, p_l2c_cb->p_pm_cb: %p",
                         p_l2c_cb->p_pm_cb);
-                bta_jv_pm_conn_busy(p_l2c_cb->p_pm_cb);
-                ret = bta_co_l2c_data_incoming(p_l2c_cb->user_data, (BT_HDR*)p_buf);
-                bta_jv_pm_conn_idle(p_l2c_cb->p_pm_cb);
+                if(p_buf && (((BT_HDR*)p_buf)->event == 0x00))
+                {
+                    bta_jv_pm_conn_busy(p_l2c_cb->p_pm_cb);
+                    GKI_freebuf (p_buf);
+                }
+                else if(p_buf && (((BT_HDR*)p_buf)->event == 0xffff))
+                {
+                    ret = bta_co_l2c_data_incoming(p_l2c_cb->user_data, (BT_HDR*)p_buf);
+                    bta_jv_pm_conn_idle(p_l2c_cb->p_pm_cb);
+                }
                 return ret;
             case L2C_SOCK_DATA_CBACK_TYPE_OUTGOING_SIZE:
                 return bta_co_l2c_data_outgoing_size(p_l2c_cb->user_data, (int*)p_buf);
@@ -2107,7 +2115,8 @@ void bta_jv_l2cap_start_server(tBTA_JV_MSG *p_data)
     {
         bta_jv_free_sec_id(&sec_id);
     }
-    ls->p_cback(BTA_JV_L2CAP_START_EVT, (tBTA_JV *)&evt_data, ls->user_data);
+    if(ls->p_cback)
+        ls->p_cback(BTA_JV_L2CAP_START_EVT, (tBTA_JV *)&evt_data, ls->user_data);
 #endif
 }
 
@@ -2138,7 +2147,8 @@ void bta_jv_l2cap_stop_server(tBTA_JV_MSG *p_data)
             evt_data.handle = p_cb->handle;
             evt_data.status = bta_jv_free_l2c_cb(p_cb, TRUE);
             evt_data.async = FALSE;
-            p_cback(BTA_JV_L2CAP_CLOSE_EVT, (tBTA_JV *)&evt_data, ls->user_data);
+            if(p_cback)
+                p_cback(BTA_JV_L2CAP_CLOSE_EVT, (tBTA_JV *)&evt_data, ls->user_data);
             break;
         }
     }
