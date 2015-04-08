@@ -318,7 +318,7 @@ void avdt_ccb_event(tAVDT_CCB *p_ccb, UINT8 event, tAVDT_CCB_EVT *p_data)
     /* execute action functions */
     for (i = 0; i < AVDT_CCB_ACTIONS; i++)
     {
-        if ((action = state_table[event][i]) != AVDT_CCB_IGNORE)
+        if ((action = state_table[event][i]) < AVDT_CCB_IGNORE)
         {
             BTTRC_AVDT_CCB_ACTION(action);
             (*avdt_cb.p_ccb_act[action])(p_ccb, p_data);
