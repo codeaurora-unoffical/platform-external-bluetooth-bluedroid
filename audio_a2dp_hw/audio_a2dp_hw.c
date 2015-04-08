@@ -816,7 +816,8 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
     struct a2dp_stream_out *out = (struct a2dp_stream_out *)stream;
     struct str_parms *parms;
     char keyval[16];
-    int retval = 0;
+    int retval;
+    int status = 0;
 
     INFO("state %d", out->common.state);
 
@@ -853,7 +854,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
         {
             if (out->common.state == AUDIO_A2DP_STATE_STARTED)
             {
-                retval = suspend_audio_datapath(&out->common, false);
+                status = suspend_audio_datapath(&out->common, false);
             }
             else
             {
@@ -861,7 +862,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
                    /*Btif and A2dp HAL state can be out of sync
                     *check state of btif and suspend audio.
                     *Happens when remote initiates start.*/
-                    retval = suspend_audio_datapath(&out->common, false);
+                    status = suspend_audio_datapath(&out->common, false);
                 else
                     out->common.state = AUDIO_A2DP_STATE_SUSPENDED;
             }
@@ -880,7 +881,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
 
     str_parms_destroy(parms);
 
-    return retval;
+    return status;
 }
 
 static char * out_get_parameters(const struct audio_stream *stream, const char *keys)
