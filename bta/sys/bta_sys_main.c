@@ -175,7 +175,6 @@ BTA_API void bta_sys_init(void)
     memset(&bta_sys_cb, 0, sizeof(tBTA_SYS_CB));
     ptim_init(&bta_sys_cb.ptim_cb, BTA_SYS_TIMER_PERIOD, p_bta_sys_cfg->timer);
     bta_sys_cb.task_id = GKI_get_taskid();
-    appl_trace_level = p_bta_sys_cfg->trace_level;
 
     /* register BTA SYS message handler */
     bta_sys_register( BTA_ID_SYS,  &bta_sys_hw_reg);

@@ -221,6 +221,11 @@ UINT8                   le_supported_states[BTM_LE_SUPPORT_STATE_SIZE];
 
 #endif  /* BLE_INCLUDED */
 
+#if HCI_RAW_CMD_INCLUDED == TRUE
+    tBTM_RAW_CMPL_CB     *p_hci_evt_cb;       /* Callback function to be called when
+                                                HCI event is received successfully */
+#endif
+
 #define BTM_DEV_STATE_WAIT_RESET_CMPLT  0
 #define BTM_DEV_STATE_WAIT_AFTER_RESET  1
 #define BTM_DEV_STATE_READY             2
@@ -639,6 +644,7 @@ typedef struct
 #define BTM_SEC_RS_PENDING              1           /* Role Switch in progress */
 #define BTM_SEC_DISC_PENDING            2           /* Disconnect is pending */
     UINT8           rs_disc_pending;
+    BOOLEAN         process_existing_rnr;           /* process the existing RNR */
 #endif
 // btla-specific --
 #define BTM_SEC_NO_LAST_SERVICE_ID      0
@@ -1134,6 +1140,10 @@ extern void btm_ble_remove_from_white_list_complete(UINT8 *p, UINT16 evt_len);
 extern void btm_ble_clear_white_list_complete(UINT8 *p, UINT16 evt_len);
 #endif  /* BLE_INCLUDED */
 
+/* HCI event handler */
+#if HCI_RAW_CMD_INCLUDED == TRUE
+extern void btm_hci_event(UINT8 *p, UINT8 event_code, UINT8 param_len);
+#endif
 /* Vendor Specific Command complete evt handler */
 extern void btm_vsc_complete (UINT8 *p, UINT16 cc_opcode, UINT16 evt_len,
                               tBTM_CMPL_CB *p_vsc_cplt_cback);

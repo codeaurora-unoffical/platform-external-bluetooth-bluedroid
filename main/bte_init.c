@@ -119,6 +119,14 @@
 #include "pan_api.h"
 #endif
 
+#if (defined(AVDT_INCLUDED) && AVDT_INCLUDED == TRUE)
+#include "avdt_api.h"
+#endif
+
+#if (defined(AVCT_INCLUDED) && AVCT_INCLUDED == TRUE)
+#include "avct_api.h"
+#endif
+
 #if (defined(AVRC_INCLUDED) && AVRC_INCLUDED == TRUE)
 #include "avrc_api.h"
 #endif
@@ -392,10 +400,17 @@ L2C_SOCK_Init();
 /**************************
 ** AVDT and its profiles **
 ***************************/
+#if (defined(AVDT_INCLUDED) && AVDT_INCLUDED == TRUE)
+    AVDT_Init();
+#endif  /* AVDT */
+
 #if (defined(A2D_INCLUDED) && A2D_INCLUDED == TRUE)
     A2D_Init();
 #endif  /* AADP */
 
+#if (defined(AVCT_INCLUDED) && AVCT_INCLUDED == TRUE)
+    AVCT_Init();
+#endif  /* AVCT */
 
 #if (defined(AVRC_INCLUDED) && AVRC_INCLUDED == TRUE)
     AVRC_Init();

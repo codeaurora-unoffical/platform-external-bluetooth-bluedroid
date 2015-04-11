@@ -92,6 +92,7 @@ void bta_av_del_rc(tBTA_AV_RCB *p_rcb)
 {
     tBTA_AV_SCB  *p_scb;
     UINT8        rc_handle;      /* connected AVRCP handle */
+    UINT16       status;
 
     p_scb = NULL;
     if(p_rcb->handle != BTA_AV_RC_HANDLE_NONE)
@@ -127,7 +128,12 @@ void bta_av_del_rc(tBTA_AV_RCB *p_rcb)
             p_rcb->lidx = 0;
         }
         /* else ACP && connected. do not clear the handle yet */
-        AVRC_Close(rc_handle);
+        status = AVRC_Close(rc_handle);
+        if(status != AVRC_SUCCESS)
+        {
+            APPL_TRACE_ERROR("bta_av_del_rc: Error in AVRC_Close %d", status);
+        }
+
         if (rc_handle == bta_av_cb.rc_acp_handle)
             bta_av_cb.rc_acp_handle = BTA_AV_RC_HANDLE_NONE;
         APPL_TRACE_EVENT("end del_rc handle: %d status=0x%x, rc_acp_handle:%d, lidx:%d",
@@ -1541,6 +1547,20 @@ void bta_av_sig_chg(tBTA_AV_DATA *p_data)
             {
                 APPL_TRACE_DEBUG("Already connected to LCBs: 0x%x", p_cb->conn_lcb);
             }
+            /* Check if busy processing incoming connection,
+             * if yes, Reject the new incoming connection.
+             * This is very rare case to happen as the timeout
+             * to start signalling procedure is just 2 sec.
+             * Also sink initiators will have retry machanism.
+             */
+            if((p_data->hdr.offset == AVDT_ACP) && (p_cb->acp_sig_tmr.p_cback != NULL))
+            {
+                APPL_TRACE_ERROR("%s Another Incoming conn while processing one.. Reject",
+                    __FUNCTION__);
+                AVDT_DisconnectReq (p_data->str_msg.bd_addr, NULL);
+                return;
+            }
+
             /* if the address does not have an LCB yet, alloc one */
             for(xx=0; xx<BTA_AV_NUM_LINKS; xx++)
             {
@@ -1697,6 +1717,19 @@ static void bta_av_acp_sig_timer_cback (TIMER_LIST_ENT *p_tle)
     tBTA_AV_CB  *p_cb = &bta_av_cb;
     tBTA_AV_SCB *p_scb = NULL;
     tBTA_AV_API_OPEN  *p_buf;
+
+    /* Clean up p_cback in AV Control Block to
+     * indicate that device is not busy processing
+     * incoming connection.
+     * This assignment is safe here as there is only
+     * one task context(BTU) executing this callback
+     * and bta_av_sig_chg.
+     * As there is no API currently to check if the
+     * timer is active, p_cback is used to identify
+     * the state of acp_sig_tmr. NULL means not active
+     */
+    p_cb->acp_sig_tmr.p_cback = NULL;
+
     if (inx < BTA_AV_NUM_STRS)
     {
         p_scb = p_cb->p_scb[inx];
@@ -1865,8 +1898,17 @@ void bta_av_rc_disc_done(tBTA_AV_DATA *p_data)
     }
 
     APPL_TRACE_DEBUG("rc_handle %d", rc_handle);
-    /* check peer version and whether support CT and TG role */
-    peer_features = bta_av_check_peer_features (UUID_SERVCLASS_AV_REMOTE_CONTROL);
+    if ((p_cb->features & BTA_AV_FEAT_RCCT) && !(p_cb->features & BTA_AV_FEAT_RCTG))
+    {
+        /* In this case we are AVRCP controller and A2DP Sink. We shld check for TG
+         * on remote */
+        peer_features = bta_av_check_peer_features (UUID_SERVCLASS_AV_REM_CTRL_TARGET);
+    }
+    else
+    {
+        /* check peer version and whether support CT and TG role */
+        peer_features = bta_av_check_peer_features (UUID_SERVCLASS_AV_REMOTE_CONTROL);
+    }
     if ((p_cb->features & BTA_AV_FEAT_ADV_CTRL) && ((peer_features&BTA_AV_FEAT_ADV_CTRL) == 0))
     {
         /* if we support advance control and peer does not, check their support on TG role
