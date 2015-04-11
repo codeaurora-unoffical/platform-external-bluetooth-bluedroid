@@ -544,6 +544,9 @@ static void bta_av_api_register(tBTA_AV_DATA *p_data)
     registr.status = BTA_AV_FAIL_RESOURCES;
     registr.app_id = p_data->api_reg.app_id;
     registr.chnl   = (tBTA_AV_CHNL)p_data->hdr.layer_specific;
+
+    APPL_TRACE_DEBUG("bta_av_api_register : channel %d", registr.chnl);
+
     profile_initialized = p_data->api_reg.service_uuid;
     do
     {
@@ -586,7 +589,6 @@ static void bta_av_api_register(tBTA_AV_DATA *p_data)
                 bta_ar_reg_avct(p_bta_av_cfg->avrc_mtu, p_bta_av_cfg->avrc_br_mtu,
                                 (UINT8)(bta_av_cb.sec_mask & (~BTA_SEC_AUTHORIZE)), BTA_ID_AV);
 #endif
-
                 bta_ar_reg_avrc(UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", NULL,
                                 p_bta_av_cfg->avrc_tg_cat, BTA_ID_AV);
 #endif
@@ -705,6 +707,11 @@ static void bta_av_api_register(tBTA_AV_DATA *p_data)
                                   A2D_SUPF_PLAYER, bta_av_cb.sdp_a2d_snk_handle);
                     bta_sys_add_uuid(UUID_SERVCLASS_AUDIO_SINK);
                 }
+
+                /* start listening when A2DP is registered */
+                if (bta_av_cb.features & BTA_AV_FEAT_RCTG)
+                    bta_av_rc_create(&bta_av_cb, AVCT_ACP, p_scb->hdi, BTA_AV_NUM_LINKS + 1);
+
                 /* if the AV and AVK are both supported, it cannot support the CT role */
                 if (bta_av_cb.features & (BTA_AV_FEAT_RCCT))
                 {
@@ -729,10 +736,7 @@ static void bta_av_api_register(tBTA_AV_DATA *p_data)
                 }
             }
             bta_av_cb.reg_audio |= BTA_AV_HNDL_TO_MSK(p_scb->hdi);
-            /* start listening when A2DP is registered */
-            if (bta_av_cb.features & BTA_AV_FEAT_RCTG)
-                bta_av_rc_create(&bta_av_cb, AVCT_ACP, p_scb->hdi, BTA_AV_NUM_LINKS + 1);
-            APPL_TRACE_DEBUG("reg_audio: 0x%x",bta_av_cb.reg_audio);
+            APPL_TRACE_DEBUG("reg_audio: 0x%x", bta_av_cb.reg_audio);
         }
         else
         {
@@ -1009,11 +1013,17 @@ static void bta_av_sys_rs_cback (tBTA_SYS_CONN_STATUS status,UINT8 id, UINT8 app
         {
             APPL_TRACE_DEBUG ("bta_av_sys_rs_cback: rs_idx(%d), hndl:x%x q_tag: %d",
                 bta_av_cb.rs_idx, p_scb->hndl, p_scb->q_tag);
-
+            /* Multicast:
+             * As per Multicast feature implementation, fallback
+             * happens to soft hand-off when DUT is in scatternet
+             * scenario. Hence, don't fail the connection if
+             * role switch fails because of remote disallowing.
+             * Set switch_res to BTA_AV_RS_DONE on failure.
+             */
             if(HCI_SUCCESS == app_id || HCI_ERR_NO_CONNECTION == app_id)
                 p_scb->q_info.open.switch_res = BTA_AV_RS_OK;
             else
-                p_scb->q_info.open.switch_res = BTA_AV_RS_FAIL;
+                p_scb->q_info.open.switch_res = BTA_AV_RS_DONE;
 
             /* Continue av open process */
             bta_av_do_disc_a2d (p_scb, (tBTA_AV_DATA *)&(p_scb->q_info.open));

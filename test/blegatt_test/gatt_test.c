@@ -1029,6 +1029,7 @@ static bt_callbacks_t bt_callbacks = {
     NULL,
     NULL,
     NULL,
+    NULL,
     NULL
 };
 

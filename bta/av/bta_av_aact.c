@@ -857,7 +857,7 @@ void bta_av_role_res (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
             if (p_data->role_res.hci_status != HCI_SUCCESS)
             {
                 p_scb->role &= ~BTA_AV_ROLE_START_INT;
-                bta_sys_idle(BTA_ID_AV, bta_av_cb.audio_open_cnt, p_scb->peer_addr);
+                bta_sys_idle(BTA_ID_AV, p_scb->hdi, p_scb->peer_addr);
                 /* start failed because of role switch. */
                 start.chnl   = p_scb->chnl;
                 start.status = BTA_AV_FAIL_ROLE;
@@ -1176,6 +1176,11 @@ void bta_av_config_ind (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         p_scb->coll_mask |= BTA_AV_COLL_SETCONFIG_IND;
     }
     bta_sys_stop_timer(&bta_av_cb.acp_sig_tmr);
+    /* As there is no API currently to check if the
+     * timer is active, p_cback is used to identify
+     * the state of acp_sig_tmr. NULL means not active.
+     */
+    bta_av_cb.acp_sig_tmr.p_cback = NULL;
 
     /* if no codec parameters in configuration, fail */
     if ((p_evt_cfg->num_codec == 0) ||
@@ -2074,7 +2079,7 @@ void bta_av_do_start (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     if ((p_scb->started == FALSE) && ((p_scb->role & BTA_AV_ROLE_START_INT) == 0))
     {
         p_scb->role |= BTA_AV_ROLE_START_INT;
-        bta_sys_busy(BTA_ID_AV, bta_av_cb.audio_open_cnt, p_scb->peer_addr);
+        bta_sys_busy(BTA_ID_AV, p_scb->hdi, p_scb->peer_addr);
 
         AVDT_StartReq(&p_scb->avdt_handle, 1);
     }
@@ -2114,7 +2119,7 @@ void bta_av_str_stopped (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     APPL_TRACE_ERROR("bta_av_str_stopped:audio_open_cnt=%d, p_data %x",
             bta_av_cb.audio_open_cnt, p_data);
 
-    bta_sys_idle(BTA_ID_AV, bta_av_cb.audio_open_cnt, p_scb->peer_addr);
+    bta_sys_idle(BTA_ID_AV, p_scb->hdi, p_scb->peer_addr);
     if ((bta_av_cb.features & BTA_AV_FEAT_MASTER) == 0 || bta_av_cb.audio_open_cnt == 1)
         policy |= HCI_ENABLE_MASTER_SLAVE_SWITCH;
     bta_sys_set_policy(BTA_ID_AV, policy, p_scb->peer_addr);
@@ -2412,7 +2417,7 @@ void bta_av_start_ok (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         p_scb->wait &= ~BTA_AV_WAIT_ROLE_SW_BITS;
         if (p_data->hdr.offset == BTA_AV_RS_FAIL)
         {
-            bta_sys_idle(BTA_ID_AV, bta_av_cb.audio_open_cnt, p_scb->peer_addr);
+            bta_sys_idle(BTA_ID_AV, p_scb->hdi, p_scb->peer_addr);
             start.chnl   = p_scb->chnl;
             start.status = BTA_AV_FAIL_ROLE;
             start.hndl   = p_scb->hndl;
@@ -2453,7 +2458,7 @@ void bta_av_start_ok (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     /* tell role manager to check M/S role */
     bta_sys_conn_open(BTA_ID_AV, p_scb->hdi, p_scb->peer_addr);
 
-    bta_sys_busy(BTA_ID_AV, bta_av_cb.audio_open_cnt, p_scb->peer_addr);
+    bta_sys_busy(BTA_ID_AV, p_scb->hdi, p_scb->peer_addr);
 
     if(p_scb->media_type == AVDT_MEDIA_AUDIO)
     {
@@ -2573,7 +2578,7 @@ void bta_av_start_failed (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
 
     if(p_scb->started == FALSE && p_scb->co_started == FALSE)
     {
-        bta_sys_idle(BTA_ID_AV, bta_av_cb.audio_open_cnt, p_scb->peer_addr);
+        bta_sys_idle(BTA_ID_AV, p_scb->hdi, p_scb->peer_addr);
         notify_start_failed(p_scb);
     }
 
@@ -2722,7 +2727,7 @@ void bta_av_suspend_cfm (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         p_scb->cong = FALSE;
     }
 
-    bta_sys_idle(BTA_ID_AV, bta_av_cb.audio_open_cnt, p_scb->peer_addr);
+    bta_sys_idle(BTA_ID_AV, p_scb->hdi, p_scb->peer_addr);
     if ((bta_av_cb.features & BTA_AV_FEAT_MASTER) == 0 || bta_av_cb.audio_open_cnt == 1)
         policy |= HCI_ENABLE_MASTER_SLAVE_SWITCH;
     bta_sys_set_policy(BTA_ID_AV, policy, p_scb->peer_addr);

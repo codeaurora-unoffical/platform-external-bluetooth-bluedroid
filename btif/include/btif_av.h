@@ -156,6 +156,18 @@ BOOLEAN btif_av_is_peer_edr(void);
 
 /*******************************************************************************
 **
+** Function         btif_av_any_br_peer
+**
+** Description      Check if the any of connected devices is BR device.
+**
+** Returns          TRUE if connected to any BR device, FALSE otherwise.
+**
+*******************************************************************************/
+
+BOOLEAN btif_av_any_br_peer(void);
+
+/*******************************************************************************
+**
 ** Function         btif_av_peer_supports_3mbps
 **
 ** Description      Check if the connected a2dp device supports
