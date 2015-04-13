@@ -74,6 +74,7 @@
 ************************************************************************************/
 
 static BOOLEAN bt_disabled = FALSE;
+static BOOLEAN ssr_triggered = FALSE;
 pthread_mutex_t mutex_bt_disable;
 
 /* These type definitions are used when passing data from the HAL to BTIF context
@@ -101,8 +102,6 @@ typedef enum {
     BTIF_CORE_STATE_ENABLED,
     BTIF_CORE_STATE_DISABLING
 } btif_core_state_t;
-
-extern void btif_gattc_destroy_multi_adv_cb(int client_if);
 
 /************************************************************************************
 **  Static variables
@@ -564,6 +563,7 @@ bt_status_t btif_enable_bluetooth(void)
     btif_core_state = BTIF_CORE_STATE_ENABLING;
 
     bt_disabled = FALSE;
+    ssr_triggered = FALSE;
 
     init_slot_lock(&mutex_bt_disable);
     /* Create the GKI tasks and run them */
@@ -708,7 +708,9 @@ bt_status_t btif_disable_bluetooth(void)
     btif_config_flush();
 
     /* clear the adv instances on bt turn off */
-    btif_gattc_destroy_multi_adv_cb(INVALID_CLIENT_IF);
+#if (BLE_INCLUDED == TRUE)
+    btif_gatt_adv_inst_cleanup();
+#endif
 
     if (status != BTA_SUCCESS)
     {
@@ -737,7 +739,11 @@ bt_status_t btif_disable_bluetooth(void)
 void btif_disable_bluetooth_evt(void)
 {
     BTIF_TRACE_DEBUG("%s", __FUNCTION__);
-
+    if (ssr_triggered == TRUE)
+    {
+        BTIF_TRACE_DEBUG("%s SSR triggered,Ignore EVT",__FUNCTION__);
+        return;
+    }
 #if (defined(HCILP_INCLUDED) && HCILP_INCLUDED == TRUE)
     bte_main_enable_lpm(FALSE);
 #endif
@@ -845,6 +851,7 @@ Description   Trigger SSR when Disable timeout occured
 *******************************************************************************/
 void btif_ssr_cleanup(void)
 {
+  ssr_triggered = TRUE;
   bte_ssr_cleanup();
 }
 
