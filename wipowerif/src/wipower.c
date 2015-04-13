@@ -55,7 +55,7 @@ pthread_cond_t signal_cv;
 #define WIPOWER_ADV_600MS_MSB 0x02
 
 /*1 seconds timeout*/
-#define WIPOWER_DATA_IDLE_TIMEOUT (1000)
+#define WIPOWER_DATA_IDLE_TIMEOUT (600)
 
 wipower_callbacks_t *wipower_hal_cbacks = NULL;
 wipower_dyn_data_t wipower_dyn_data;
@@ -438,6 +438,7 @@ int enable_data_notify(bool enable)
             ALOGE("%s: Error while creating timer", __func__);
             return -1;
         }
+        wipower_data_timer_start();
     }
     else {
         if (wp_data_timer != 0)
