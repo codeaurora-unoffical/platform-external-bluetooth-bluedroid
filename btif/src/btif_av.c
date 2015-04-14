@@ -238,8 +238,26 @@ static void btif_initiate_av_open_tmr_hdlr(TIMER_LIST_ENT *tle)
     if (btif_rc_get_connected_peer(peer_addr)) {
        BTIF_TRACE_DEBUG("%s Issuing connect to the remote RC peer", __FUNCTION__);
        /* In case of AVRCP connection request, we will initiate SRC connection */
+       btif_sm_state_t state = btif_sm_get_state(btif_av_cb.sm_handle);
+       if ((state == BTIF_AV_STATE_STARTED) ||
+           (state == BTIF_AV_STATE_OPENED) )
+       {
+           BTIF_TRACE_DEBUG(" A2DP Connection Already UP");
+           /*
+            * Check if A2DP conneciton is with same device
+            */
+           if(bdcmp(btif_av_cb.peer_bda.address, peer_addr))
+           {
+               BTIF_TRACE_WARNING(" Disconnecting AVRCP ");
+               BTA_AvCloseRc(btif_rc_get_connected_peer_handle());
+               return;
+           }
+       }
        connect_req.target_bda = (bt_bdaddr_t*)&peer_addr;
-       connect_req.uuid = UUID_SERVCLASS_AUDIO_SOURCE;
+       if(bt_av_sink_callbacks != NULL)
+           connect_req.uuid = UUID_SERVCLASS_AUDIO_SINK;
+       else if(bt_av_src_callbacks != NULL)
+           connect_req.uuid = UUID_SERVCLASS_AUDIO_SOURCE;
        btif_sm_dispatch(btif_av_cb.sm_handle, BTIF_AV_CONNECT_REQ_EVT, (char*)&connect_req);
     }
     else
@@ -329,7 +347,6 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data)
              */
 
             /* Check if connection allowed with this device */
-            BTIF_TRACE_DEBUG("Check A2dp priority of device");
             if (idle_rc_event != 0)
             {
                 BTIF_TRACE_DEBUG("Processing another RC Event ");
@@ -359,8 +376,19 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data)
             }
             if (bt_av_sink_callbacks != NULL)
             {
-                BTA_AvOpen(btif_av_cb.peer_bda.address, btif_av_cb.bta_handle,
+                if(event == BTA_AV_PENDING_EVT)
+                {
+                    BTA_AvOpen(btif_av_cb.peer_bda.address, btif_av_cb.bta_handle,
                        TRUE, BTA_SEC_NONE, UUID_SERVCLASS_AUDIO_SINK);
+                }
+                else if(event == BTA_AV_RC_OPEN_EVT)
+                {
+                    memset(&tle_av_open_on_rc, 0, sizeof(tle_av_open_on_rc));
+                    tle_av_open_on_rc.param = (UINT32)btif_initiate_av_open_tmr_hdlr;
+                    btu_start_timer(&tle_av_open_on_rc, BTU_TTYPE_USER_FUNC,
+                            BTIF_TIMEOUT_AV_OPEN_ON_RC_SECS);
+                    btif_rc_handler(event, p_data);
+                }
             }
             break;
 
@@ -509,18 +537,16 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
             {
                 BTIF_TRACE_WARNING("BTA_AV_OPEN_EVT::FAILED status: %d",
                                      p_bta_data->open.status );
-                if (p_bta_data->open.status != BTA_AV_FAIL_SDP)
+                BD_ADDR peer_addr;
+                if ((btif_rc_get_connected_peer(peer_addr))
+                    &&(!bdcmp(btif_av_cb.peer_bda.address, peer_addr)))
                 {
-                    BD_ADDR peer_addr;
-                    if ((btif_rc_get_connected_peer(peer_addr))
-                        &&(!bdcmp(btif_av_cb.peer_bda.address, peer_addr)))
-                    {
-                        /* Disconnect AVRCP connection, if Remote has
-                         * both AVRCP and A2DP
-                         */
-                        BTIF_TRACE_WARNING(" Disconnecting AVRCP ");
-                        BTA_AvCloseRc(btif_rc_get_connected_peer_handle());
-                    }
+                    /*
+                     * Disconnect AVRCP connection, if
+                     * A2DP conneciton failed, for any reason
+                     */
+                    BTIF_TRACE_WARNING(" Disconnecting AVRCP ");
+                    BTA_AvCloseRc(btif_rc_get_connected_peer_handle());
                 }
                 state = BTAV_CONNECTION_STATE_DISCONNECTED;
                 av_state  = BTIF_AV_STATE_IDLE;
@@ -1699,12 +1725,15 @@ bt_status_t btif_av_execute_service(BOOLEAN b_enable)
          /* Added BTA_AV_FEAT_NO_SCO_SSPD - this ensures that the BTA does not
           * auto-suspend av streaming on AG events(SCO or Call). The suspend shall
           * be initiated by the app/audioflinger layers */
+         /* Support for browsing for SDP record should work only if we enable BROWSE
+          * while registering. */
 #if (AVRC_METADATA_INCLUDED == TRUE)
          BTA_AvEnable(BTA_SEC_AUTHENTICATE,
              BTA_AV_FEAT_RCTG|BTA_AV_FEAT_METADATA|BTA_AV_FEAT_VENDOR|BTA_AV_FEAT_NO_SCO_SSPD
 #if (AVRC_ADV_CTRL_INCLUDED == TRUE)
              |BTA_AV_FEAT_RCCT
              |BTA_AV_FEAT_ADV_CTRL
+             |BTA_AV_FEAT_BROWSE
 #endif
              ,bte_av_callback);
 #else
@@ -1741,7 +1770,9 @@ bt_status_t btif_avk_execute_service(BOOLEAN b_enable)
          /* Added BTA_AV_FEAT_NO_SCO_SSPD - this ensures that the BTA does not
           * auto-suspend av streaming on AG events(SCO or Call). The suspend shall
           * be initiated by the app/audioflinger layers */
-         BTA_AvEnable(BTA_SEC_AUTHENTICATE, BTA_AV_FEAT_NO_SCO_SSPD|BTA_AV_FEAT_RCCT,
+         BTA_AvEnable(BTA_SEC_AUTHENTICATE, BTA_AV_FEAT_NO_SCO_SSPD|BTA_AV_FEAT_RCCT|
+                                            BTA_AV_FEAT_METADATA|BTA_AV_FEAT_VENDOR|
+                                            BTA_AV_FEAT_ADV_CTRL|BTA_AV_FEAT_RCTG,
                                                                         bte_av_callback);
          BTA_AvRegister(BTA_AV_CHNL_AUDIO, BTIF_AVK_SERVICE_NAME, 0, bte_av_media_callback,
                                                                 UUID_SERVCLASS_AUDIO_SINK);

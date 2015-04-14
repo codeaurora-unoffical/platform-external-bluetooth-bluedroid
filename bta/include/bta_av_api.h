@@ -364,6 +364,7 @@ typedef struct
 {
     UINT8           rc_handle;
     tBTA_AV_FEAT    peer_features;
+    BD_ADDR         peer_addr;
 } tBTA_AV_RC_FEAT;
 
 /* data associated with BTA_AV_REMOTE_CMD_EVT */
