@@ -775,7 +775,7 @@ BOOLEAN GAP_BleReadPeerDevName (BD_ADDR peer_bda, tGAP_BLE_DEV_NAME_CBACK *p_cba
         return(FALSE);
 
     /* hold the link here */
-    if( BTM_IsInquiryActive()|| BTM_IsRnrActive() )
+    if (BTM_IsAclConnectionUp(peer_bda, BT_TRANSPORT_LE))
     {
        status = GATT_Connect(gap_cb.gatt_if, p_clcb->bda, TRUE, BT_TRANSPORT_LE);
     }
