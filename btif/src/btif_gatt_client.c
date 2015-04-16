@@ -1423,6 +1423,8 @@ static void btgattc_handle_event(uint16_t event, char* p_param)
                     if (p_adv_filt_cb->has_mask)
                     {
                         btif_to_bta_uuid_mask(&uuid_mask, &p_adv_filt_cb->uuid_mask);
+                        btif_handle_uuid_mask_if_len_less(&p_adv_filt_cb->uuid,
+                                              &p_adv_filt_cb->uuid_mask, &uuid_mask);
                         cond.srvc_uuid.p_uuid_mask = &uuid_mask;
                     }
                     BTA_DmBleCfgFilterCondition(p_adv_filt_cb->action,
