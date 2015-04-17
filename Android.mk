@@ -12,7 +12,9 @@ else
 endif
 
 bdroid_CFLAGS += -Wall -Werror
+ifneq ($(Q_BLUETOOTH),)
 bdroid_CFLAGS += -DAVK_BACKPORT
+endif
 
 ifneq ($(BOARD_BLUETOOTH_BDROID_HCILP_INCLUDED),)
   bdroid_CFLAGS += -DHCILP_INCLUDED=$(BOARD_BLUETOOTH_BDROID_HCILP_INCLUDED)

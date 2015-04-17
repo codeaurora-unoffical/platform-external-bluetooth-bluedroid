@@ -307,26 +307,17 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data)
             btif_av_cb.bta_handle = ((tBTA_AV*)p_data)->registr.hndl;
             break;
 
-        case BTA_AV_PENDING_EVT:
         case BTIF_AV_CONNECT_REQ_EVT:
             /* For outgoing connect stack and app are in sync.
              */
-            if (event == BTIF_AV_CONNECT_REQ_EVT)
-            {
                 memcpy(&btif_av_cb.peer_bda, ((btif_av_connect_req_t*)p_data)->target_bda,
                                                                      sizeof(bt_bdaddr_t));
                 BTA_AvOpen(btif_av_cb.peer_bda.address, btif_av_cb.bta_handle,
                     TRUE, BTA_SEC_NONE, ((btif_av_connect_req_t*)p_data)->uuid);
-            }
-            else
-            {
-                bdcpy(btif_av_cb.peer_bda.address, ((tBTA_AV*)p_data)->pend.bd_addr);
-                BTA_AvOpen(btif_av_cb.peer_bda.address, btif_av_cb.bta_handle,
-                       TRUE, BTA_SEC_NONE, UUID_SERVCLASS_AUDIO_SOURCE);
-            }
             btif_sm_change_state(btif_av_cb.sm_handle, BTIF_AV_STATE_OPENING);
             break;
 
+        case BTA_AV_PENDING_EVT:
         case BTA_AV_RC_OPEN_EVT:
             /* IOP_FIX: Jabra 620 only does RC open without AV open whenever it connects. So
              * as per the AV WP, an AVRC connection cannot exist without an AV connection. Therefore,
@@ -339,12 +330,57 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data)
              */
 
             /* Check if connection allowed with this device */
-            bdcpy(btif_av_cb.peer_bda.address, ((tBTA_AV*)p_data)->rc_open.peer_addr);
-            memset(&tle_av_open_on_rc, 0, sizeof(tle_av_open_on_rc));
-            tle_av_open_on_rc.param = (UINT32)btif_initiate_av_open_tmr_hdlr;
-            btu_start_timer(&tle_av_open_on_rc, BTU_TTYPE_USER_FUNC,
-                        BTIF_TIMEOUT_AV_OPEN_ON_RC_SECS);
-            btif_rc_handler(event, p_data);
+#ifdef Q_BLUETOOTH
+            BTIF_TRACE_DEBUG("Check A2dp priority of device");
+            if (idle_rc_event != 0)
+            {
+                BTIF_TRACE_DEBUG("Processing another RC Event ");
+                return FALSE;
+            }
+
+            memcpy(&idle_rc_data, ((tBTA_AV*)p_data), sizeof(tBTA_AV));
+#endif
+            if (event == BTA_AV_RC_OPEN_EVT )
+            {
+                bdcpy(btif_av_cb.peer_bda.address, ((tBTA_AV*)p_data)->rc_open.peer_addr);
+            }
+            else
+            {
+                bdcpy(btif_av_cb.peer_bda.address, ((tBTA_AV*)p_data)->pend.bd_addr);
+            }
+
+            if (bt_av_src_callbacks != NULL)
+            {
+#ifdef Q_BLUETOOTH
+                BTIF_TRACE_DEBUG("  Calling connection priority callback ");
+                idle_rc_event = event;
+                HAL_CBACK(bt_av_src_callbacks, connection_priority_cb,
+                         &(btif_av_cb.peer_bda));
+#else
+                if (event == BTA_AV_PENDING_EVT)
+                {
+                  BTA_AvOpen(btif_av_cb.peer_bda.address, btif_av_cb.bta_handle,
+                        TRUE, BTA_SEC_NONE, UUID_SERVCLASS_AUDIO_SOURCE);
+                }
+                else
+                {
+                    BTIF_TRACE_DEBUG("BTA_AV_RC_OPEN_EVT received w/o AV");
+                    memset(&tle_av_open_on_rc, 0, sizeof(tle_av_open_on_rc));
+                    tle_av_open_on_rc.param = (UINT32)btif_initiate_av_open_tmr_hdlr;
+                    btu_start_timer(&tle_av_open_on_rc, BTU_TTYPE_USER_FUNC,
+                            BTIF_TIMEOUT_AV_OPEN_ON_RC_SECS);
+                    btif_rc_handler(event, p_data);
+                }
+#endif
+            }
+            if (bt_av_sink_callbacks != NULL)
+            {
+                BTA_AvOpen(btif_av_cb.peer_bda.address, btif_av_cb.bta_handle,
+                       TRUE, BTA_SEC_NONE, UUID_SERVCLASS_AUDIO_SINK);
+            }
+            // Only for AVDTP connection request move to opening state
+            if (event == BTA_AV_PENDING_EVT)
+                btif_sm_change_state(btif_av_cb.sm_handle, BTIF_AV_STATE_OPENING);
             break;
 
         case BTA_AV_OPEN_EVT:
@@ -1474,6 +1510,48 @@ static void cleanup_sink(void) {
     }
 }
 
+#ifdef Q_BLUETOOTH
+static void allow_connection(int is_valid)
+{
+    BTIF_TRACE_DEBUG(" %s isValid is %d event %d", __FUNCTION__,is_valid,idle_rc_event);
+    switch (idle_rc_event)
+    {
+        case BTA_AV_RC_OPEN_EVT:
+            if (is_valid)
+            {
+                memset(&tle_av_open_on_rc, 0, sizeof(tle_av_open_on_rc));
+                tle_av_open_on_rc.param = (UINT32)btif_initiate_av_open_tmr_hdlr;
+                btu_start_timer(&tle_av_open_on_rc, BTU_TTYPE_USER_FUNC,
+                        BTIF_TIMEOUT_AV_OPEN_ON_RC_SECS);
+                btif_rc_handler(idle_rc_event, &idle_rc_data);
+            }
+            else
+            {
+                UINT8 rc_handle =  idle_rc_data.rc_open.rc_handle;
+                BTA_AvCloseRc(rc_handle);
+            }
+            break;
+
+        case BTA_AV_PENDING_EVT:
+            if (is_valid)
+            {
+                BTA_AvOpen(btif_av_cb.peer_bda.address, btif_av_cb.bta_handle,
+                       TRUE, BTA_SEC_NONE, UUID_SERVCLASS_AUDIO_SOURCE);
+            }
+            else
+            {
+                BTA_AvDisconnect(idle_rc_data.pend.bd_addr);
+            }
+            break;
+
+        default:
+            BTIF_TRACE_DEBUG("%s : unhandled event:%s", __FUNCTION__,
+                                dump_av_sm_event_name(idle_rc_event));
+    }
+    idle_rc_event = 0;
+    memset(&idle_rc_data, 0, sizeof(tBTA_AV));
+}
+#endif
 
 static const btav_interface_t bt_av_src_interface = {
     sizeof(btav_interface_t),
@@ -1481,6 +1559,9 @@ static const btav_interface_t bt_av_src_interface = {
     src_connect_sink,
     disconnect,
     cleanup_src,
+#ifdef Q_BLUETOOTH
+    allow_connection,
+#endif
 };
 
 #ifdef AVK_BACKPORT
@@ -1496,11 +1577,14 @@ static const btav_sink_interface_t bt_av_sink_interface = {
 };
 #else
 static const btav_interface_t bt_av_sink_interface = {
-    sizeof(btav_sink_interface_t),
+    sizeof(btav_interface_t),
     init_sink,
     sink_connect_src,
     disconnect,
     cleanup_sink,
+#ifdef Q_BLUETOOTH
+    allow_connection,
+#endif
 };
 #endif
 /*******************************************************************************
@@ -1704,11 +1788,19 @@ const btav_interface_t *btif_av_get_src_interface(void)
 ** Returns          btav_sink_interface_t
 **
 *******************************************************************************/
+#ifdef Q_BLUETOOTH
 const btav_sink_interface_t *btif_av_get_sink_interface(void)
 {
     BTIF_TRACE_EVENT("%s", __FUNCTION__);
     return &bt_av_sink_interface;
 }
+#else
+const btav_interface_t *btif_av_get_sink_interface(void)
+{
+    BTIF_TRACE_EVENT("%s", __FUNCTION__);
+    return &bt_av_sink_interface;
+}
+#endif
 
 /*******************************************************************************
 **
