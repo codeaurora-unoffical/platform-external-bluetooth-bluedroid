@@ -2238,7 +2238,14 @@ static bt_status_t connect_int(bt_bdaddr_t *bd_addr, uint16_t uuid)
     for (i = 0; i < btif_max_av_clients;)
     {
         if(btif_av_get_valid_idx(i))
+        {
+            if (bdcmp(bd_addr->address, btif_av_cb[i].peer_bda.address) == 0)
+            {
+                BTIF_TRACE_ERROR("Attempting connection for non idle device.. back off ");
+                return BT_STATUS_SUCCESS;
+            }
             i++;
+        }
         else
             break;
     }
