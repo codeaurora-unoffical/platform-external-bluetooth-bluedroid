@@ -291,6 +291,20 @@ static void btif_initiate_av_open_tmr_hdlr(TIMER_LIST_ENT *tle)
         }
         else
         {
+            UINT8 rc_handle;
+            int index;
+            /* Multicast: Check if AV slot is available for connection
+             * If not available, AV got connected to different devices.
+             * Disconnect this RC connection without AV connection.
+             */
+            rc_handle = btif_rc_get_connected_peer_handle(peer_addr);
+            index = btif_av_get_valid_idx_for_rc_events(peer_addr, rc_handle);
+            if(index >= btif_max_av_clients)
+            {
+                BTIF_TRACE_ERROR("%s No slot free for AV connection, back off",
+                            __FUNCTION__);
+                return;
+            }
             BTIF_TRACE_DEBUG("%s Issuing connect to the remote RC peer", __FUNCTION__);
             /* In case of AVRCP connection request, we will initiate SRC connection */
             btif_queue_connect(UUID_SERVCLASS_AUDIO_SOURCE, (bt_bdaddr_t*)&peer_addr, connect_int);
@@ -620,7 +634,10 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
             {
                 BTIF_TRACE_WARNING("BTA_AV_OPEN_EVT::FAILED status: %d",
                                      p_bta_data->open.status );
-                if (p_bta_data->open.status != BTA_AV_FAIL_SDP)
+                /* Multicast: Check if connected to AVRC only device
+                 * disconnect when Dual A2DP/Multicast is supported.
+                 */
+                if ((btif_max_av_clients >= 2) || (p_bta_data->open.status != BTA_AV_FAIL_SDP))
                 {
                     BD_ADDR peer_addr;
                     if ((btif_rc_get_connected_peer(peer_addr))
@@ -1663,8 +1680,11 @@ static int btif_get_conn_state_of_device(BD_ADDR address)
         if ((bdcmp(address,
             btif_av_cb[i].peer_bda.address) == 0))
         {
-            BTIF_TRACE_EVENT("Matched Address");
             state = btif_sm_get_state(btif_av_cb[i].sm_handle);
+            BTIF_TRACE_EVENT("BD Found: %02X %02X %02X %02X %02X %02X :state: %s",
+                address[5], address[4], address[3],
+                address[2], address[1], address[0],
+                dump_av_sm_state_name(state));
         }
     }
     return state;
