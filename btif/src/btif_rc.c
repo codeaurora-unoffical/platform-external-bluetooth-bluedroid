@@ -797,7 +797,11 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
             {
                 if (btif_av_is_device_connected(btif_rc_cb[index].rc_addr))
                 {
-                    /*Trigger suspend on currently playing device*/
+                    /* Trigger suspend on currently playing device
+                     * Allow the Play to be sent to Music player to
+                     * address Play during Pause(Local/DUT initiated)
+                     * but SUSPEND not triggered by Audio module.
+                     */
                     if (p_remote_cmd->key_state == AVRC_STATE_PRESS)
                     {
                         BTIF_TRACE_DEBUG("Trigger dual handoff for this play command");
@@ -808,11 +812,14 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
                 else
                 {
                     APPL_TRACE_WARNING("%s: Command Invalid on %d", __FUNCTION__, index);
+                    return;
                 }
+            }
+            else
+            {
+                APPL_TRACE_WARNING("%s:Ignore all Passthrough on %d", __FUNCTION__, index);
                 return;
             }
-            APPL_TRACE_WARNING("%s:Ignore all Passthrough on %d", __FUNCTION__, index);
-            return;
         }
     }
     BTIF_TRACE_DEBUG("%s: p_remote_cmd->rc_id=%d", __FUNCTION__, p_remote_cmd->rc_id);
