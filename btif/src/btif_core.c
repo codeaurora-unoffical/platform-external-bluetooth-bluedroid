@@ -700,6 +700,11 @@ bt_status_t btif_disable_bluetooth(void)
 
     btif_config_flush();
 
+    /* clear the adv instances on bt turn off */
+#if (BLE_INCLUDED == TRUE)
+    btif_gatt_adv_inst_cleanup();
+#endif
+
     if (status != BTA_SUCCESS)
     {
         BTIF_TRACE_ERROR("disable bt failed (%d)", status);
@@ -803,6 +808,7 @@ bt_status_t btif_shutdown_bluetooth(void)
             btif_core_state = BTIF_CORE_STATE_DISABLED;
             HAL_CBACK(bt_hal_cbacks, adapter_state_changed_cb, BT_STATE_OFF);
         }
+        unlock_slot(&mutex_bt_disable);
 
         GKI_destroy_task(BTIF_TASK);
         btif_queue_release();
@@ -814,14 +820,18 @@ bt_status_t btif_shutdown_bluetooth(void)
     {
        // Java Layer called cleanup before calling enable due to START TIMEOUT
        // Cleanup GKI task to reset the hal callback handle
+       btif_core_state = BTIF_CORE_STATE_DISABLED;
        BTIF_TRACE_WARNING("shutdown...cleanup called before enable");
+       unlock_slot(&mutex_bt_disable);
        GKI_destroy_task(BTIF_TASK);
        btif_queue_release();
        bte_main_shutdown();
-       btif_core_state = BTIF_CORE_STATE_DISABLED;
        btif_dut_mode = 0;
     }
-    unlock_slot(&mutex_bt_disable);
+    else
+    {
+        unlock_slot(&mutex_bt_disable);
+    }
 
     bt_utils_cleanup();
 
@@ -868,6 +878,45 @@ static bt_status_t btif_disassociate_evt(void)
 **   BTIF Test Mode APIs
 **
 *****************************************************************************/
+#if HCI_RAW_CMD_INCLUDED == TRUE
+/*******************************************************************************
+**
+** Function         btif_hci_event_cback
+**
+** Description     Callback invoked on receiving HCI event
+**
+** Returns          None
+**
+*******************************************************************************/
+static void btif_hci_event_cback ( tBTM_RAW_CMPL *p )
+{
+    BTIF_TRACE_DEBUG("%s", __FUNCTION__);
+    if(p != NULL)
+    {
+        HAL_CBACK(bt_hal_cbacks, hci_event_recv_cb, p->event_code, p->p_param_buf,
+                                                                p->param_len);
+    }
+}
+
+/*******************************************************************************
+**
+** Function        btif_hci_cmd_send
+**
+** Description     Sends a HCI raw command to the controller
+**
+** Returns         BT_STATUS_SUCCESS on success
+**
+*******************************************************************************/
+bt_status_t btif_hci_cmd_send(uint16_t opcode, uint8_t *buf, uint8_t len)
+{
+    BTIF_TRACE_DEBUG("%s", __FUNCTION__);
+
+    BTM_Hci_Raw_Command(opcode, len, buf, btif_hci_event_cback);
+    return BT_STATUS_SUCCESS;
+}
+#endif
+
+
 /*******************************************************************************
 **
 ** Function         btif_dut_mode_cback

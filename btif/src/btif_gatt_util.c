@@ -156,6 +156,53 @@ void btif_to_bta_uuid_mask(tBTA_DM_BLE_PF_COND_MASK *p_mask, bt_uuid_t *p_src)
     }
 }
 
+void btif_handle_uuid_mask_if_len_less(bt_uuid_t *svc_uuid, bt_uuid_t *mask_uuid,
+        tBTA_DM_BLE_PF_COND_MASK *p_mask)
+{
+    int uuid_len=0, uuid_mask_len=0, i=0;
+    uuid_len = uuidType(svc_uuid->uu);
+    uuid_mask_len = uuidType(mask_uuid->uu);
+    ALOGE("%s uuid_len ::%d uuid_mask_len:: %d",__FUNCTION__, uuid_len, uuid_mask_len);
+
+    if(uuid_mask_len < uuid_len)
+    {
+        switch (uuid_len)
+        {
+            case LEN_UUID_32:
+                if(uuid_mask_len == LEN_UUID_16)
+                {
+                    p_mask->uuid32_mask = p_mask->uuid16_mask + (0x00 << 24) + (0x00 << 16);
+                }
+                break;
+            case LEN_UUID_128:
+                if(uuid_mask_len == LEN_UUID_32)
+                {
+                    p_mask->uuid128_mask[12] = p_mask->uuid128_mask[0];
+                    p_mask->uuid128_mask[13] = p_mask->uuid128_mask[1];
+                    p_mask->uuid128_mask[14] = p_mask->uuid128_mask[2];
+                    p_mask->uuid128_mask[15] = p_mask->uuid128_mask[3];
+                    for(i = 0; i<12; i++)
+                        p_mask->uuid128_mask[i] = 0;
+                }
+                else if(uuid_mask_len == LEN_UUID_16)
+                {
+                    p_mask->uuid128_mask[12] = p_mask->uuid128_mask[0];
+                    p_mask->uuid128_mask[13] = p_mask->uuid128_mask[1];
+                    for(i = 0; i<16; i++)
+                    {
+                        if(i==12 || i==13)
+                            continue;
+                        p_mask->uuid128_mask[i] = 0;
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+
 /*******************************************************************************
  * BTA -> BTIF conversion functions
  *******************************************************************************/
