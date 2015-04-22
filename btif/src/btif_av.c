@@ -1019,9 +1019,13 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
                             BTIF_TRACE_DEBUG("%s: A2dp Multicast playback",
                                     __FUNCTION__);
                         }
-                        // initiate suspend if start is initiate by remote and multicast
-                        // is enabled.
-                        if (!p_av->start.initiator)
+                        /* initiate suspend if start is initiate by remote and multicast
+                         * is enabled.
+                         * Avoid suspend if stream is started as quick suspend-start
+                         * creates IOT issue, seen with SBH50.
+                         */
+
+                        if (!p_av->start.initiator && !btif_av_is_playing())
                         {
                             BTIF_TRACE_DEBUG("initiate suspend for remote start");
                             btif_dispatch_sm_event(BTIF_AV_SUSPEND_STREAM_REQ_EVT, NULL, 0);
