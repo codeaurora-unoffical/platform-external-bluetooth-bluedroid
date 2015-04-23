@@ -51,6 +51,17 @@
 #define BTA_AV_ACP_SIG_TIME_VAL 2000
 #endif
 
+/* state machine states */
+enum
+{
+    BTA_AV_INIT_SST,
+    BTA_AV_INCOMING_SST,
+    BTA_AV_OPENING_SST,
+    BTA_AV_OPEN_SST,
+    BTA_AV_RCFG_SST,
+    BTA_AV_CLOSING_SST
+};
+
 static void bta_av_acp_sig_timer_cback (TIMER_LIST_ENT *p_tle);
 
 /*******************************************************************************
@@ -1570,6 +1581,16 @@ void bta_av_sig_chg(tBTA_AV_DATA *p_data)
                 /* look for a p_lcb with its p_scb registered */
                 if((!(mask & p_cb->conn_lcb)) && (p_cb->p_scb[xx] != NULL))
                 {
+                    /* Check if the SCB is Free before using for
+                     * ACP connection
+                     */
+                    if ((p_data->hdr.offset == AVDT_ACP) &&
+                        (p_cb->p_scb[xx]->state != BTA_AV_INIT_SST))
+                    {
+                        APPL_TRACE_DEBUG("SCB in use %d", xx);
+                        continue;
+                    }
+
                     APPL_TRACE_DEBUG("Found a free p_lcb : 0x%x", xx);
                     p_lcb = &p_cb->lcb[xx];
                     p_lcb->lidx = xx + 1;
