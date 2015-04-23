@@ -516,8 +516,16 @@ void handle_rc_features(int index)
  ***************************************************************************/
 static BOOLEAN btif_rc_get_connection_state()
 {
-    CHECK_RC_CONNECTED
-    return TRUE;
+    int clients;
+
+    for (clients = 0; clients < btif_max_rc_clients; clients++)
+    {
+        if (btif_rc_cb[clients].rc_connected == TRUE)
+        {
+            return TRUE;
+        }
+    }
+    return FALSE;
 }
 
 /***************************************************************************
@@ -694,6 +702,8 @@ void handle_rc_disconnect (tBTA_AV_RC_CLOSE *p_rc_close)
     tBTA_AV_FEAT features;
 #endif
     UINT8 index;
+    BOOLEAN is_connected = 0;
+
     BTIF_TRACE_DEBUG("%s: rc_handle: %d", __FUNCTION__, p_rc_close->rc_handle);
 
     index = btif_rc_get_idx_by_rc_handle(p_rc_close->rc_handle);
@@ -720,8 +730,11 @@ void handle_rc_disconnect (tBTA_AV_RC_CLOSE *p_rc_close)
     btif_rc_cb[index].rc_volume = MAX_VOLUME;
     btif_rc_cb[index].rc_play_processed = FALSE;
     btif_rc_cb[index].rc_pending_play = FALSE;
+
     //CLose Uinput only when all RCs are disconnected
-    if (!btif_rc_get_connection_state())
+    is_connected = btif_rc_get_connection_state();
+    BTIF_TRACE_DEBUG("RC connected : %d", is_connected);
+    if (is_connected != TRUE)
     {
         BTIF_TRACE_DEBUG("Clear UINPUT and transactions when zero RC left");
         init_all_transactions();
@@ -772,6 +785,14 @@ void handle_rc_passthrough_cmd ( tBTA_AV_REMOTE_CMD *p_remote_cmd)
     if (index == btif_max_rc_clients)
     {
         BTIF_TRACE_ERROR("Passthrough on invalid index");
+        return;
+    }
+    /* Multicast: Passthru command on AVRCP only device when connected
+     * to other A2DP devices, ignore it.
+     */
+    if (btif_av_is_connected() && !btif_av_is_device_connected(btif_rc_cb[index].rc_addr))
+    {
+        BTIF_TRACE_ERROR("Passthrough on AVRCP only device: Ignore..");
         return;
     }
 
