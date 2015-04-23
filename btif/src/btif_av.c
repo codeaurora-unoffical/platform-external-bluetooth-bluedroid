@@ -477,9 +477,6 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
                  {
                     btif_av_cb[index].is_slave_connected = TRUE;
                  }
-                 // update multicast state after new connection
-                 btif_av_update_multicast_state(index);
-
                  btif_av_cb[index].peer_sep = p_bta_data->open.sep;
                  btif_a2dp_set_peer_sep(p_bta_data->open.sep);
 
@@ -504,6 +501,10 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
                 /* inform the application of the event */
                 btif_report_connection_state(state, &(btif_av_cb[index].peer_bda));
                 btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_OPENED);
+                /* BTIF AV State updated, now check
+                 * and update multicast state
+                 */
+                btif_av_update_multicast_state(index);
             }
 
             if (btif_av_cb[index].peer_sep == AVDT_TSEP_SNK)
@@ -606,9 +607,6 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
                  {
                     btif_av_cb[index].is_slave_connected = TRUE;
                  }
-                 // update multicast state after new connection
-                 btif_av_update_multicast_state(index);
-
                  btif_av_cb[index].peer_sep = p_bta_data->open.sep;
                  btif_a2dp_set_peer_sep(p_bta_data->open.sep);
 
@@ -647,6 +645,11 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
             * If YES, trigger DUAL Handoff. */
             if ((p_bta_data->open.status == BTA_AV_SUCCESS))
             {
+                /* BTIF AV State updated, now check
+                 * and update multicast state
+                 */
+                btif_av_update_multicast_state(index);
+
                 /*This device should be now ready for all next playbacks*/
                 btif_av_cb[index].current_playing = TRUE;
                 if (enable_multicast == FALSE)
