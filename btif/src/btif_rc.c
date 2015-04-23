@@ -383,6 +383,8 @@ int uinput_create(char *name)
         close(fd);
         return -1;
     }
+    BTIF_TRACE_IMP("AVRCP: input device opened.. Delay 30 ms");
+    GKI_delay (30);
     return fd;
 }
 
