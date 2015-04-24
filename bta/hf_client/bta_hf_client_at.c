@@ -1106,6 +1106,8 @@ static char *bta_hf_client_parse_clcc(char *buffer)
         buffer += offset;
     }
 
+    /* Skip any remaing param,as they are not defined by BT HFP spec */
+    AT_SKIP_REST(buffer);
     AT_CHECK_RN(buffer);
 
     if(res > 6)
