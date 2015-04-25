@@ -801,18 +801,29 @@ static BOOLEAN btif_av_state_closing_handler(btif_sm_event_t event, void *p_data
         case BTIF_SM_ENTER_EVT:
             if (btif_av_cb[index].peer_sep == AVDT_TSEP_SNK)
             {
-                if (enable_multicast == TRUE)
+                /* Multicast/Soft Hand-off:
+                 * If MC/SHO is enabled we need to keep/start playing on
+                 * other device.
+                 */
+                if (btif_av_is_connected_on_other_idx(index))
                 {
                     if (btif_av_is_playing())
                     {
                         APPL_TRACE_DEBUG("Keep playing on other device");
                     }
+                    else
+                    {
+                        APPL_TRACE_DEBUG("Not playing on other devie: Set Flush");
+                        btif_a2dp_set_tx_flush(TRUE);
+                    }
                 }
                 else
                 {
-                    /* immediately stop transmission of frames */
+                    /* Single connections scenario:
+                     * Immediately stop transmission of frames
+                     * wait for audioflinger to stop a2dp
+                     */
                     btif_a2dp_set_tx_flush(TRUE);
-                    /* wait for audioflinger to stop a2dp */
                 }
             }
             if (btif_av_cb[index].peer_sep == AVDT_TSEP_SRC)
