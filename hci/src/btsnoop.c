@@ -97,8 +97,10 @@ static void btsnoop_write_packet(packet_type_t type, const uint8_t *packet, bool
   int flags;
   int drops = 0;
   struct pollfd pfd;
+#ifdef DEBUG_SNOOP
   uint64_t ts_begin;
   uint64_t ts_end, ts_diff;
+#endif
   uint8_t snoop_buf[1200] = {0};
   uint32_t offset = 0;
 
@@ -160,36 +162,45 @@ static void btsnoop_write_packet(packet_type_t type, const uint8_t *packet, bool
   if (client_socket_btsnoop != -1) {
     pfd.fd = client_socket_btsnoop;
     pfd.events = POLLOUT;
-
+#ifdef DEBUG_SNOOP
     ts_begin = time_now_us();
-
+#endif
     if (poll(&pfd, 1, 10) == 0) {
       ALOGE("btsnoop poll : Taking more than 10 ms : skip dump");
+#ifdef DEBUG_SNOOP
       ts_end = time_now_us();
-      utils_unlock();
       ts_diff = ts_end - ts_begin;
       if (ts_diff > 10000) {
         ALOGE("btsnoop poll T/O : took more time %08lld us", ts_diff);
       }
+#endif
+      utils_unlock();
       return;
     }
 
+#ifdef DEBUG_SNOOP
     ts_end = time_now_us();
     ts_diff = ts_end - ts_begin;
     if (ts_diff > 10000) {
       ALOGE("btsnoop poll : took more time %08lld us", ts_diff);
     }
+#endif
   }
+
+#ifdef DEBUG_SNOOP
   ts_begin = time_now_us();
+#endif
 
   btsnoop_write(snoop_buf, offset + length_he - 1);
 
+#ifdef DEBUG_SNOOP
   ts_end = time_now_us();
   ts_diff = ts_end - ts_begin;
-  utils_unlock();
   if (ts_diff > 10000) {
     ALOGE("btsnoop write : Write took more time %08lld us", ts_diff);
   }
+#endif
+  utils_unlock();
 }
 
 void btsnoop_open(const char *p_path, const bool save_existing) {
