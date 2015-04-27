@@ -291,6 +291,20 @@ static void btif_initiate_av_open_tmr_hdlr(TIMER_LIST_ENT *tle)
         }
         else
         {
+            UINT8 rc_handle;
+            int index;
+            /* Multicast: Check if AV slot is available for connection
+             * If not available, AV got connected to different devices.
+             * Disconnect this RC connection without AV connection.
+             */
+            rc_handle = btif_rc_get_connected_peer_handle(peer_addr);
+            index = btif_av_get_valid_idx_for_rc_events(peer_addr, rc_handle);
+            if(index >= btif_max_av_clients)
+            {
+                BTIF_TRACE_ERROR("%s No slot free for AV connection, back off",
+                            __FUNCTION__);
+                return;
+            }
             BTIF_TRACE_DEBUG("%s Issuing connect to the remote RC peer", __FUNCTION__);
             /* In case of AVRCP connection request, we will initiate SRC connection */
             btif_queue_connect(UUID_SERVCLASS_AUDIO_SOURCE, (bt_bdaddr_t*)&peer_addr, connect_int);
@@ -477,9 +491,6 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
                  {
                     btif_av_cb[index].is_slave_connected = TRUE;
                  }
-                 // update multicast state after new connection
-                 btif_av_update_multicast_state(index);
-
                  btif_av_cb[index].peer_sep = p_bta_data->open.sep;
                  btif_a2dp_set_peer_sep(p_bta_data->open.sep);
 
@@ -504,6 +515,10 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
                 /* inform the application of the event */
                 btif_report_connection_state(state, &(btif_av_cb[index].peer_bda));
                 btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_OPENED);
+                /* BTIF AV State updated, now check
+                 * and update multicast state
+                 */
+                btif_av_update_multicast_state(index);
             }
 
             if (btif_av_cb[index].peer_sep == AVDT_TSEP_SNK)
@@ -606,9 +621,6 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
                  {
                     btif_av_cb[index].is_slave_connected = TRUE;
                  }
-                 // update multicast state after new connection
-                 btif_av_update_multicast_state(index);
-
                  btif_av_cb[index].peer_sep = p_bta_data->open.sep;
                  btif_a2dp_set_peer_sep(p_bta_data->open.sep);
 
@@ -622,7 +634,10 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
             {
                 BTIF_TRACE_WARNING("BTA_AV_OPEN_EVT::FAILED status: %d",
                                      p_bta_data->open.status );
-                if (p_bta_data->open.status != BTA_AV_FAIL_SDP)
+                /* Multicast: Check if connected to AVRC only device
+                 * disconnect when Dual A2DP/Multicast is supported.
+                 */
+                if ((btif_max_av_clients >= 2) || (p_bta_data->open.status != BTA_AV_FAIL_SDP))
                 {
                     BD_ADDR peer_addr;
                     if ((btif_rc_get_connected_peer(peer_addr))
@@ -647,6 +662,11 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
             * If YES, trigger DUAL Handoff. */
             if ((p_bta_data->open.status == BTA_AV_SUCCESS))
             {
+                /* BTIF AV State updated, now check
+                 * and update multicast state
+                 */
+                btif_av_update_multicast_state(index);
+
                 /*This device should be now ready for all next playbacks*/
                 btif_av_cb[index].current_playing = TRUE;
                 if (enable_multicast == FALSE)
@@ -1660,8 +1680,11 @@ static int btif_get_conn_state_of_device(BD_ADDR address)
         if ((bdcmp(address,
             btif_av_cb[i].peer_bda.address) == 0))
         {
-            BTIF_TRACE_EVENT("Matched Address");
             state = btif_sm_get_state(btif_av_cb[i].sm_handle);
+            BTIF_TRACE_EVENT("BD Found: %02X %02X %02X %02X %02X %02X :state: %s",
+                address[5], address[4], address[3],
+                address[2], address[1], address[0],
+                dump_av_sm_state_name(state));
         }
     }
     return state;
@@ -2215,7 +2238,14 @@ static bt_status_t connect_int(bt_bdaddr_t *bd_addr, uint16_t uuid)
     for (i = 0; i < btif_max_av_clients;)
     {
         if(btif_av_get_valid_idx(i))
+        {
+            if (bdcmp(bd_addr->address, btif_av_cb[i].peer_bda.address) == 0)
+            {
+                BTIF_TRACE_ERROR("Attempting connection for non idle device.. back off ");
+                return BT_STATUS_SUCCESS;
+            }
             i++;
+        }
         else
             break;
     }
