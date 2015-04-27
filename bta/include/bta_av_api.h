@@ -254,8 +254,10 @@ typedef UINT8 tBTA_AV_ERR;
 #define BTA_AV_MEDIA_DATA_EVT   22      /* sending command to Media Task */
 #define BTA_AV_SM_PRIORITY_EVT  23       /* if priority of device is 0 then move back to idle */
 
+#define BTA_AV_ROLE_CHANGED_EVT     24
+
 /* Max BTA event */
-#define BTA_AV_MAX_EVT          24
+#define BTA_AV_MAX_EVT          25
 
 typedef UINT8 tBTA_AV_EVT;
 
@@ -438,6 +440,13 @@ typedef struct
     tBTA_AV_HNDL    hndl;       /* Handle associated with the stream that rejected the connection. */
 } tBTA_AV_REJECT;
 
+/* data associated with BTA_AV_ROLE_CHANGED */
+typedef struct
+{
+    BD_ADDR  bd_addr;
+    UINT8    new_role;
+    tBTA_AV_HNDL    hndl;       /* Handle associated with role change event */
+} tBTA_AV_ROLE_CHANGED;
 
 /* union of data associated with AV callback */
 typedef union
@@ -463,6 +472,7 @@ typedef union
     tBTA_AV_BROWSE_MSG  browse_msg;
     tBTA_AV_REJECT      reject;
     tBTA_AV_RC_FEAT     rc_feat;
+    tBTA_AV_ROLE_CHANGED role_changed;
 } tBTA_AV;
 
 /* union of data associated with AV Media callback */
