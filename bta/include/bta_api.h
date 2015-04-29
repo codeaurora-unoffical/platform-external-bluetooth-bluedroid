@@ -1570,6 +1570,18 @@ BTA_API extern tBTA_STATUS BTA_DmHciRawCommand (UINT16 opcode, UINT8 param_len,U
 *******************************************************************************/
 BTA_API extern tBTA_STATUS BTA_DmVendorSpecificCommand (UINT16 opcode, UINT8 param_len,UINT8 *p_param_buf, tBTA_VENDOR_CMPL_CBACK *p_cback);
 
+/*******************************************************************************
+**
+** Function         BTA_DmSearchIsActive
+**
+** Description      This API will get called during the time of cancel
+**                  discovery
+**
+**
+** Returns          BOOLEAN
+**
+*******************************************************************************/
+BTA_API extern BOOLEAN BTA_DmSearchIsActive(void);
 
 /*******************************************************************************
 **
