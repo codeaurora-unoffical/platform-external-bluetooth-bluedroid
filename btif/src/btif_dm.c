@@ -3244,15 +3244,15 @@ BOOLEAN btif_dm_proc_rmt_oob(BD_ADDR bd_addr,  BT_OCTET16 p_c, BT_OCTET16 p_r)
             fclose(fp);
         }
         BTIF_TRACE_DEBUG("----btif_dm_proc_rmt_oob: TRUE");
-        sprintf(t, "%02x:%02x:%02x:%02x:%02x:%02x",
+        snprintf(t, sizeof(t), "%02x:%02x:%02x:%02x:%02x:%02x",
                 oob_cb.oob_bdaddr[0], oob_cb.oob_bdaddr[1], oob_cb.oob_bdaddr[2],
                 oob_cb.oob_bdaddr[3], oob_cb.oob_bdaddr[4], oob_cb.oob_bdaddr[5]);
         BTIF_TRACE_DEBUG("----btif_dm_proc_rmt_oob: peer_bdaddr = %s", t);
-        sprintf(t, "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
+        snprintf(t, sizeof(t), "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
                 p_c[0], p_c[1], p_c[2],  p_c[3],  p_c[4],  p_c[5],  p_c[6],  p_c[7],
                 p_c[8], p_c[9], p_c[10], p_c[11], p_c[12], p_c[13], p_c[14], p_c[15]);
         BTIF_TRACE_DEBUG("----btif_dm_proc_rmt_oob: c = %s",t);
-        sprintf(t, "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
+        snprintf(t, sizeof(t), "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
                 p_r[0], p_r[1], p_r[2],  p_r[3],  p_r[4],  p_r[5],  p_r[6],  p_r[7],
                 p_r[8], p_r[9], p_r[10], p_r[11], p_r[12], p_r[13], p_r[14], p_r[15]);
         BTIF_TRACE_DEBUG("----btif_dm_proc_rmt_oob: r = %s",t);
