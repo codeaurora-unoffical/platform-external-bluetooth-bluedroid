@@ -97,7 +97,7 @@ typedef struct
     BOOLEAN current_playing;
     btif_sm_state_t state;
     int service;
-    BOOLEAN is_slave_connected;
+    BOOLEAN is_slave;
     BOOLEAN is_device_playing;
 } btif_av_cb_t;
 
@@ -365,7 +365,7 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
             btif_av_cb[index].edr_3mbps = 0;
             btif_av_cb[index].edr = 0;
             btif_av_cb[index].current_playing = FALSE;
-            btif_av_cb[index].is_slave_connected = FALSE;
+            btif_av_cb[index].is_slave = FALSE;
             btif_av_cb[index].is_device_playing = FALSE;
             for (int i = 0; i < btif_max_av_clients; i++)
             {
@@ -489,7 +489,7 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data, i
                  btif_av_cb[index].edr = p_bta_data->open.edr;
                  if (p_bta_data->open.role == HOST_ROLE_SLAVE)
                  {
-                    btif_av_cb[index].is_slave_connected = TRUE;
+                    btif_av_cb[index].is_slave = TRUE;
                  }
                  btif_av_cb[index].peer_sep = p_bta_data->open.sep;
                  btif_a2dp_set_peer_sep(p_bta_data->open.sep);
@@ -619,7 +619,7 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *p_data
                  btif_av_cb[index].edr = p_bta_data->open.edr;
                  if (p_bta_data->open.role == HOST_ROLE_SLAVE)
                  {
-                    btif_av_cb[index].is_slave_connected = TRUE;
+                    btif_av_cb[index].is_slave = TRUE;
                  }
                  btif_av_cb[index].peer_sep = p_bta_data->open.sep;
                  btif_a2dp_set_peer_sep(p_bta_data->open.sep);
@@ -981,12 +981,12 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
             BTIF_TRACE_DEBUG("BTA_AV_START_EVT role: %d", p_av->start.role);
             if (p_av->start.role == HOST_ROLE_SLAVE)
             {
-                btif_av_cb[index].is_slave_connected = TRUE;
+                btif_av_cb[index].is_slave = TRUE;
             }
             else
             {
                 // update if we are master after role switch before start
-                btif_av_cb[index].is_slave_connected = FALSE;
+                btif_av_cb[index].is_slave = FALSE;
             }
             /* There can be role switch after device is connected,
              * hence check for role before starting multicast, and
@@ -1019,9 +1019,13 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
                             BTIF_TRACE_DEBUG("%s: A2dp Multicast playback",
                                     __FUNCTION__);
                         }
-                        // initiate suspend if start is initiate by remote and multicast
-                        // is enabled.
-                        if (!p_av->start.initiator)
+                        /* initiate suspend if start is initiate by remote and multicast
+                         * is enabled.
+                         * Avoid suspend if stream is started as quick suspend-start
+                         * creates IOT issue, seen with SBH50.
+                         */
+
+                        if (!p_av->start.initiator && !btif_av_is_playing())
                         {
                             BTIF_TRACE_DEBUG("initiate suspend for remote start");
                             btif_dispatch_sm_event(BTIF_AV_SUSPEND_STREAM_REQ_EVT, NULL, 0);
@@ -1398,9 +1402,11 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
 
 static void btif_av_handle_event(UINT16 event, char* p_param)
 {
-    int index=0;
+    int index = 0;
     tBTA_AV *p_bta_data = (tBTA_AV*)p_param;
     bt_bdaddr_t * bt_addr;
+    UINT8 role;
+
     switch (event)
     {
         /*events from Upper layer and Media Task*/
@@ -1438,6 +1444,22 @@ static void btif_av_handle_event(UINT16 event, char* p_param)
         case BTA_AV_OPEN_EVT:
             index = HANDLE_TO_INDEX(p_bta_data->open.hndl);
             break;
+        case BTA_AV_ROLE_CHANGED_EVT:
+            index = HANDLE_TO_INDEX(p_bta_data->role_changed.hndl);
+            role = p_bta_data->role_changed.new_role;
+            BTIF_TRACE_EVENT("Role change: 0x%x: new role: %s",
+                p_bta_data->role_changed.hndl, (role == HOST_ROLE_SLAVE) ? "Slave" : "Master");
+            if (index >= 0 && index < btif_max_av_clients)
+            {
+                btif_av_cb[index].is_slave = (role == HOST_ROLE_SLAVE) ? TRUE : FALSE;
+                btif_av_update_multicast_state(index);
+            }
+            else
+            {
+                BTIF_TRACE_ERROR("%s: Invalid index for connection", __FUNCTION__);
+            }
+            return;
+
         case BTA_AV_PENDING_EVT:
             /* In race conditions, outgoing and incoming connections
              * at same time check for BD address at index and if it
@@ -3001,7 +3023,7 @@ void btif_av_update_multicast_state(int index)
 
     for (i = 0; i < btif_max_av_clients; i++)
     {
-        if (btif_av_cb[i].is_slave_connected == TRUE)
+        if (btif_av_cb[i].is_slave == TRUE)
         {
             BTIF_TRACE_WARNING("Conected as slave to : %s",
                 bd2str(&btif_av_cb[i].peer_bda, &addr_string));

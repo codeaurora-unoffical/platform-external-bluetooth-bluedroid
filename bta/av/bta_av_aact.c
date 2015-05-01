@@ -843,11 +843,31 @@ void bta_av_role_res (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
     BOOLEAN         initiator = FALSE;
     tBTA_AV_START   start;
     tBTA_AV_OPEN    av_open;
-    UINT8 cur_role;
+    tBTA_AV_ROLE_CHANGED role_changed;
+
+    UINT8 cur_role = BTM_ROLE_UNDEFINED;
 
     APPL_TRACE_DEBUG("bta_av_role_res q_tag:%d, wait:x%x, role:x%x", p_scb->q_tag, p_scb->wait, p_scb->role);
     if (p_scb->role & BTA_AV_ROLE_START_INT)
         initiator = TRUE;
+
+    /* Multicast: update BTIF about role switch
+     * If role switch succeeded, we need to update multicast state
+     * from BTIF.
+     */
+    if (p_data->role_res.hci_status == HCI_SUCCESS)
+    {
+        APPL_TRACE_DEBUG("bta_av_role_res: Master update upper layer");
+
+        bdcpy(role_changed.bd_addr, p_scb->peer_addr);
+        role_changed.hndl = p_scb->hndl;
+
+        if (BTM_GetRole (p_scb->peer_addr, &cur_role) == BTM_SUCCESS)
+        {
+            role_changed.new_role = cur_role;
+        }
+        (*bta_av_cb.p_cback)(BTA_AV_ROLE_CHANGED_EVT, (tBTA_AV *)&role_changed);
+    }
 
     if (p_scb->q_tag == BTA_AV_Q_TAG_START)
     {
