@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <cutils/properties.h>
 
 #include "gki.h"
 #include "bt_types.h"
@@ -1725,6 +1726,15 @@ void btu_hcif_cmd_timeout (UINT8 controller_id)
 
         bte_ssr_cleanup();
         usleep(20000); /* 20 milliseconds */
+        //Reset SOC status to trigger hciattach service
+        if(property_set("bluetooth.status", "off") < 0)
+        {
+           HCI_TRACE_ERROR("hci_cmd_timeout: Error resetting SOC status\n ");
+        }
+        else
+        {
+           HCI_TRACE_ERROR("hci_cmd_timeout: SOC Status is reset\n ");
+        }
         /* Killing the process to force a restart as part of fault tolerance */
         kill(getpid(), SIGKILL);
     }
