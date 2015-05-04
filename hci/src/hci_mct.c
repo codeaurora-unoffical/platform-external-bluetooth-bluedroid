@@ -779,6 +779,15 @@ uint16_t hci_mct_receive_evt_msg(void)
            /* Next, wait for next message */
            p_cb->rcv_state = MCT_RX_NEWMSG_ST;
            continue_fetch_looping = FALSE;
+           //Reset SOC status to trigger hciattach service
+           if(property_set("bluetooth.status", "off") < 0)
+           {
+              ALOGE("SSR: Error resetting SOC status\n ");
+           }
+           else
+           {
+              ALOGE("SSR: SOC Status is reset\n ");
+           }
         }
         else
 #endif
