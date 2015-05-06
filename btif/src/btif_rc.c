@@ -861,6 +861,7 @@ void handle_rc_metamsg_cmd (tBTA_AV_META_MSG *pmeta_msg)
     }
 }
 
+#ifdef Q_BLUETOOTH
 /************************************************************************************
 *  Function                 handle_get_folder_item_mediaplyerlist_cmd
 *
@@ -1130,6 +1131,7 @@ void handle_rc_browsemsg_cmd (tBTA_AV_BROWSE_MSG *pbrowse_msg)
     }
 
 }
+#endif
 
 
 /***************************************************************************
@@ -1229,6 +1231,7 @@ void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV *p_data)
             GKI_freebuf(p_data->meta_msg.p_msg);
         }
         break;
+#ifdef Q_BLUETOOTH
         case BTA_AV_BROWSE_MSG_EVT:
         {
             if (bt_rc_callbacks != NULL)
@@ -1245,6 +1248,7 @@ void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV *p_data)
             GKI_freebuf(p_data->browse_msg.p_msg);
         }
         break;
+#endif
         default:
             BTIF_TRACE_DEBUG("Unhandled RC event : 0x%x", event);
     }
@@ -1464,6 +1468,7 @@ static UINT8 opcode_from_pdu(UINT8 pdu)
     return opcode;
 }
 
+#ifdef Q_BLUETOOTH
 /****************************************************************************
 * Function         send_browsemsg_rsp
 *
@@ -1525,6 +1530,7 @@ int app_sendbrowsemsg(UINT8 index ,tAVRC_RESPONSE *avrc_rsp)
    return 0;
 }
 
+#endif
 
 /*******************************************************************************
 **
@@ -1550,13 +1556,16 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
         }
         break;
         case AVRC_PDU_LIST_PLAYER_APP_ATTR:
+#ifdef Q_BLUETOOTH
         {
             BTIF_TRACE_DEBUG("AVRC_PDU_LIST_PLAYER_APP_ATTR ");
             FILL_PDU_QUEUE(IDX_LIST_APP_ATTR_RSP, ctype, label, TRUE)
             HAL_CBACK(bt_rc_callbacks, list_player_app_attr_cb);
         }
         break;
+#endif
         case AVRC_PDU_LIST_PLAYER_APP_VALUES:
+#ifdef Q_BLUETOOTH
         {
             BTIF_TRACE_DEBUG("AVRC_PDU_LIST_PLAYER_APP_VALUES =%d" ,pavrc_cmd->list_app_values.attr_id);
             if (pavrc_cmd->list_app_values.attr_id == 0)
@@ -1568,7 +1577,9 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
             HAL_CBACK(bt_rc_callbacks, list_player_app_values_cb ,pavrc_cmd->list_app_values.attr_id);
         }
         break;
+#endif
         case AVRC_PDU_GET_CUR_PLAYER_APP_VALUE:
+#ifdef Q_BLUETOOTH
         {
             btrc_player_attr_t player_attr[BTRC_MAX_ELEM_ATTR_SIZE];
             UINT8 player_attr_num;
@@ -1590,7 +1601,9 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
                                                pavrc_cmd->get_cur_app_val.num_attr, player_attr );
         }
         break;
+#endif
         case AVRC_PDU_SET_PLAYER_APP_VALUE:
+#ifdef Q_BLUETOOTH
         {
             btrc_player_settings_t attr;
             UINT8 count;
@@ -1615,7 +1628,9 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
             }
         }
         break;
+#endif
         case AVRC_PDU_GET_PLAYER_APP_ATTR_TEXT:
+#ifdef Q_BLUETOOTH
         {
             btrc_player_attr_t player_attr_txt [BTRC_MAX_ELEM_ATTR_SIZE];
             UINT8 count_txt = 0 ;
@@ -1636,7 +1651,11 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
             }
         }
         break;
+#endif
         case AVRC_PDU_GET_PLAYER_APP_VALUE_TEXT:
+#ifdef Q_BLUETOOTH
+        send_reject_response (btif_rc_cb.rc_handle, label, pavrc_cmd->pdu, AVRC_STS_BAD_CMD);
+#else
         {
             if (pavrc_cmd->get_app_val_txt.attr_id == 0 ||
                      pavrc_cmd->get_app_val_txt.attr_id > AVRC_PLAYER_VAL_GROUP_REPEAT)
@@ -1656,6 +1675,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
                           pavrc_cmd->get_app_val_txt.vals);
             }
         }
+#endif
         break;
         case AVRC_PDU_GET_ELEMENT_ATTR:
         {
@@ -1743,6 +1763,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
             }
         }
         break;
+#ifdef Q_BLUETOOTH
         case AVRC_PDU_SET_ADDRESSED_PLAYER:
         {
             btrc_status_t status_code = AVRC_STS_NO_ERROR;
@@ -1890,6 +1911,7 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
             }
         }
         break;
+#endif
         default:
         {
             send_reject_response(btif_rc_cb.rc_handle, label, pavrc_cmd->pdu,
@@ -2030,6 +2052,7 @@ static bt_status_t get_play_status_rsp(btrc_play_status_t play_status, uint32_t 
 }
 
 
+#ifdef Q_BLUETOOTH
 /**************************************************************************
 **
 ** Function         list_player_app_attr_rsp
@@ -2040,10 +2063,18 @@ static bt_status_t get_play_status_rsp(btrc_play_status_t play_status, uint32_t 
 ** Returns          bt_status_t
 **
 ****************************************************************************/
+#ifdef Q_BLUETOOTH
+static bt_status_t  list_player_app_attr_rsp( int num_attr, btrc_player_attr_t *p_attrs)
+#else
 static bt_status_t  list_player_app_attr_rsp( uint8_t num_attr, btrc_player_attr_t *p_attrs)
+#endif
 {
     tAVRC_RESPONSE avrc_rsp;
+#ifdef Q_BLUETOOTH
+    int i;
+#else
     UINT32 i;
+#endif
 
     CHECK_RC_CONNECTED
     memset(&(avrc_rsp.list_app_attr), 0, sizeof(tAVRC_LIST_APP_ATTR_RSP));
@@ -2074,10 +2105,18 @@ static bt_status_t  list_player_app_attr_rsp( uint8_t num_attr, btrc_player_attr
 ** Description      ListPlayerApplicationSettingValues (PDU ID: 0x12)
                     This method is called in response to PDU 0x12
 ************************************************************************/
+#ifdef Q_BLUETOOTH
+static bt_status_t  list_player_app_value_rsp( int num_val, uint8_t *value)
+#else
 static bt_status_t  list_player_app_value_rsp( uint8_t num_val, uint8_t *value)
+#endif
 {
     tAVRC_RESPONSE avrc_rsp;
+#ifdef Q_BLUETOOTH
+    int i;
+#else
     UINT32 i;
+#endif
 
     CHECK_RC_CONNECTED
     memset(&(avrc_rsp.list_app_values), 0, sizeof(tAVRC_LIST_APP_VALUES_RSP));
@@ -2255,6 +2294,7 @@ static bt_status_t get_player_app_value_text_rsp(int num_attr, btrc_player_setti
     SEND_METAMSG_RSP(IDX_GET_APP_VAL_TXT_RSP, &avrc_rsp);
     return BT_STATUS_SUCCESS;
 }
+#endif
 
 /***************************************************************************
 **
@@ -2344,6 +2384,7 @@ static bt_status_t register_notification_rsp(btrc_event_id_t event_id,
         case BTRC_EVT_PLAY_POS_CHANGED:
             avrc_rsp.reg_notif.param.play_pos = p_param->song_pos;
             break;
+#ifdef Q_BLUETOOTH
         case BTRC_EVT_APP_SETTINGS_CHANGED:
             avrc_rsp.reg_notif.param.player_setting.num_attr = p_param->player_setting.num_attr;
             memcpy(&avrc_rsp.reg_notif.param.player_setting.attr_id,
@@ -2361,6 +2402,7 @@ static bt_status_t register_notification_rsp(btrc_event_id_t event_id,
         case BTRC_EVT_NOW_PLAYING_CONTENT_CHANGED:
             avrc_rsp.reg_notif.param.evt  = 0x09;
             break;
+#endif
         default:
             BTIF_TRACE_WARNING("%s : Unhandled event ID : 0x%x", __FUNCTION__, event_id);
             return BT_STATUS_UNHANDLED;
@@ -2368,6 +2410,7 @@ static bt_status_t register_notification_rsp(btrc_event_id_t event_id,
 
     avrc_rsp.reg_notif.pdu = AVRC_PDU_REGISTER_NOTIFICATION;
     avrc_rsp.reg_notif.opcode = opcode_from_pdu(AVRC_PDU_REGISTER_NOTIFICATION);
+#ifdef Q_BLUETOOTH
     if (type == BTRC_NOTIFICATION_TYPE_REJECT)
     {
         /* Spec AVRCP 1.5 ,section 6.9.2.2, on completion
@@ -2384,6 +2427,7 @@ static bt_status_t register_notification_rsp(btrc_event_id_t event_id,
         avrc_rsp.get_play_status.status = AVRC_STS_NO_ERROR;
     }
 
+#endif
     /* Send the response. */
     send_metamsg_rsp(btif_rc_cb.rc_handle, btif_rc_cb.rc_notif[event_id-1].label,
         ((type == BTRC_NOTIFICATION_TYPE_INTERIM)?AVRC_CMD_NOTIF:AVRC_RSP_CHANGED), &avrc_rsp);
@@ -2391,6 +2435,7 @@ static bt_status_t register_notification_rsp(btrc_event_id_t event_id,
 }
 
 
+#ifdef Q_BLUETOOTH
 /***************************************************************************
 **
 ** Function         get_folderitem_rsp
@@ -2671,6 +2716,7 @@ static bt_status_t get_itemattr_rsp(uint8_t num_attr, btrc_element_attr_val_t *p
     SEND_BROWSEMSG_RSP(IDX_GET_ITEM_ATTR_RSP, &avrc_rsp);
     return BT_STATUS_SUCCESS;
 }
+#endif
 
 /***************************************************************************
 **
@@ -2952,22 +2998,36 @@ static const btrc_interface_t bt_rc_interface = {
     sizeof(bt_rc_interface),
     init,
     get_play_status_rsp,
+#ifdef Q_BLUETOOTH
     list_player_app_attr_rsp,     /* list_player_app_attr_rsp */
     list_player_app_value_rsp,    /* list_player_app_value_rsp */
     get_player_app_value_rsp,     /* get_player_app_value_rsp PDU 0x13*/
     get_player_app_attr_text_rsp, /* get_player_app_attr_text_rsp */
     get_player_app_value_text_rsp,/* get_player_app_value_text_rsp */
+#else
+    NULL, /* list_player_app_attr_rsp */
+    NULL, /* list_player_app_value_rsp */
+    NULL, /* get_player_app_value_rsp */
+    NULL, /* get_player_app_attr_text_rsp */
+    NULL, /* get_player_app_value_text_rsp */
+#endif
     get_element_attr_rsp,
+#ifdef Q_BLUETOOTH
     set_player_app_value_rsp,     /* set_player_app_value_rsp */
+#else
+    NULL,
+#endif
     register_notification_rsp,
     set_volume,
+    cleanup,
+#ifdef Q_BLUETOOTH
     get_folderitem_rsp,
     set_addrplayer_rsp,
     set_browseplayer_rsp,
     changepath_rsp,
     playitem_rsp,
     get_itemattr_rsp,
-    cleanup,
+#endif
 };
 
 static const btrc_ctrl_interface_t bt_rc_ctrl_interface = {

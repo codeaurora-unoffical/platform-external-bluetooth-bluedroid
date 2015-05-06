@@ -1649,7 +1649,6 @@ static bt_status_t  configure_wbs( bt_bdaddr_t *bd_addr , bthf_wbs_config_t conf
 static const bthf_interface_t bthfInterface = {
     sizeof(bthfInterface),
     init,
-    init_features,
     connect,
     disconnect,
     connect_audio,
@@ -1664,9 +1663,12 @@ static const bthf_interface_t bthfInterface = {
     at_response,
     clcc_response,
     phone_state_change,
-    get_remote_features,
     cleanup,
     configure_wbs,
+#ifdef Q_BLUETOOTH
+    init_features,
+    get_remote_features,
+#endif
 };
 
 /*******************************************************************************
