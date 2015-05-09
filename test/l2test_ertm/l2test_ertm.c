@@ -1190,10 +1190,15 @@ int main(int argc, char *argv[])
     bdt_init();
     sleep(5);
     if(FALSE == do_enable(NULL))
+    {
         goto ERR;
+    }
+    else
+    {
         printf("\n Before l2cap init\n");
         do_l2cap_init(NULL);
         printf("\n after l2cap init\n");
+    }
 
     //Outgoing Connection
     if(TRUE == g_ConnType)

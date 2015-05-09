@@ -185,6 +185,8 @@ static bt_status_t L2cap_Register (UINT16 psm, BOOLEAN ConnType, UINT16 SecLevel
         }
     }
 #endif
+    BTIF_TRACE_DEBUG("BTM_SetConnectability as TRUE");
+    BTM_SetConnectability (1, 0, 0); //Pae Mode , window , interval
     g_Psm = L2CA_Register (psm, pl2test_l2c_appl);
     if(0 == g_Psm) {
         BTIF_TRACE_DEBUG("Error:: L2CA_Register failed");
