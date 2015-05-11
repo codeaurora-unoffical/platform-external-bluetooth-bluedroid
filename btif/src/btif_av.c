@@ -1068,8 +1068,19 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
             }
 
             /* remain in open state if status failed */
+            /* Multicast-soft Handoff:
+             * START failed, cleanup Handoff flag.
+             */
             if (p_av->start.status != BTA_AV_SUCCESS)
+            {
+                int i;
+
+                for (i = 0; i < btif_max_av_clients; i++)
+                {
+                    btif_av_cb[i].dual_handoff = FALSE;
+                }
                 return FALSE;
+            }
 
 #ifndef AVK_BACKPORT
             if (btif_av_cb[index].peer_sep == AVDT_TSEP_SRC)
@@ -1472,31 +1483,7 @@ static void btif_av_handle_event(UINT16 event, char* p_param)
             return;
 
         case BTA_AV_PENDING_EVT:
-            /* In race conditions, outgoing and incoming connections
-             * at same time check for BD address at index and if it
-             * does not match then check for first avialable index.
-             */
             index = HANDLE_TO_INDEX(p_bta_data->pend.hndl);
-            if (index >= 0 && index < btif_max_av_clients &&
-                memcmp (((tBTA_AV*)p_bta_data)->pend.bd_addr,
-                &(btif_av_cb[index].peer_bda),
-                sizeof(btif_av_cb[index].peer_bda)) == 0)
-            {
-                BTIF_TRACE_EVENT("incomming connection at index %d", index);
-            }
-            else
-            {
-                index = btif_av_idx_by_bdaddr(bd_null);
-                if (index >= btif_max_av_clients)
-                {
-                    BTIF_TRACE_ERROR("No free SCB available");
-                    BTA_AvDisconnect(p_bta_data->pend.bd_addr);
-                }
-                else
-                {
-                    BTIF_TRACE_EVENT("updated index for connection %d", index);
-                }
-            }
             break;
         case BTA_AV_REJECT_EVT:
             index = HANDLE_TO_INDEX(p_bta_data->reject.hndl);
@@ -2310,8 +2297,6 @@ static bt_status_t src_connect_sink(bt_bdaddr_t *bd_addr)
     BTIF_TRACE_EVENT("%s", __FUNCTION__);
     CHECK_BTAV_INIT();
 
-     btif_queue_remove_connect(UUID_SERVCLASS_AUDIO_SOURCE, BTIF_QUEUE_CHECK_CONNECT_REQ);
-
     return btif_queue_connect(UUID_SERVCLASS_AUDIO_SOURCE, bd_addr, connect_int);
 }
 
@@ -2320,10 +2305,7 @@ static bt_status_t sink_connect_src(bt_bdaddr_t *bd_addr)
     BTIF_TRACE_EVENT("%s", __FUNCTION__);
     CHECK_BTAV_INIT();
 
-    btif_queue_remove_connect(UUID_SERVCLASS_AUDIO_SINK, BTIF_QUEUE_CHECK_CONNECT_REQ);
-
     return btif_queue_connect(UUID_SERVCLASS_AUDIO_SINK, bd_addr, connect_int);
-
 }
 
 /*******************************************************************************
