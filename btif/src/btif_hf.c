@@ -93,7 +93,7 @@
 #define BTIF_HF_NUM_CB       2
 
 /* Max HF clients supported from App */
-UINT16 btif_max_hf_clients = -1;
+UINT16 btif_max_hf_clients = 1;
 
 /* HF app ids for service registration */
 typedef enum {
@@ -716,6 +716,10 @@ static bt_status_t init( bthf_callbacks_t* callbacks, int max_hf_clients)
 
     bt_hf_callbacks = callbacks;
 
+    memset(&btif_hf_cb, 0, sizeof(btif_hf_cb));
+    btif_max_hf_clients = max_hf_clients;
+    BTIF_TRACE_DEBUG("btif_max_hf_clients = %d", btif_max_hf_clients);
+
     /* Invoke the enable service API to the core to set the appropriate service_id
      * Internally, the HSP_SERVICE_ID shall also be enabled if HFP is enabled (phone)
      * othwerwise only HSP is enabled (tablet)
@@ -726,9 +730,6 @@ static bt_status_t init( bthf_callbacks_t* callbacks, int max_hf_clients)
     btif_enable_service(BTA_HSP_SERVICE_ID);
 #endif
 
-    memset(&btif_hf_cb, 0, sizeof(btif_hf_cb));
-    btif_max_hf_clients = max_hf_clients;
-    BTIF_TRACE_DEBUG("btif_max_hf_clients = %d", btif_max_hf_clients);
     for (i = 0; i < btif_max_hf_clients; i++)
     {
         clear_phone_state_multihf(i);
