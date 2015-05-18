@@ -562,6 +562,19 @@ BOOLEAN L2CA_LE_SetFlowControlCredits (UINT16 cid, UINT16 credits)
         l2c_le_send_credits (p_ccb);
         return TRUE;
     }
+    else if (p_ccb->le_loc_conn_info.init_credits)
+    {
+        if (p_ccb->le_loc_conn_info.init_credits > p_ccb->le_loc_conn_info.credits)
+        {
+            l2cu_send_peer_le_credit_based_flow_ctrl(p_ccb,
+              p_ccb->le_loc_conn_info.init_credits - p_ccb->le_loc_conn_info.credits);
+            return (TRUE);
+        }
+        else
+        {
+            return (FALSE);
+        }
+    }
     else
     {
         return (FALSE);
