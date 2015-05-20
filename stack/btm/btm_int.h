@@ -1239,6 +1239,7 @@ int btm_sec_l2cap_le_access_req (BD_ADDR bd_addr, UINT16 psm, UINT16 handle,
 extern UINT8 btm_sec_clr_service_by_psm (UINT16 psm);
 #endif
 extern void  btm_sec_clr_temp_auth_service (BD_ADDR bda);
+extern tBTM_SEC_DEV_REC* btm_find_dev_by_public_static_addr(BD_ADDR bd_addr);
 
 extern tBTM_SEC_DEV_REC* btm_find_dev_by_public_static_addr(BD_ADDR bd_addr);
 #ifdef __cplusplus

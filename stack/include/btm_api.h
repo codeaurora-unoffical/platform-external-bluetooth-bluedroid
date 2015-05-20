@@ -1781,6 +1781,7 @@ typedef struct
     BD_ADDR             private_addr;
     BOOLEAN             create_rpa;
 #endif
+    BD_ADDR             unpair_addr;
 }tBTM_LE_PID_KEYS;
 
 #if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
