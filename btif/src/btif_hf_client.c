@@ -191,7 +191,15 @@ static void btif_initiate_open_SCO_tmr_hdlr(TIMER_LIST_ENT *tle)
     BTIF_TRACE_EVENT("%s", __FUNCTION__);
     if (!BTM_GetNumScoLinks())
     {
-        BTA_HfClientAudioOpen(btif_hf_client_cb.handle);
+        if (btif_hf_client_cb.peer_feat & BTA_HF_CLIENT_PEER_CODEC)
+        {
+            BTIF_TRACE_DEBUG("codec negotiation supported, sending AT+BCC");
+            BTA_HfClientSendAT(btif_hf_client_cb.handle, BTA_HF_CLIENT_AT_CMD_BCC, 0, 0, NULL);
+        }
+        else
+        {
+            BTA_HfClientAudioOpen(btif_hf_client_cb.handle);
+        }
     }
     else
     {
