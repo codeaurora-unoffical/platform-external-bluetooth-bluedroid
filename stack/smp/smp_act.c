@@ -1332,7 +1332,7 @@ void smp_pair_terminate(tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
 {
     SMP_TRACE_DEBUG ("smp_pair_terminate reason = %d ", p_data->reason);
 
-    if(!p_data->reason)
+    if(!p_data->reason || p_data->reason > 0xFF)
     {
         p_cb->status = SMP_CONN_TOUT;
     }
