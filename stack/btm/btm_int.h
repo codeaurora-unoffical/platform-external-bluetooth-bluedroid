@@ -106,6 +106,8 @@ typedef struct
 #define BTM_ACL_SWKEY_STATE_ENCRYPTION_ON       4
 #define BTM_ACL_SWKEY_STATE_IN_PROGRESS         5
     UINT8           switch_role_state;
+#define BTM_MAX_SW_ROLE_FAILED_ATTEMPTS         3
+    UINT8           switch_role_failed_attempts;
     UINT8           change_key_state;
 
 #define BTM_ACL_ENCRYPT_STATE_IDLE              0
@@ -632,6 +634,11 @@ typedef struct
 #define BTM_SEC_NO_LAST_SERVICE_ID      0
     UINT8           last_author_service_id;         /* ID of last serviced authorized: Reset after each l2cap connection */
 
+#if (defined(BTM_SAFE_REATTEMPT_ROLE_SWITCH) && BTM_SAFE_REATTEMPT_ROLE_SWITCH == TRUE)
+#define BTM_MAX_BL_SW_ROLE_ATTEMPTS     1
+    UINT8           switch_role_attempts;
+#endif
+
 #if (defined(BTM_SECURE_CONN_HOST_INCLUDED) && BTM_SECURE_CONN_HOST_INCLUDED == TRUE)
     BOOLEAN     sec_conn_supported;  /* secure connection support from Host and Controller of Remote device */
 #endif
@@ -1028,6 +1035,7 @@ extern void         btm_read_link_quality_complete (UINT8 *p);
 extern tBTM_STATUS  btm_set_packet_types (tACL_CONN *p, UINT16 pkt_types);
 extern void         btm_process_clk_off_comp_evt (UINT16 hci_handle, UINT16 clock_offset);
 extern void         btm_acl_role_changed (UINT8 hci_status, BD_ADDR bd_addr, UINT8 new_role);
+extern void         btm_blacklist_role_change_device (BD_ADDR bd_addr, UINT8 hci_status);
 extern void         btm_acl_encrypt_change (UINT16 handle, UINT8 status, UINT8 encr_enable);
 BTM_API extern UINT16       btm_get_acl_disc_reason_code (void);
 BTM_API extern tBTM_STATUS  btm_remove_acl (BD_ADDR bd_addr, tBT_TRANSPORT transport);

@@ -700,6 +700,7 @@ void bta_dm_remove_device (tBTA_DM_MSG *p_data)
     /* need to remove all pending background connection before unpair */
     BTA_GATTC_CancelOpen(0, p_dev->bd_addr, FALSE);
 #endif
+    remove_iot_device(IOT_DEV_CONF_FILE, IOT_ROLE_CHANGE_BLACKLIST,p_dev->bd_addr, METHOD_BD);
 
     if ( BTM_IsAclConnectionUp(p_dev->bd_addr, BT_TRANSPORT_LE) ||
          BTM_IsAclConnectionUp(p_dev->bd_addr, BT_TRANSPORT_BR_EDR))
