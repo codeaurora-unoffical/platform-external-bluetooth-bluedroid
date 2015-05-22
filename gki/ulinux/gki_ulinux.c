@@ -307,6 +307,7 @@ void GKI_init(void)
 #endif
     p_os = &gki_cb.os;
     pthread_mutex_init(&p_os->GKI_mutex, &attr);
+    pthread_mutex_init(&p_os->gki_timerupdate_mutex, &attr);
     /* pthread_mutex_init(&GKI_sched_mutex, NULL); */
 #if (GKI_DEBUG == TRUE)
     pthread_mutex_init(&p_os->GKI_trace_mutex, NULL);
@@ -635,6 +636,7 @@ void GKI_shutdown(void)
 
     /* Destroy mutex and condition variable objects */
     pthread_mutex_destroy(&gki_cb.os.GKI_mutex);
+    pthread_mutex_destroy(&gki_cb.os.gki_timerupdate_mutex);
 
     /*    pthread_mutex_destroy(&GKI_sched_mutex); */
 #if (GKI_DEBUG == TRUE)
@@ -1152,7 +1154,6 @@ void GKI_os_free (void *p_mem)
 *******************************************************************************/
 void GKI_exit_task (UINT8 task_id)
 {
-    GKI_disable();
     gki_cb.com.OSRdyTbl[task_id] = TASK_DEAD;
 
     /* Destroy mutex and condition variable objects */
@@ -1160,8 +1161,6 @@ void GKI_exit_task (UINT8 task_id)
     pthread_cond_destroy (&gki_cb.os.thread_evt_cond[task_id]);
     pthread_mutex_destroy(&gki_cb.os.thread_timeout_mutex[task_id]);
     pthread_cond_destroy (&gki_cb.os.thread_timeout_cond[task_id]);
-
-    GKI_enable();
 
     ALOGI("GKI_exit_task %d done", task_id);
     return;
