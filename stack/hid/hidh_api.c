@@ -390,21 +390,10 @@ tHID_STATUS HID_HostRemoveDev ( UINT8 dev_handle )
     if( (dev_handle >= HID_HOST_MAX_DEVICES) || (!hh_cb.devices[dev_handle].in_use) )
         return HID_ERR_INVALID_PARAM;
 
-    if (!HID_HostCloseDev( dev_handle ))
-    {
-        /* Update state as removing, once hid interrupt and control channels
-         * l2cap channels are disconencted, state would be udpated to unused
-         * and in_use flag would be set to false */
-        hh_cb.devices[dev_handle].conn.conn_state = HID_CONN_STATE_REMOVING;
-    }
-    else
-    {
-        /* HID Host is already closed, update flags now */
-        hh_cb.devices[dev_handle].in_use = FALSE;
-        hh_cb.devices[dev_handle].conn.conn_state = HID_CONN_STATE_UNUSED;
-        hh_cb.devices[dev_handle].conn.ctrl_cid =
-        hh_cb.devices[dev_handle].conn.intr_cid = 0;
-    }
+    HID_HostCloseDev( dev_handle ) ;
+    hh_cb.devices[dev_handle].in_use = FALSE;
+    hh_cb.devices[dev_handle].conn.conn_state = HID_CONN_STATE_UNUSED;
+    hh_cb.devices[dev_handle].conn.ctrl_cid = hh_cb.devices[dev_handle].conn.intr_cid = 0;
 
     return HID_SUCCESS;
 }
