@@ -52,7 +52,8 @@ static const UINT8 hci_role_switch_black_list_prefix[][3] = {{0x00, 0x26, 0xb4},
                                                              {0x00, 0x26, 0xe8}, /* Nissan Murano */
                                                              {0x00, 0x37, 0x6d}, /* Lexus ES300h */
                                                              {0x9c, 0x3a, 0xaf}, /* SAMSUNG HM1900 */
-                                                             {0x00, 0x18, 0x91}  /* WOOWI HERO */
+                                                             {0x00, 0x18, 0x91}, /* WOOWI HERO */
+                                                             {0x00, 0x0c, 0x8a}  /* Bose AE2W */
                                                             };
 
 /*******************************************************************************
