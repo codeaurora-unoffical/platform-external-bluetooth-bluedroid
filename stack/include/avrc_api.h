@@ -201,7 +201,7 @@ extern "C"
 **
 ******************************************************************************/
 AVRC_API extern UINT16 AVRC_AddRecord(UINT16 service_uuid, char *p_service_name,
-                char *p_provider_name, UINT16 categories, UINT32 sdp_handle);
+                char *p_provider_name, UINT16 categories, UINT32 sdp_handle, BOOLEAN browse_supported);
 
 /******************************************************************************
 **
@@ -555,6 +555,20 @@ AVRC_API extern void AVRC_Init(void);
 
 /*******************************************************************************
 **
+** Function         AVRC_Ctrl_ParsCommand
+**
+** Description      This function is used to parse cmds received for CTRL
+**                  Currently it is for SetAbsVolume and Volume Change Notification..
+**
+** Returns          AVRC_STS_NO_ERROR, if the message in p_data is parsed successfully.
+**                  Otherwise, the error code defined by AVRCP 1.4
+**
+*******************************************************************************/
+AVRC_API extern tAVRC_STS AVRC_Ctrl_ParsCommand (tAVRC_MSG *p_msg, tAVRC_COMMAND *p_result,
+    UINT8 *p_buf, UINT16 buf_len);
+
+/*******************************************************************************
+**
 ** Function         AVRC_ParsCommand
 **
 ** Description      This function is used to parse the received command.
@@ -579,6 +593,18 @@ AVRC_API extern tAVRC_STS AVRC_ParsCommand (tAVRC_MSG *p_msg, tAVRC_COMMAND *p_r
 AVRC_API extern tAVRC_STS AVRC_ParsResponse (tAVRC_MSG *p_msg, tAVRC_RESPONSE *p_result,
     UINT8 *p_buf, UINT16 buf_len);
 
+/*******************************************************************************
+**
+** Function         AVRC_Ctrl_ParsResponse
+**
+** Description      This function is a parse response for AVRCP Controller.
+**
+** Returns          AVRC_STS_NO_ERROR, if the message in p_data is parsed successfully.
+**                  Otherwise, the error code defined by AVRCP 1.4
+**
+*******************************************************************************/
+AVRC_API extern tAVRC_STS AVRC_Ctrl_ParsResponse (tAVRC_MSG *p_msg, tAVRC_RESPONSE *p_result,
+   UINT8 *p_buf, UINT16* buf_len);
 /*******************************************************************************
 **
 ** Function         AVRC_BldCommand

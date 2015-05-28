@@ -505,6 +505,20 @@ static UINT8 avrc_proc_far_msg(UINT8 handle, UINT8 label, UINT8 cr, BT_HDR **pp_
                 AVRC_MsgReq (handle, (UINT8)(label), AVRC_CMD_CTRL, p_cmd);
             }
         }
+        /*
+         * Drop it if we are out of buffer
+         */
+        else if (cr == AVCT_RSP && req_continue == FALSE  && pkt_type == AVRC_PKT_END)
+        {
+            avrc_cmd.pdu    = AVRC_PDU_ABORT_CONTINUATION_RSP;
+            avrc_cmd.status = AVRC_STS_NO_ERROR;
+            avrc_cmd.target_pdu = p_rcb->rasm_pdu;
+            if (AVRC_BldCommand ((tAVRC_COMMAND *)&avrc_cmd, &p_cmd) == AVRC_STS_NO_ERROR)
+            {
+                drop = 4;
+                AVRC_MsgReq (handle, (UINT8)(label), AVRC_CMD_CTRL, p_cmd);
+            }
+        }
     }
 
     return drop;
