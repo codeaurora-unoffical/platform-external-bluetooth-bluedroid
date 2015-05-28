@@ -1891,6 +1891,7 @@ UINT8 btm_proc_smp_cback(tSMP_EVT event, BD_ADDR bd_addr, tSMP_EVT_DATA *p_data)
                     }
                 }
                 memcpy (btm_cb.pairing_bda, bd_addr, BD_ADDR_LEN);
+                btm_cb.pairing_state = BTM_PAIR_STATE_WAIT_AUTH_COMPLETE;
                 p_dev_rec->sec_state = BTM_SEC_STATE_AUTHENTICATING;
                 btm_cb.pairing_flags |= BTM_PAIR_FLAGS_LE_ACTIVE;
                 /* fall through */
