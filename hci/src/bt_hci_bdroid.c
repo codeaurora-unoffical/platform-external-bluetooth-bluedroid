@@ -458,10 +458,10 @@ static int tx_hc_cmd(TRANSAC transac, char *p_buf, int len) {
     thread_post(hc_cb.worker_thread, event_tx_cmd, transac);
   return BT_HC_STATUS_SUCCESS;
 }
-static void ssr_cleanup (void) {
+static void ssr_cleanup (int reason) {
     BTHCDBG("ssr_cleanup");
     /* Calling vendor-specific part */
-    vendor_ssrcleanup();
+    vendor_ssrcleanup(reason);
 }
 
 

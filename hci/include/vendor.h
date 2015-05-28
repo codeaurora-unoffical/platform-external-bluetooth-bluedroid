@@ -34,7 +34,7 @@ void vendor_close(void);
 // SSR cleanup to close transport FDs and power off the chip
 // This function is invoked to recover from error enabling/disabling BT
 // and to during hardware failure
-void vendor_ssrcleanup(void);
+void vendor_ssrcleanup(int reason);
 
 // Sends a vendor-specific command to the library.
 int vendor_send_command(bt_vendor_opcode_t opcode, void *param);
