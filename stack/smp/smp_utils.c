@@ -118,8 +118,6 @@ BOOLEAN  smp_send_msg_to_L2CAP(BD_ADDR rem_bda, BT_HDR *p_toL2CAP)
     {
         SMP_TRACE_ERROR("SMP   failed to pass msg:0x%0x to L2CAP",
                          *((UINT8 *)(p_toL2CAP + 1) + p_toL2CAP->offset));
-        /*The below mem free is a potential crash location*/
-        GKI_freebuf(p_toL2CAP);
         return FALSE;
     }
     else
