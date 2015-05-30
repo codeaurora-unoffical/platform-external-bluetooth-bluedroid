@@ -351,6 +351,7 @@ static UINT8 avrc_proc_far_msg(UINT8 handle, UINT8 label, UINT8 cr, BT_HDR **pp_
     BT_HDR      *p_pkt = *pp_pkt;
     UINT8       *p_data;
     BOOLEAN     drop = FALSE;
+    BOOLEAN     buf_overflow = FALSE;
     BT_HDR      *p_rsp = NULL;
     BT_HDR      *p_cmd = NULL;
     BOOLEAN     req_continue = FALSE;
@@ -442,6 +443,7 @@ static UINT8 avrc_proc_far_msg(UINT8 handle, UINT8 label, UINT8 cr, BT_HDR **pp_
                     AVRC_TRACE_WARNING("Fragmented message too big! - report the partial message");
                     p_pkt->len = buf_len - p_rcb->p_rmsg->offset;
                     pkt_type = AVRC_PKT_END;
+                    buf_overflow = true;
                 }
 
                 /* copy contents of p_pkt to p_rx_msg */
@@ -508,7 +510,7 @@ static UINT8 avrc_proc_far_msg(UINT8 handle, UINT8 label, UINT8 cr, BT_HDR **pp_
         /*
          * Drop it if we are out of buffer
          */
-        else if (cr == AVCT_RSP && req_continue == FALSE  && pkt_type == AVRC_PKT_END)
+        else if (cr == AVCT_RSP && req_continue == FALSE  && buf_overflow == TRUE)
         {
             avrc_cmd.pdu    = AVRC_PDU_ABORT_CONTINUATION_RSP;
             avrc_cmd.status = AVRC_STS_NO_ERROR;

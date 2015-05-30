@@ -239,9 +239,9 @@ static void handle_rc_metamsg_rsp(tBTA_AV_META_MSG *pmeta_msg);
 static void handle_avk_rc_metamsg_cmd(tBTA_AV_META_MSG *pmeta_msg);
 static void handle_avk_rc_metamsg_rsp(tBTA_AV_META_MSG *pmeta_msg);
 static void btif_rc_ctrl_upstreams_rsp_cmd(UINT16 event, tAVRC_COMMAND *pavrc_cmd,
-                                           UINT8* p_buf, UINT8 buf_len);
+                                           UINT8* p_buf, UINT16 buf_len);
 static void btif_rc_ctrl_upstreams_rsp_evt(UINT16 event, tAVRC_RESPONSE *pavrc_resp,
-                                           UINT8* p_buf, UINT8 buf_len, UINT8 rsp_type);
+                                           UINT8* p_buf, UINT16 buf_len, UINT8 rsp_type);
 #endif
 static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND* p_param, UINT8 ctype, UINT8 label);
 static void btif_rc_upstreams_rsp_evt(UINT16 event, tAVRC_RESPONSE *pavrc_resp, UINT8 ctype, UINT8 label);
@@ -1976,7 +1976,8 @@ static void btif_rc_upstreams_evt(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8 
 ** Returns          void
 **
 *******************************************************************************/
-static void btif_rc_ctrl_upstreams_rsp_cmd(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8* p_buf, UINT8 buf_len)
+static void btif_rc_ctrl_upstreams_rsp_cmd(UINT16 event, tAVRC_COMMAND *pavrc_cmd, UINT8* p_buf,
+                                                                                 UINT16 buf_len)
 {
     BTIF_TRACE_IMP("%s pdu: %s handle: 0x%x", __FUNCTION__,
         dump_rc_pdu(pavrc_cmd->pdu), btif_rc_cb.rc_handle);
@@ -2008,7 +2009,7 @@ static void btif_rc_ctrl_upstreams_rsp_cmd(UINT16 event, tAVRC_COMMAND *pavrc_cm
 **
 *******************************************************************************/
 static void btif_rc_ctrl_upstreams_rsp_evt(UINT16 event, tAVRC_RESPONSE *pavrc_resp,
-                                        UINT8* p_buf, UINT8 buf_len, UINT8 rsp_type)
+                                        UINT8* p_buf, UINT16 buf_len, UINT8 rsp_type)
 {
     BTIF_TRACE_IMP("%s pdu: %s handle: 0x%x rsp_type:%x", __FUNCTION__,
         dump_rc_pdu(pavrc_resp->pdu), btif_rc_cb.rc_handle, rsp_type);
@@ -3130,7 +3131,7 @@ static void handle_rc_metamsg_rsp(tBTA_AV_META_MSG *pmeta_msg)
 static void handle_avk_rc_metamsg_rsp(tBTA_AV_META_MSG *pmeta_msg)
 {
     tAVRC_RESPONSE    avrc_response = {0};
-    UINT8             scratch_buf[512] = {0};// this variable is unused
+    UINT8             scratch_buf[4096] = {0};// maximum size that can be used
     UINT16            buf_len;
     tAVRC_STS status = BT_STATUS_UNSUPPORTED;
     BTIF_TRACE_DEBUG(" %s opcode = %d rsp_code = %d  ",__FUNCTION__,
@@ -3176,7 +3177,7 @@ static void handle_avk_rc_metamsg_rsp(tBTA_AV_META_MSG *pmeta_msg)
 static void handle_avk_rc_metamsg_cmd(tBTA_AV_META_MSG *pmeta_msg)
 {
     tAVRC_COMMAND    avrc_cmd = {0};
-    UINT8             scratch_buf[512] = {0};
+    UINT8             scratch_buf[4096] = {0};
     UINT16            buf_len;
     tAVRC_STS status = BT_STATUS_UNSUPPORTED;
     BTIF_TRACE_DEBUG(" %s opcode = %d rsp_code = %d  ",__FUNCTION__,
