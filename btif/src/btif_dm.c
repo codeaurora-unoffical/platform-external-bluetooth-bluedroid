@@ -2729,12 +2729,14 @@ bt_status_t btif_dm_cancel_discovery(void)
     BTIF_TRACE_EVENT("%s", __FUNCTION__);
 
     if(BTM_IsInquiryActive() || (TRUE == BTM_IsRnrActive()) ||
-      (btif_dm_inquiry_in_progress == TRUE)) {
+      (btif_dm_inquiry_in_progress == TRUE) || (BTA_DmSearchIsActive()))
+    {
         BTIF_TRACE_EVENT("%s : Inquiry is in progress", __FUNCTION__)
         BTA_DmSearchCancel();
         return BT_STATUS_SUCCESS;
     }
-    else {
+    else
+    {
         BTIF_TRACE_EVENT("%s : Inquiry not started", __FUNCTION__);
         return BT_STATUS_FAIL;
     }
