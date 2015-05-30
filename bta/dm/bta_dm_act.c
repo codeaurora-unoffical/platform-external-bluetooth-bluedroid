@@ -5261,6 +5261,9 @@ static UINT8 bta_dm_ble_smp_cback (tBTM_LE_EVT event, BD_ADDR bda, tBTM_LE_EVT_D
                         sizeof (BD_ADDR));
                 sec_event.ble_key.key_value.pid_key.create_rpa = p_data->key.p_key_value->pid_key.create_rpa;
 #endif
+                memcpy( &(sec_event.ble_key.key_value.pid_key.unpair_addr),
+                        &(p_data->key.p_key_value->pid_key.unpair_addr),
+                        sizeof (BD_ADDR));
             }
             else
             {
