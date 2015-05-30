@@ -1367,6 +1367,7 @@ void bta_hl_dch_mca_reconnect(UINT8 app_idx, UINT8 mcl_idx, UINT8 mdl_idx,
     if (bta_hl_find_sdp_idx_using_ctrl_psm(&p_mcb->sdp, p_mcb->ctrl_psm, &sdp_idx))
     {
         p_mcb->data_psm = p_mcb->sdp.sdp_rec[sdp_idx].data_psm;
+        p_chnl_cfg = &p_dcb->chnl_cfg;
         if ( MCA_ReconnectMdl((tMCA_CL) p_mcb->mcl_handle,
                               p_dcb->local_mdep_id,
                               p_mcb->data_psm,
