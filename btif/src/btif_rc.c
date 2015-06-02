@@ -188,6 +188,7 @@ static BOOLEAN dev_blacklisted_for_absolute_volume(BD_ADDR peer_dev);
 #if (AVRC_CTLR_INCLUDED == TRUE)
 static BOOLEAN conn_status = FALSE;
 #endif
+
 static const struct {
     const char *name;
     uint8_t avrcp;
@@ -462,8 +463,15 @@ void handle_rc_features(int index)
             rc_features |= BTRC_FEAT_METADATA;
         }
         BTIF_TRACE_IMP("%s: rc_features=0x%x", __FUNCTION__, rc_features);
-        HAL_CBACK(bt_rc_callbacks, remote_features_cb, &rc_addr, rc_features)
-
+        if (btif_rc_cb[index].rc_connected)
+        {
+            BTIF_TRACE_IMP("%s: update App on supported features", __FUNCTION__);
+            HAL_CBACK(bt_rc_callbacks, remote_features_cb, &rc_addr, rc_features)
+        }
+        else
+        {
+            BTIF_TRACE_IMP("%s: skipping feature update to App", __FUNCTION__);
+        }
 #if (AVRC_ADV_CTRL_INCLUDED == TRUE)
         BTIF_TRACE_DEBUG("Checking for feature flags in btif_rc_handler with label %d",
                          btif_rc_cb[index].rc_vol_label);
@@ -630,9 +638,7 @@ void handle_rc_connect (tBTA_AV_RC_OPEN *p_rc_open)
     bt_status_t result = BT_STATUS_SUCCESS;
     int i;
     char bd_str[18];
-#if (AVRC_CTLR_INCLUDED == TRUE)
     bt_bdaddr_t rc_addr;
-#endif
     int index;
     if(p_rc_open->status == BTA_AV_SUCCESS)
     {
@@ -658,17 +664,17 @@ void handle_rc_connect (tBTA_AV_RC_OPEN *p_rc_open)
         btif_rc_cb[index].rc_connected = TRUE;
         btif_rc_cb[index].rc_handle = p_rc_open->rc_handle;
 
-        /* on locally initiated connection we will get remote features as part of connect */
-        if (btif_rc_cb[index].rc_features != 0)
-            handle_rc_features(index);
-
         result = uinput_driver_check();
         if(result == BT_STATUS_SUCCESS)
         {
             init_uinput();
         }
-#if (AVRC_CTLR_INCLUDED == TRUE)
         bdcpy(rc_addr.address, btif_rc_cb[index].rc_addr);
+        if (btif_rc_cb[index].rc_features & BTA_AV_FEAT_RCCT)
+        {
+            HAL_CBACK(bt_rc_callbacks, connection_state_cb, TRUE, &rc_addr);
+        }
+#if (AVRC_CTLR_INCLUDED == TRUE)
         /* report connection state if device is AVRCP target */
         if (btif_rc_cb[index].rc_features & BTA_AV_FEAT_RCTG)
         {
@@ -681,6 +687,10 @@ void handle_rc_connect (tBTA_AV_RC_OPEN *p_rc_open)
             conn_status = FALSE;
         }
 #endif
+        /* on locally initiated connection we will get remote features as part of connect
+        Delay this update till connection update reaches Apps*/
+        if (btif_rc_cb[index].rc_features != 0)
+            handle_rc_features(index);
     }
     else
     {
@@ -699,10 +709,8 @@ void handle_rc_connect (tBTA_AV_RC_OPEN *p_rc_open)
  ***************************************************************************/
 void handle_rc_disconnect (tBTA_AV_RC_CLOSE *p_rc_close)
 {
-#if (AVRC_CTLR_INCLUDED == TRUE)
     bt_bdaddr_t rc_addr;
     tBTA_AV_FEAT features;
-#endif
     UINT8 index;
     BOOLEAN is_connected = 0;
 
@@ -722,11 +730,10 @@ void handle_rc_disconnect (tBTA_AV_RC_CLOSE *p_rc_close)
     }
     btif_rc_cb[index].rc_handle = BTIF_RC_HANDLE_NONE;
     btif_rc_cb[index].rc_connected = FALSE;
+    bdcpy(rc_addr.address, btif_rc_cb[index].rc_addr);
     memset(btif_rc_cb[index].rc_addr, 0, sizeof(BD_ADDR));
     memset(btif_rc_cb[index].rc_notif, 0, sizeof(btif_rc_cb[index].rc_notif));
-#if (AVRC_CTLR_INCLUDED == TRUE)
     features = btif_rc_cb[index].rc_features;
-#endif
     btif_rc_cb[index].rc_features = 0;
     btif_rc_cb[index].rc_vol_label = MAX_LABEL;
     btif_rc_cb[index].rc_volume = MAX_VOLUME;
@@ -743,10 +750,6 @@ void handle_rc_disconnect (tBTA_AV_RC_CLOSE *p_rc_close)
         close_uinput();
     }
 #if (AVRC_CTLR_INCLUDED == TRUE)
-    bdcpy(rc_addr.address, btif_rc_cb[index].rc_addr);
-#endif
-    memset(btif_rc_cb[index].rc_addr, 0, sizeof(BD_ADDR));
-#if (AVRC_CTLR_INCLUDED == TRUE)
     /* report connection state if device is AVRCP target */
     if (features & BTA_AV_FEAT_RCTG)
     {
@@ -754,6 +757,10 @@ void handle_rc_disconnect (tBTA_AV_RC_CLOSE *p_rc_close)
         conn_status = FALSE;
     }
 #endif
+    if (features & BTA_AV_FEAT_RCCT)
+    {
+        HAL_CBACK(bt_rc_callbacks, connection_state_cb, FALSE, &rc_addr);
+    }
 }
 
 /***************************************************************************

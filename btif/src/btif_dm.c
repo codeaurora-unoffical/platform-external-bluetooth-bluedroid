@@ -2156,6 +2156,15 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
 
                 case BTA_LE_KEY_PID:
                     BTIF_TRACE_DEBUG("Rcv BTA_LE_KEY_PID");
+                    /* unpair device if unpair address field is set */
+                    bt_bdaddr_t unpair_bda;
+                    memset(&unpair_bda, 0, sizeof(unpair_bda));
+
+                    if (memcmp (p_data->ble_key.key_value.pid_key.unpair_addr, unpair_bda.address, BD_ADDR_LEN) != 0)
+                    {
+                        memcpy(unpair_bda.address, p_data->ble_key.key_value.pid_key.unpair_addr,BD_ADDR_LEN);
+                        btif_dm_remove_bond(&unpair_bda);
+                    }
                     pairing_cb.ble.is_pid_key_rcvd = TRUE;
                     pairing_cb.ble.pid_key.addr_type = p_data->ble_key.key_value.pid_key.addr_type;
                     memcpy(pairing_cb.ble.pid_key.irk, p_data->ble_key.key_value.pid_key.irk, 16);
@@ -2729,12 +2738,14 @@ bt_status_t btif_dm_cancel_discovery(void)
     BTIF_TRACE_EVENT("%s", __FUNCTION__);
 
     if(BTM_IsInquiryActive() || (TRUE == BTM_IsRnrActive()) ||
-      (btif_dm_inquiry_in_progress == TRUE)) {
+      (btif_dm_inquiry_in_progress == TRUE) || (BTA_DmSearchIsActive()))
+    {
         BTIF_TRACE_EVENT("%s : Inquiry is in progress", __FUNCTION__)
         BTA_DmSearchCancel();
         return BT_STATUS_SUCCESS;
     }
-    else {
+    else
+    {
         BTIF_TRACE_EVENT("%s : Inquiry not started", __FUNCTION__);
         return BT_STATUS_FAIL;
     }

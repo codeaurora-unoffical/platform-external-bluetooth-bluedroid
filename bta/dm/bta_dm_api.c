@@ -398,6 +398,23 @@ tBTA_STATUS BTA_DmVendorSpecificCommand (UINT16 opcode, UINT8 param_len,
         return (BTA_SUCCESS);
     }
 }
+
+/*******************************************************************************
+**
+** Function         BTA_DmSearchIsActive
+**
+** Description      This API will get called during the time of cancel
+**                  discovery
+**
+**
+** Returns          BOOLEAN
+**
+*******************************************************************************/
+BOOLEAN BTA_DmSearchIsActive(void)
+{
+    return (bta_dm_search_cb.wait_disc == FALSE);
+}
+
 /*******************************************************************************
 **
 ** Function         BTA_DmSearch

@@ -200,6 +200,7 @@ void btif_av_trigger_dual_handoff(BOOLEAN handoff, BD_ADDR address);
 BOOLEAN btif_av_is_device_connected(BD_ADDR address);
 
 BOOLEAN btif_av_is_connected_on_other_idx(int current_index);
+BOOLEAN btif_av_is_playing_on_other_idx(int current_index);
 BOOLEAN btif_av_is_playing();
 void btif_av_update_multicast_state(int index);
 BOOLEAN btif_av_get_ongoing_multicast();
@@ -1313,11 +1314,11 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
                  * set remote suspend flag before suspending stream as in race conditions
                  * when stream is suspended, but flag is things ge tossed up
                  */
-                 BTIF_TRACE_EVENT("Clear before suspending");
-                 if ((btif_av_cb[index].flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING) == 0)
-                     btif_av_cb[index].flags |= BTIF_AV_FLAG_REMOTE_SUSPEND;
-                 for (int i = 0; i < btif_max_av_clients; i++)
-                 {
+                BTIF_TRACE_EVENT("Clear before suspending");
+                if ((btif_av_cb[index].flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING) == 0)
+                    btif_av_cb[index].flags |= BTIF_AV_FLAG_REMOTE_SUSPEND;
+                for (int i = 0; i < btif_max_av_clients; i++)
+                {
                     if ((i != index) && btif_av_get_ongoing_multicast())
                     {
                         multicast_disabled = TRUE;
@@ -1326,11 +1327,26 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
                         btif_sm_dispatch(btif_av_cb[i].sm_handle,
                                 BTIF_AV_SUSPEND_STREAM_REQ_EVT, NULL);
                     }
-                 }
-             }
+                }
+            }
 
             /* a2dp suspended, stop media task until resumed */
-            btif_a2dp_on_suspended(&p_av->suspend);
+            /* Multicast: If streaming on other device, don't call onsuspended
+             * as it unblocks the audio process and audio process may send
+             * subsequent commands and create problem during the time where we
+             * still did not receive response for SUSPEND sent to other device.
+             * Keep the suspend failure handling untouched and handle
+             * only success case to check and avoid calling onsuspended.
+             */
+            if ((p_av->suspend.status != BTA_AV_SUCCESS) ||
+                !btif_av_is_playing_on_other_idx(index))
+            {
+                btif_a2dp_on_suspended(&p_av->suspend);
+            }
+            else if(btif_av_is_playing_on_other_idx(index))
+            {
+                BTIF_TRACE_IMP("Other device not suspended, don't ack the suspend");
+            }
 
             /* if not successful, remain in current state */
             if (p_av->suspend.status != BTA_AV_SUCCESS)
@@ -1505,19 +1521,29 @@ static void btif_av_handle_event(UINT16 event, char* p_param)
             break;
 
         /* Handle all RC events on default index. RC handling should take
-        * care of the events. All events come with BD Address
-        * Handled well in AV Opening, opened and started state
-        * AV Idle handler needs to take care of this event properly.*/
+         * care of the events. All events come with BD Address
+         * Handled well in AV Opening, opened and started state
+         * AV Idle handler needs to take care of this event properly.
+         */
         case BTA_AV_RC_OPEN_EVT:
             index = btif_av_get_valid_idx_for_rc_events(p_bta_data->rc_open.peer_addr,
                     p_bta_data->rc_open.rc_handle);
             break;
         case BTA_AV_RC_CLOSE_EVT:
-            index = btif_av_get_valid_idx_for_rc_events(p_bta_data->rc_close.peer_addr,
-                    p_bta_data->rc_open.rc_handle);
+        /* If there is no entry in the connection table
+         * RC handler has to be called for cleanup.
+         * Directly call the RC handler as we cannot
+         * associate any AV handle to it.
+         */
+            index = btif_av_idx_by_bdaddr(p_bta_data->rc_open.peer_addr);
+            if (index == btif_max_av_clients)
+            {
+                btif_rc_handler(event, p_bta_data);
+            }
             break;
         /* Let the RC handler decide on these passthrough cmds
-        * Use rc_handle to get the active AV device and use that mapping. */
+         * Use rc_handle to get the active AV device and use that mapping.
+         */
         case BTA_AV_REMOTE_CMD_EVT:
         case BTA_AV_VENDOR_CMD_EVT:
         case BTA_AV_META_MSG_EVT:
@@ -2752,6 +2778,33 @@ BOOLEAN btif_av_is_connected_on_other_idx(int current_index)
             state = btif_sm_get_state(btif_av_cb[i].sm_handle);
             if ((state == BTIF_AV_STATE_OPENED) ||
                 (state == BTIF_AV_STATE_STARTED))
+                return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+/*******************************************************************************
+**
+** Function         btif_av_is_playing_on_other_idx
+**
+** Description      Checks if any other AV SCB is connected
+**
+** Returns          BOOLEAN
+**
+*******************************************************************************/
+
+BOOLEAN btif_av_is_playing_on_other_idx(int current_index)
+{
+    //return true if other IDx is playing
+    btif_sm_state_t state = BTIF_AV_STATE_IDLE;
+    int i;
+    for (i = 0; i < btif_max_av_clients; i++)
+    {
+        if (i != current_index)
+        {
+            state = btif_sm_get_state(btif_av_cb[i].sm_handle);
+            if (state == BTIF_AV_STATE_STARTED)
                 return TRUE;
         }
     }

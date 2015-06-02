@@ -693,22 +693,34 @@ void smp_proc_id_addr(tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
 #if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
     BT_OCTET16      temp_value = {0};
     tBTM_LE_DERIVED_KEYS  le_bredr_key;
-    tBTM_SEC_DEV_REC *p_dev_rec = NULL;
     BOOLEAN der_link_key = TRUE;
 #endif
+    tBTM_SEC_DEV_REC *p_dev_rec = NULL;
 
     SMP_TRACE_DEBUG ("smp_proc_id_addr  ");
     smp_update_key_mask (p_cb, SMP_SEC_KEY_TYPE_ID, TRUE);
 
     STREAM_TO_UINT8(pid_key.addr_type, p);
     STREAM_TO_BDADDR(pid_key.static_addr, p);
+
+    p_dev_rec = btm_find_dev_by_public_static_addr(pid_key.static_addr);
+    if (p_dev_rec != NULL)
+    {
+       /* if device record already exisdt with same static address
+          then remove the bonding with older address. */
+       SMP_TRACE_DEBUG ("bd addr found with static addr");
+       if (p_dev_rec->bd_addr != NULL)
+       {
+          memcpy(pid_key.unpair_addr, p_dev_rec->bd_addr, BD_ADDR_LEN);
+       }
+    }
+
     memcpy(pid_key.irk, p_cb->tk, BT_OCTET16_LEN);
 #if (defined BTM_LE_SECURE_CONN && BTM_LE_SECURE_CONN == TRUE)
     /*Linkkey to LTL derivation*/
     if(p_cb->smp_bredr)
     {
        /*look for an already present RPA, do we really need to gen keys again here*/
-       p_dev_rec = btm_find_dev_by_public_static_addr(pid_key.static_addr);
        if(p_dev_rec != NULL)
        {
            memcpy(pid_key.private_addr, p_dev_rec->bd_addr, BD_ADDR_LEN);
@@ -1332,7 +1344,7 @@ void smp_pair_terminate(tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
 {
     SMP_TRACE_DEBUG ("smp_pair_terminate reason = %d ", p_data->reason);
 
-    if(!p_data->reason)
+    if(!p_data->reason || p_data->reason > 0xFF)
     {
         p_cb->status = SMP_CONN_TOUT;
     }
