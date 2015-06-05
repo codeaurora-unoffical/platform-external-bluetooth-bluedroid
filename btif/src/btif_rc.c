@@ -77,7 +77,6 @@
 #define PLAY_STATUS_PLAYING 1
 #define MAX_CMD_QUEUE_LEN 15
 #define ERR_PLAYER_NOT_ADDRESED 0x13
-#define BTIF_RC_HANDLE_NONE 0xFF
 
 #define CHECK_RC_CONNECTED                                                                  \
     BTIF_TRACE_DEBUG("## %s ##", __FUNCTION__);                                            \
@@ -1573,7 +1572,7 @@ UINT8 btif_rc_get_connected_peer_handle(BD_ADDR peer_addr)
             return btif_rc_cb[i].rc_handle;
         }
     }
-    return 0;
+    return BTIF_RC_HANDLE_NONE;
 }
 
 /***************************************************************************
