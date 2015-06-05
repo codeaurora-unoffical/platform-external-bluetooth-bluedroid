@@ -1199,6 +1199,7 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data,
 static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data, int index)
 {
     tBTA_AV *p_av = (tBTA_AV*)p_data;
+    btif_sm_state_t state = BTIF_AV_STATE_IDLE;
     int i;
 
     BTIF_TRACE_DEBUG("%s event:%s flags %x  index =%d", __FUNCTION__,
@@ -1255,8 +1256,20 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
         case BTIF_AV_SUSPEND_STREAM_REQ_EVT:
 
             /* set pending flag to ensure btif task is not trying to restart
-               stream while suspend is in progress */
-            btif_av_cb[index].flags |= BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING;
+             * stream while suspend is in progress.
+             * Multicast: If streaming is happening on both devices, we need
+             * to update flag for both connections as SUSPEND request will
+             * be sent to only one stream as internally BTA takes care of
+             * suspending both streams.
+             */
+            for(i = 0; i < btif_max_av_clients; i++)
+            {
+                state = btif_sm_get_state(btif_av_cb[i].sm_handle);
+                if (state == BTIF_AV_STATE_STARTED)
+                {
+                    btif_av_cb[i].flags |= BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING;
+                }
+            }
 
             /* if we were remotely suspended but suspend locally, local suspend
                always overrides */
@@ -2561,16 +2574,25 @@ BOOLEAN btif_av_stream_ready(void)
     for (i = 0; i < btif_max_av_clients; i++)
     {
         btif_av_cb[i].state = btif_sm_get_state(btif_av_cb[i].sm_handle);
-        if (btif_av_cb[i].dual_handoff)
+        /* Multicast:
+         * If any of the stream is in pending suspend state when
+         * we initiate start, it will result in inconsistent behavior
+         * Check the pending SUSPEND flag and return failure
+         * if suspend is in progress.
+         */
+        if (btif_av_cb[i].dual_handoff ||
+            (btif_av_cb[i].flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING))
         {
             status = FALSE;
             break;
-        } else if (btif_av_cb[i].flags &
-                (BTIF_AV_FLAG_REMOTE_SUSPEND|BTIF_AV_FLAG_PENDING_STOP))
+        }
+        else if (btif_av_cb[i].flags &
+            (BTIF_AV_FLAG_REMOTE_SUSPEND|BTIF_AV_FLAG_PENDING_STOP))
         {
             status = FALSE;
             break;
-        } else if (btif_av_cb[i].state == BTIF_AV_STATE_OPENED)
+        }
+        else if (btif_av_cb[i].state == BTIF_AV_STATE_OPENED)
         {
             status = TRUE;
         }
