@@ -1244,9 +1244,8 @@ static void btu_hcif_command_complete_evt (UINT8 controller_id, UINT8 *p, UINT16
                controller has responded with 0xffff*/
             if ( (opcode_dequeued != cc_opcode)
 #if (defined(BTM_READ_CTLR_CAP_INCLUDED) && BTM_READ_CTLR_CAP_INCLUDED == TRUE)
-                && !((opcode_dequeued == HCI_BLE_VENDOR_CAP_OCF) &&
-                   ((opcode_dequeued & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC) &&
-                   ((cc_opcode & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC))
+                && !( ((opcode_dequeued & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC) &&
+                      ((cc_opcode & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC) )
 #endif
             )
             {
