@@ -63,7 +63,7 @@
 
 /* Stack preload process maximum retry attempts  */
 #ifndef PRELOAD_MAX_RETRY_ATTEMPTS
-#define PRELOAD_MAX_RETRY_ATTEMPTS 2
+#define PRELOAD_MAX_RETRY_ATTEMPTS 0
 #endif
 
 /*******************************************************************************
@@ -387,7 +387,11 @@ static void preload_wait_timeout(union sigval arg)
     else
     {
         /* Notify BTIF_TASK that the init procedure had failed*/
-        GKI_send_event(BTIF_TASK, BT_EVT_HARDWARE_INIT_FAIL);
+        //GKI_send_event(BTIF_TASK, BT_EVT_HARDWARE_INIT_FAIL);
+
+        /*Ignore preload timeout as the disable is not scheduled immediately
+          and the cleanup is taken care by the framework as part of recovery */
+        APPL_TRACE_ERROR("Preload timed out.. Ignore timeout");
     }
 }
 
