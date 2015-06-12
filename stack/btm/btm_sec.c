@@ -46,6 +46,7 @@
 BOOLEAN (APPL_AUTH_WRITE_EXCEPTION)(BD_ADDR bd_addr);
 #endif
 
+#define RNR_MAX_RETRY_ATTEMPTS 1
 
 /********************************************************************************
 **              L O C A L    F U N C T I O N     P R O T O T Y P E S            *
@@ -3571,6 +3572,22 @@ void btm_sec_rmt_name_request_complete (UINT8 *p_bd_addr, UINT8 *p_bd_name, UINT
             {
                 btm_sec_bond_cancel_complete();
                 return;
+            }
+
+            /* Handle RNR with retry mechanism */
+            if((status == HCI_ERR_PAGE_TIMEOUT) && (p_dev_rec->rnr_retry_cnt < RNR_MAX_RETRY_ATTEMPTS))
+            {
+                BTM_TRACE_WARNING ("btm_sec_rmt_name_request_complete() Retrying RNR due to page timeout");
+                if ((BTM_ReadRemoteDeviceName(p_bd_addr, NULL, BT_TRANSPORT_BR_EDR)) == BTM_CMD_STARTED)
+                {
+                    p_dev_rec->rnr_retry_cnt++;
+                    return;
+                }
+            }
+            else
+            {
+                BTM_TRACE_EVENT ("btm_sec_rmt_name_request_complete() reset RNR retry count ");
+                p_dev_rec->rnr_retry_cnt = 0;
             }
 
             if (status != HCI_SUCCESS)
