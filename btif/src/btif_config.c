@@ -358,11 +358,26 @@ int btif_config_save()
 
     return TRUE;
 }
+static void flush_file(const char* file_name)
+{
+    int fd = open (file_name, O_WRONLY | O_APPEND, 0660);
+    if(fd != -1)
+    {
+        fsync (fd);
+        close (fd);
+    }
+}
 void btif_config_flush()
 {
+    const char* file_name = CFG_PATH CFG_FILE_NAME CFG_FILE_EXT;
+    const char* file_name_old = CFG_PATH CFG_FILE_NAME CFG_FILE_EXT_OLD;
     lock_slot(&slot_lock);
     if(cached_change > 0)
+    {
         save_cfg();
+        flush_file(file_name_old);
+        flush_file(file_name);
+    }
     unlock_slot(&slot_lock);
 }
 
