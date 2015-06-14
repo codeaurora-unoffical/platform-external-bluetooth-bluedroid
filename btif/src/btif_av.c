@@ -2288,6 +2288,7 @@ static bt_status_t connect_int(bt_bdaddr_t *bd_addr, uint16_t uuid)
             if (bdcmp(bd_addr->address, btif_av_cb[i].peer_bda.address) == 0)
             {
                 BTIF_TRACE_ERROR("Attempting connection for non idle device.. back off ");
+                btif_queue_advance();
                 return BT_STATUS_SUCCESS;
             }
             i++;
@@ -2297,7 +2298,22 @@ static bt_status_t connect_int(bt_bdaddr_t *bd_addr, uint16_t uuid)
     }
     if (i == btif_max_av_clients)
     {
-        BTIF_TRACE_ERROR("All indexes are full");
+        UINT8 rc_handle;
+        bdstr_t bdstr;
+
+        BTIF_TRACE_ERROR("%s: All indexes are full", __FUNCTION__);
+
+        /* Multicast: Check if AV slot is available for connection
+         * If not available, AV got connected to different devices.
+         * Disconnect this RC connection without AV connection.
+         */
+        rc_handle = btif_rc_get_connected_peer_handle(bd_addr->address);
+        if (rc_handle != BTIF_RC_HANDLE_NONE)
+        {
+            BTIF_TRACE_ERROR("Disconnect only AVRC on : %s", bd2str (bd_addr, &bdstr));
+            BTA_AvCloseRc(rc_handle);
+        }
+        btif_queue_advance();
         return BT_STATUS_FAIL;
     }
 
