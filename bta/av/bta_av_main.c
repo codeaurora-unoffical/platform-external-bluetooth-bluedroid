@@ -820,6 +820,20 @@ static void bta_av_rpc_conn(tBTA_AV_DATA *p_data)
 }
 #endif
 
+BOOLEAN bta_av_multiple_streams_started(void)
+{
+    int xx, stream_count = 0;
+
+    for(xx = 0; xx < BTA_AV_NUM_STRS; xx++)
+    {
+        if((bta_av_cb.p_scb[xx] != NULL) && bta_av_cb.p_scb[xx]->started == TRUE)
+        {
+            stream_count++;
+        }
+    }
+    return (stream_count > 1);
+}
+
 /*******************************************************************************
 **
 ** Function         bta_av_api_to_ssm
@@ -834,7 +848,14 @@ static void bta_av_api_to_ssm(tBTA_AV_DATA *p_data)
 {
     int xx;
     UINT16 event = p_data->hdr.event - BTA_AV_FIRST_A2S_API_EVT + BTA_AV_FIRST_A2S_SSM_EVT;
-    if (is_multicast_enabled == TRUE)
+
+    /* Multicast: Corner case handling for multicast state getting
+     * updated for ACL connected during the stream start where both
+     * streams are not yet started. We need to take care of this
+     * during suspend to ensure we suspend both streams.
+     */
+    if ((is_multicast_enabled == TRUE) ||
+        ((event == BTA_AV_AP_STOP_EVT) && (bta_av_multiple_streams_started() == TRUE)))
     {
         /* Send START request to all Open Stream connections.*/
         for(xx=0; xx<BTA_AV_NUM_STRS; xx++)
