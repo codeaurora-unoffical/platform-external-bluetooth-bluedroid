@@ -942,18 +942,14 @@ static int Send_Data()
     usleep(g_delay);
     }
     printf(" count %d...\n", count);
+    sleep(10);
     while (count > 0) {
         char tmpBuffer[] = {0x7F,0x7F,0x7F,0x7F,0x7F,0x7F,0x7F};
         count--;
         printf("Before write count is %d...\n", count);
-        sleep(5);
         do_l2cap_DataWrite(tmpBuffer, 5);
-    if (num_frames && g_delay && count && !(seq % count)) {
-       // printf("Delaying before next send ...%d\n", g_delay);
-        usleep(g_delay);
-       // printf("After Delay before next send ...%d\n", g_delay);
     }
-    }
+    sleep(50);
     free(tmpBuf);
     return TRUE;
 }
