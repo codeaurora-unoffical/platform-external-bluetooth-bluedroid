@@ -212,6 +212,7 @@ static const UINT8 hid_sdp_addr_blacklist[][3] = {
     ,{0x00, 0x1d, 0xd8} // Microsoft Bluetooth Notebook Mouse 5000 #1
     ,{0x7c, 0xed, 0x8d} // Microsoft Bluetooth Notebook Mouse 5000 #2
     ,{0x00, 0x1f, 0x20} // Logitech MX Revolution Mouse
+    ,{0x6c, 0x5d, 0x63} // Rapoo 6080 mouse
 };
 
 typedef struct hid_name_bllist
