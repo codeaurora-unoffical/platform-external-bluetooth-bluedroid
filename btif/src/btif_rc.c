@@ -624,6 +624,29 @@ void btif_rc_clear_playing_state(BOOLEAN state)
 }
 
 /***************************************************************************
+ *  Function       btif_rc_clear_priority
+ *
+ *  - Argument:    Device address
+ *
+ *  - Description: Clears the priority information for the device
+ *                 This can be used while AV disconnection for the device.
+ *                 Setting of rc_play_processed flag could have been avoided
+ *                 looking at the stream state, but it might still leave some
+ *                 corner case of audio suspending just before the play takes
+ *                 effect.
+ ***************************************************************************/
+void btif_rc_clear_priority(BD_ADDR address)
+{
+    int index;
+
+    index = btif_rc_get_idx_by_addr(address);
+    if(index < btif_max_rc_clients)
+    {
+        btif_rc_cb[index].rc_play_processed = FALSE;
+    }
+}
+
+/***************************************************************************
  *  Function       handle_rc_connect
  *
  *  - Argument:    tBTA_AV_RC_OPEN  RC open data structure
