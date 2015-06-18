@@ -189,6 +189,7 @@ extern void btif_rc_check_handle_pending_play (BD_ADDR peer_addr, BOOLEAN bSendT
 extern BOOLEAN btif_hf_is_call_idle();
 extern void btif_rc_get_playing_device(BD_ADDR address);
 extern void btif_rc_clear_playing_state(BOOLEAN play);
+extern void btif_rc_clear_priority(BD_ADDR address);
 extern void btif_rc_send_pause_command();
 extern UINT16 btif_dm_get_br_edr_links();
 extern UINT16 btif_dm_get_le_links();
@@ -1294,6 +1295,7 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
             //Now it is not the current playing
             btif_av_cb[index].current_playing = FALSE;
             btif_av_update_current_playing_device(index);
+            btif_rc_clear_priority(btif_av_cb[index].peer_bda.address);
             /* request avdtp to close */
             BTA_AvClose(btif_av_cb[index].bta_handle);
             if (btif_av_cb[index].peer_sep == AVDT_TSEP_SRC) {
@@ -1628,19 +1630,19 @@ static UINT8 btif_av_idx_by_bdaddr(BD_ADDR bd_addr)
 
 static int btif_get_latest_device_idx_to_start()
 {
-    struct timespec         now, conn_time_delta;
-    int i;
-    int j;
+    int i, j;
     BD_ADDR playing_address;
 
-    /*Get the device which sent PLAY command
-    * If found, START on that index. */
+    /* Get the device which sent PLAY command
+     * If found, START on that index.
+     */
     memset(playing_address, 0, sizeof(BD_ADDR));
     btif_rc_get_playing_device(playing_address);
-    if (bdcmp(playing_address, bd_null) != 0)
+    if (bdcmp(playing_address, bd_addr_null) != 0)
     {
-        /*Got some valid Playing device.
-        * Get the AV index for this device. */
+        /* Got some valid Playing device.
+         * Get the AV index for this device.
+         */
         i = btif_av_idx_by_bdaddr(playing_address);
         if (i == btif_max_av_clients)
             return btif_max_av_clients;
@@ -1651,7 +1653,7 @@ static int btif_get_latest_device_idx_to_start()
             if (j != i)
               btif_av_cb[j].current_playing = FALSE;
         }
-        /*Clear the PLay command in RC*/
+        /*Clear the Play command in RC*/
         btif_rc_clear_playing_state(FALSE);
         return i;
     }
