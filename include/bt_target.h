@@ -3596,6 +3596,10 @@ Range: Minimum 12000 (12 secs) when supporting PBF.
 #define AVRC_CTLR_INCLUDED          TRUE
 #endif
 
+#ifndef AAC_DECODER_INCLUDED
+#define AAC_DECODER_INCLUDED        TRUE
+#endif
+
 #ifndef SDP_AVRCP_1_5
 #define SDP_AVRCP_1_5               TRUE
 

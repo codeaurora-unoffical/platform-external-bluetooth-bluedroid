@@ -1217,6 +1217,9 @@ static void bte_av_media_callback(tBTA_AV_EVT event, tBTA_AV_MEDIA *p_data)
     UINT8 que_len;
     tA2D_STATUS a2d_status;
     tA2D_SBC_CIE sbc_cie;
+#if defined(AAC_DECODER_INCLUDED) && (AAC_DECODER_INCLUDED == TRUE)
+    tA2D_AAC_CIE aac_cie;
+#endif
     btif_av_sink_config_req_t config_req;
 
     if (event == BTA_AV_MEDIA_DATA_EVT)/* Switch to BTIF_MEDIA context */
@@ -1233,18 +1236,36 @@ static void bte_av_media_callback(tBTA_AV_EVT event, tBTA_AV_MEDIA *p_data)
     }
 
     if (event == BTA_AV_MEDIA_SINK_CFG_EVT) {
+        UINT8* config = (UINT8*)p_data;
+        UINT8 codec_type = config[2];
         /* send a command to BT Media Task */
         btif_reset_decoder((UINT8*)p_data);
-
-        a2d_status = A2D_ParsSbcInfo(&sbc_cie, (UINT8 *)p_data, FALSE);
-        if (a2d_status == A2D_SUCCESS) {
-            /* Switch to BTIF context */
-            config_req.sample_rate = btif_a2dp_get_track_frequency(sbc_cie.samp_freq);
-            config_req.channel_count = btif_a2dp_get_track_channel_count(sbc_cie.ch_mode);
-            btif_transfer_context(btif_av_handle_event, BTIF_AV_SINK_CONFIG_REQ_EVT,
+        switch(codec_type)
+        {
+        case BTIF_AV_CODEC_SBC:
+            a2d_status = A2D_ParsSbcInfo(&sbc_cie, (UINT8 *)p_data, FALSE);
+            if (a2d_status == A2D_SUCCESS) {
+                /* Switch to BTIF context */
+                config_req.sample_rate = btif_a2dp_get_sbc_track_frequency(sbc_cie.samp_freq);
+                config_req.channel_count = btif_a2dp_get_sbc_track_channel_count(sbc_cie.ch_mode);
+                btif_transfer_context(btif_av_handle_event, BTIF_AV_SINK_CONFIG_REQ_EVT,
                                      (char*)&config_req, sizeof(config_req), NULL);
-        } else {
-            APPL_TRACE_ERROR("ERROR dump_codec_info A2D_ParsSbcInfo fail:%d", a2d_status);
+            } else {
+                APPL_TRACE_ERROR("ERROR dump_codec_info A2D_ParsSbcInfo fail:%d", a2d_status);
+            }
+            break;
+        case BTA_AV_CODEC_M24:
+            a2d_status = A2D_ParsAacInfo(&aac_cie, (UINT8 *)p_data, FALSE);
+            if (a2d_status == A2D_SUCCESS) {
+                /* Switch to BTIF context */
+                config_req.sample_rate = btif_a2dp_get_aac_track_frequency(aac_cie.samp_freq);
+                config_req.channel_count = btif_a2dp_get_aac_track_channel_count(aac_cie.channels);
+                btif_transfer_context(btif_av_handle_event, BTIF_AV_SINK_CONFIG_REQ_EVT,
+                                     (char*)&config_req, sizeof(config_req), NULL);
+            } else {
+                APPL_TRACE_ERROR("ERROR dump_codec_info A2D_ParsAacInfo fail:%d", a2d_status);
+            }
+            break;
         }
     }
 }

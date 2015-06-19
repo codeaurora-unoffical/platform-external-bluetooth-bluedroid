@@ -27,6 +27,7 @@
 
 #include <string.h>
 #include "bta_av_co.h"
+#include "bta_avk_co.h"
 #include "bta_av_int.h"
 
 /*****************************************************************************

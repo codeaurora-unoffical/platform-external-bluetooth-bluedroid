@@ -37,9 +37,11 @@ LOCAL_SRC_FILES += \
 	../btif/src/btif_hl.c \
 	../btif/src/btif_mce.c \
 	../btif/src/btif_media_task.c \
+	../btif/src/btif_media_aac.c \
 	../btif/src/btif_pan.c \
 	../btif/src/btif_profile_queue.c \
 	../btif/src/bluetoothTrack.cpp \
+	../btif/src/btif_a2dp_pcm_dump.c \
 	../btif/src/btif_rc.c \
 	../btif/src/btif_sm.c \
 	../btif/src/btif_sock.c \
@@ -62,6 +64,7 @@ LOCAL_SRC_FILES += \
 LOCAL_SRC_FILES += \
 	../btif/co/bta_ag_co.c \
 	../btif/co/bta_av_co.c \
+	../btif/co/bta_avk_co.c \
 	../btif/co/bta_dm_co.c \
 	../btif/co/bta_fs_co.c \
 	../btif/co/bta_gattc_co.c \
@@ -113,7 +116,9 @@ LOCAL_C_INCLUDES += . \
 	$(LOCAL_PATH)/../wipowerif/include \
 	$(bdroid_C_INCLUDES) \
     $(TOP)/frameworks/av/include/media \
-	external/tinyxml2
+	external/tinyxml2 \
+	external/aac/libAACdec/include \
+	external/aac/libSYS/include
 
 LOCAL_CFLAGS += -DBUILDCFG $(bdroid_CFLAGS) -Wno-error=maybe-uninitialized -Wno-error=uninitialized -Wno-error=unused-parameter
 LOCAL_CONLYFLAGS := -std=c99
@@ -145,7 +150,8 @@ LOCAL_STATIC_LIBRARIES := \
 	libbt-qcom_sbc_decoder \
 	libosi \
 	libtinyxml2 \
-	libbt-qcom_sbc_decoder
+	libbt-qcom_sbc_decoder \
+	libFraunhoferAAC
 
 LOCAL_MODULE := bluetooth.default
 LOCAL_MODULE_RELATIVE_PATH := hw

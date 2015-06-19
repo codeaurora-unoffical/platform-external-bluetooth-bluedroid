@@ -50,12 +50,16 @@
 #include "bta_av_api.h"
 #include "a2d_api.h"
 #include "a2d_sbc.h"
+#if defined(AAC_DECODER_INCLUDED) && (AAC_DECODER_INCLUDED == TRUE)
+#include "a2d_aac.h"
+#endif
 #include "a2d_int.h"
 #include "bta_av_sbc.h"
 #include "bta_av_ci.h"
 #include "l2c_api.h"
 
 #include "btif_av_co.h"
+#include "btif_avk_co.h"
 #include "btif_media.h"
 
 #if (BTA_AV_INCLUDED == TRUE)
@@ -77,7 +81,6 @@
 #ifdef AVK_BACKPORT
 #include "bluetoothTrack.h"
 #endif
-
 #include "stdio.h"
 #include <dlfcn.h>
 
@@ -91,6 +94,9 @@ OI_INT16 pcmData[15*SBC_MAX_SAMPLES_PER_FRAME*SBC_MAX_CHANNELS];
 
 #include <cutils/trace.h>
 #include <cutils/properties.h>
+#ifdef PCM_DUMP
+#include "btif_a2dp_pcm_dump.h"
+#endif
 /*****************************************************************************
  **  Constants
  *****************************************************************************/
@@ -285,6 +291,7 @@ typedef struct
 #if (BTA_AV_INCLUDED == TRUE)
     BUFFER_Q TxAaQ;
     BUFFER_Q RxSbcQ;
+    BUFFER_Q RxAaQ;
     BOOLEAN is_tx_timer;
     BOOLEAN is_rx_timer;
     UINT16 TxAaMtuSize;
@@ -303,8 +310,9 @@ typedef struct
     BOOLEAN data_channel_open;
     UINT8   frames_to_process;
 
-    UINT32  sample_rate;
+    UINT16  sample_rate;
     UINT8   channel_count;
+    UINT8   codec_type;
 #ifdef AVK_BACKPORT
     btif_media_AudioFocus_state rx_audio_focus_gained;
 #endif
@@ -381,6 +389,7 @@ static void btif_media_task_aa_tx_flush(BT_HDR *p_msg);
 static void btif_media_aa_prep_2_send(UINT8 nb_frame);
 #if (BTA_AV_SINK_INCLUDED == TRUE)
 static void btif_media_task_aa_handle_decoder_reset(BT_HDR *p_msg);
+static void btif_media_task_aa_handle_sbc_decoder_reset(BT_HDR *p_msg);
 static void btif_media_task_aa_handle_clear_track(void);
 #endif
 static void btif_media_task_aa_handle_start_decoding(void );
@@ -975,16 +984,20 @@ void btif_a2dp_on_idle(void)
     {
         /* Make sure media task is stopped */
         btif_media_task_stop_aa_req();
+        bta_av_co_init();
     }
 
-    bta_av_co_init();
+
 #if (BTA_AV_SINK_INCLUDED == TRUE)
     if (btif_media_cb.peer_sep == AVDT_TSEP_SRC)
     {
+        bta_avk_co_init();
         btif_media_cb.rx_flush = TRUE;
         btif_media_task_aa_rx_flush_req();
         btif_media_task_stop_decoding_req();
         btif_media_task_clear_track();
+
+
         APPL_TRACE_DEBUG("Stopped BT track");
 #ifdef AVK_BACKPORT
         btif_media_cb.rx_audio_focus_gained = BTIF_MEDIA_AUDIOFOCUS_LOSS;
@@ -1100,12 +1113,12 @@ BOOLEAN btif_media_task_start_decoding_req(void)
 
 void btif_reset_decoder(UINT8 *p_av)
 {
+    tBTIF_MEDIA_SINK_CFG_UPDATE *p_buf;
     APPL_TRACE_EVENT("btif_reset_decoder");
     APPL_TRACE_DEBUG("btif_reset_decoder p_codec_info[%x:%x:%x:%x:%x:%x]",
             p_av[1], p_av[2], p_av[3],
             p_av[4], p_av[5], p_av[6]);
 
-    tBTIF_MEDIA_SINK_CFG_UPDATE *p_buf;
     if (NULL == (p_buf = GKI_getbuf(sizeof(tBTIF_MEDIA_SINK_CFG_UPDATE))))
     {
         APPL_TRACE_EVENT("btif_reset_decoder No Buffer ");
@@ -1315,63 +1328,109 @@ void btif_a2dp_set_audio_focus_state(btif_media_AudioFocus_state state)
 static void btif_media_task_avk_handle_timer ( void )
 {
     UINT8 count;
-    tBT_SBC_HDR *p_msg;
-    int num_sbc_frames;
-    int num_frames_to_process;
 
-    count = btif_media_cb.RxSbcQ.count;
-    if (0 == count)
+    if (btif_media_cb.codec_type == BTA_AV_CODEC_SBC)
     {
-        APPL_TRACE_DEBUG("  QUE  EMPTY ");
-    }
-    else
-    {
-        if (btif_media_cb.rx_flush == TRUE)
+        tBT_SBC_HDR *p_msg;
+        int num_sbc_frames;
+        int num_frames_to_process;
+
+        count = btif_media_cb.RxSbcQ.count;
+        if (0 == count)
         {
-            btif_media_flush_q(&(btif_media_cb.RxSbcQ));
-            return;
+            APPL_TRACE_DEBUG("  QUE  EMPTY ");
         }
-
-        if (btif_media_cb.RxSbcQ.count > 3)
-            num_frames_to_process =  2 * btif_media_cb.frames_to_process;
         else
-            num_frames_to_process = btif_media_cb.frames_to_process;
-
-        APPL_TRACE_DEBUG(" Process Frames + ");
-
-        do
         {
-            p_msg = (tBT_SBC_HDR *)GKI_getfirst(&(btif_media_cb.RxSbcQ));
-            if (p_msg == NULL)
+            if (btif_media_cb.rx_flush == TRUE)
+            {
+                btif_media_flush_q(&(btif_media_cb.RxSbcQ));
                 return;
-            num_sbc_frames  = p_msg->num_frames_to_be_processed; /* num of frames in Que Packets */
-            APPL_TRACE_DEBUG(" Frames left in topmost packet %d", num_sbc_frames);
-            APPL_TRACE_DEBUG(" Remaining frames to process in tick %d", num_frames_to_process);
-            APPL_TRACE_DEBUG(" Num of Packets in Que %d", btif_media_cb.RxSbcQ.count);
-
-            if ( num_sbc_frames > num_frames_to_process) /*  Que Packet has more frames*/
-            {
-                 p_msg->num_frames_to_be_processed= num_frames_to_process;
-                 btif_media_task_handle_inc_media(p_msg);
-                 p_msg->num_frames_to_be_processed = num_sbc_frames - num_frames_to_process;
-                 num_frames_to_process = 0;
-                 break;
             }
-            else                                        /*  Que packet has less frames */
+
+            if (btif_media_cb.RxSbcQ.count > 3)
+                num_frames_to_process =  2 * btif_media_cb.frames_to_process;
+            else
+                num_frames_to_process = btif_media_cb.frames_to_process;
+
+            APPL_TRACE_DEBUG(" Process Frames + ");
+
+            do
             {
-                btif_media_task_handle_inc_media(p_msg);
-                p_msg = (tBT_SBC_HDR *)GKI_dequeue(&(btif_media_cb.RxSbcQ));
-                if( p_msg == NULL )
+                p_msg = (tBT_SBC_HDR *)GKI_getfirst(&(btif_media_cb.RxSbcQ));
+                if (p_msg == NULL)
+                    return;
+                num_sbc_frames  = p_msg->num_frames_to_be_processed; /* num of frames in Que Packets */
+                APPL_TRACE_DEBUG(" Frames left in topmost packet %d", num_sbc_frames);
+                APPL_TRACE_DEBUG(" Remaining frames to process in tick %d", num_frames_to_process);
+                APPL_TRACE_DEBUG(" Num of Packets in Que %d", btif_media_cb.RxSbcQ.count);
+
+                if ( num_sbc_frames > num_frames_to_process) /*  Que Packet has more frames*/
                 {
-                     APPL_TRACE_ERROR("Insufficient data in que ");
+                     p_msg->num_frames_to_be_processed= num_frames_to_process;
+                     btif_media_task_handle_inc_media(p_msg);
+                     p_msg->num_frames_to_be_processed = num_sbc_frames - num_frames_to_process;
+                     num_frames_to_process = 0;
                      break;
                 }
-                num_frames_to_process = num_frames_to_process - p_msg->num_frames_to_be_processed;
+                else                                        /*  Que packet has less frames */
+                {
+                    btif_media_task_handle_inc_media(p_msg);
+                    p_msg = (tBT_SBC_HDR *)GKI_dequeue(&(btif_media_cb.RxSbcQ));
+                    if( p_msg == NULL )
+                    {
+                         APPL_TRACE_ERROR("Insufficient data in que ");
+                         break;
+                    }
+                    num_frames_to_process = num_frames_to_process - p_msg->num_frames_to_be_processed;
+                    GKI_freebuf(p_msg);
+                }
+            }while(num_frames_to_process > 0);
+            APPL_TRACE_DEBUG(" Process Frames - ");
+        }
+    }
+    else if (btif_media_cb.codec_type == BTA_AV_CODEC_M24)
+    {
+        count = btif_media_cb.RxAaQ.count;
+        if (0 == count)
+        {
+            APPL_TRACE_VERBOSE("Sink Rx Aaq Empty");
+            return;
+        }
+        if (btif_media_cb.rx_flush == TRUE)
+        {
+            btif_media_flush_q(&(btif_media_cb.RxAaQ));
+            return;
+        }
+        do
+        {
+            BT_HDR *p_msg;
+            p_msg = (BT_HDR *)GKI_getfirst(&btif_media_cb.RxAaQ);
+            if (p_msg == NULL)
+            {
+                break;
+            }
+            btif_media_aac_decode(p_msg);
+            if (p_msg->len == 0)
+            {
+                p_msg = (BT_HDR *)GKI_dequeue(&btif_media_cb.RxAaQ);
+                if (p_msg == NULL)
+                {
+                    APPL_TRACE_ERROR("Sink decode: Buffer null while dequeue");
+                    break;
+                }
                 GKI_freebuf(p_msg);
             }
-        }while(num_frames_to_process > 0);
-
-        APPL_TRACE_DEBUG(" Process Frames - ");
+            else
+            {
+                /* Residual data after Decode
+                 * TODO: Should we send for decode as it is or need to send
+                 * along with data coming next
+                 */
+                APPL_TRACE_ERROR("Sink decode: Residual data after decode");
+                break;
+            }
+        }while(btif_media_cb.RxAaQ.count);
     }
 }
 #endif
@@ -1597,7 +1656,7 @@ static void btif_media_flush_q(BUFFER_Q *p_q)
  *******************************************************************************/
 static void btif_media_task_handle_cmd(BT_HDR *p_msg)
 {
-    VERBOSE("btif_media_task_handle_cmd : %d %s", p_msg->event,
+    APPL_TRACE_DEBUG("btif_media_task_handle_cmd : %d %s", p_msg->event,
              dump_media_event(p_msg->event));
 
     switch (p_msg->event)
@@ -1705,6 +1764,9 @@ static void btif_media_task_handle_inc_media(tBT_SBC_HDR*p_msg)
         p_msg->offset += (p_msg->len - 1) - sbc_frame_len;
         p_msg->len = sbc_frame_len + 1;
     }
+#ifdef PCM_DUMP
+    writeDumpFile((void*)pcmData, (2*sizeof(pcmData) - availPcmBytes));
+#endif
 #ifdef AVK_BACKPORT
     retwriteAudioTrack = btWriteData((void*)pcmData, (2*sizeof(pcmData) - availPcmBytes));
     APPL_TRACE_LATENCY_AUDIO("Written to audio, seq number %d", p_msg->layer_specific);
@@ -1860,7 +1922,11 @@ BOOLEAN btif_media_task_aa_rx_flush_req(void)
 {
     BT_HDR *p_buf;
 
-    if (GKI_queue_is_empty(&(btif_media_cb.RxSbcQ))== TRUE) /*  Que is already empty */
+    if ((btif_media_cb.codec_type == BTA_AV_CODEC_SBC)&&
+        (GKI_queue_is_empty(&(btif_media_cb.RxSbcQ))== TRUE)) /*  Que is already empty */
+        return TRUE;
+    if ((btif_media_cb.codec_type == BTA_AV_CODEC_M24)&&
+        (GKI_queue_is_empty(&(btif_media_cb.RxAaQ))== TRUE)) /*  Que is already empty */
         return TRUE;
 
     if (NULL == (p_buf = GKI_getbuf(sizeof(BT_HDR))))
@@ -1908,9 +1974,12 @@ BOOLEAN btif_media_task_aa_tx_flush_req(void)
 static void btif_media_task_aa_rx_flush(void)
 {
     /* Flush all enqueued GKI SBC  buffers (encoded) */
-    APPL_TRACE_DEBUG("btif_media_task_aa_rx_flush");
+    APPL_TRACE_DEBUG("btif_media_task_aa_rx_flush codec type %d", btif_media_cb.codec_type);
 
-    btif_media_flush_q(&(btif_media_cb.RxSbcQ));
+    if(btif_media_cb.codec_type == BTA_AV_CODEC_SBC)
+        btif_media_flush_q(&(btif_media_cb.RxSbcQ));
+    else if(btif_media_cb.codec_type == BTA_AV_CODEC_M24)
+        btif_media_flush_q(&(btif_media_cb.RxAaQ));
 }
 
 
@@ -2265,7 +2334,7 @@ static void btif_media_task_audio_feeding_init(BT_HDR *p_msg)
     }
 }
 
-int btif_a2dp_get_track_frequency(UINT8 frequency) {
+int btif_a2dp_get_sbc_track_frequency(UINT8 frequency) {
     int freq = 48000;
     switch (frequency) {
         case A2D_SBC_IE_SAMP_FREQ_16:
@@ -2284,7 +2353,7 @@ int btif_a2dp_get_track_frequency(UINT8 frequency) {
     return freq;
 }
 
-int btif_a2dp_get_track_channel_count(UINT8 channeltype) {
+int btif_a2dp_get_sbc_track_channel_count(UINT8 channeltype) {
     int count = 1;
     switch (channeltype) {
         case A2D_SBC_IE_CH_MD_MONO:
@@ -2364,10 +2433,40 @@ static void btif_media_task_aa_handle_start_decoding(void )
 static void btif_media_task_aa_handle_clear_track (void)
 {
     APPL_TRACE_DEBUG("btif_media_task_aa_handle_clear_track");
+#ifdef PCM_DUMP
+        closeDumpFile();
+#endif
+        if (btif_media_cb.codec_type == BTA_AV_CODEC_M24)
+            btif_media_acc_close_decoder();
 #ifdef AVK_BACKPORT
     btStopTrack();
     btDeleteTrack();
 #endif
+}
+
+/*******************************************************************************
+ **
+ ** Function         btif_media_task_aa_sbc_handle_decoder_reset
+ **
+ ** Description
+ **
+ ** Returns          void
+ **
+ *******************************************************************************/
+static void btif_media_task_aa_handle_decoder_reset(BT_HDR *p_msg)
+{
+    tBTIF_MEDIA_SINK_CFG_UPDATE *p_buf = (tBTIF_MEDIA_SINK_CFG_UPDATE*) p_msg;
+    UINT8 codec_type = p_buf->codec_info[2];
+    btif_media_cb.codec_type = codec_type;
+    if(codec_type == BTA_AV_CODEC_SBC)
+    {
+        btif_media_task_aa_handle_sbc_decoder_reset(p_msg);
+    }
+    else if(codec_type == BTA_AV_CODEC_M24)
+    {
+        btif_media_aac_decoder_reset(p_msg, &btif_media_cb.sample_rate,
+                    &btif_media_cb.channel_count);
+    }
 }
 
 /*******************************************************************************
@@ -2379,7 +2478,7 @@ static void btif_media_task_aa_handle_clear_track (void)
  ** Returns          void
  **
  *******************************************************************************/
-static void btif_media_task_aa_handle_decoder_reset(BT_HDR *p_msg)
+static void btif_media_task_aa_handle_sbc_decoder_reset(BT_HDR *p_msg)
 {
     tBTIF_MEDIA_SINK_CFG_UPDATE *p_buf = (tBTIF_MEDIA_SINK_CFG_UPDATE*) p_msg;
     tA2D_STATUS a2d_status;
@@ -2400,8 +2499,8 @@ static void btif_media_task_aa_handle_decoder_reset(BT_HDR *p_msg)
         return;
     }
 
-    btif_media_cb.sample_rate = btif_a2dp_get_track_frequency(sbc_cie.samp_freq);
-    btif_media_cb.channel_count = btif_a2dp_get_track_channel_count(sbc_cie.ch_mode);
+    btif_media_cb.sample_rate = btif_a2dp_get_sbc_track_frequency(sbc_cie.samp_freq);
+    btif_media_cb.channel_count = btif_a2dp_get_sbc_track_channel_count(sbc_cie.ch_mode);
 
 #ifndef AVK_BACKPORT
     btif_media_cb.rx_flush = FALSE;
@@ -2412,9 +2511,12 @@ static void btif_media_task_aa_handle_decoder_reset(BT_HDR *p_msg)
     if (!OI_SUCCESS(status)) {
         APPL_TRACE_ERROR("OI_CODEC_SBC_DecoderReset failed with error code %d\n", status);
     }
+#ifdef PCM_DUMP
+        openDumpFile();
+#endif
 #ifdef AVK_BACKPORT
-    APPL_TRACE_DEBUG("A2dpSink: Crate Track");
-    if (btCreateTrack(btif_a2dp_get_track_frequency(sbc_cie.samp_freq), a2dp_get_track_channel_type(sbc_cie.ch_mode)) == -1) {
+    APPL_TRACE_DEBUG("A2dpSink: sbc Create Track");
+    if (btCreateTrack(btif_a2dp_get_sbc_track_frequency(sbc_cie.samp_freq), a2dp_get_track_channel_type(sbc_cie.ch_mode)) == -1) {
         APPL_TRACE_ERROR("A2dpSink: Track creation fails!!!");
         return;
     }
@@ -2858,36 +2960,72 @@ static void btif_get_num_aa_frame(UINT8 *num_of_iterations, UINT8 *num_of_frames
  *******************************************************************************/
 UINT8 btif_media_sink_enque_buf(BT_HDR *p_pkt)
 {
-    tBT_SBC_HDR *p_msg;
-
-    if(btif_media_cb.rx_flush == TRUE) /* Flush enabled, do not enque*/
-        return btif_media_cb.RxSbcQ.count;
-    if(btif_media_cb.RxSbcQ.count == MAX_OUTPUT_A2DP_FRAME_QUEUE_SZ)
-    {
-        GKI_freebuf(GKI_dequeue(&(btif_media_cb.RxSbcQ)));
-    }
 
     BTIF_TRACE_VERBOSE("btif_media_sink_enque_buf + ");
-    /* allocate and Queue this buffer */
-    if ((p_msg = (tBT_SBC_HDR *) GKI_getbuf(sizeof(tBT_SBC_HDR) +
-                        p_pkt->offset+ p_pkt->len)) != NULL)
+    if(btif_media_cb.codec_type == BTA_AV_CODEC_SBC)
     {
-        memcpy(p_msg, p_pkt, (sizeof(BT_HDR) + p_pkt->offset + p_pkt->len));
-        p_msg->num_frames_to_be_processed = (*((UINT8*)(p_msg + 1) + p_msg->offset)) & 0x0f;
-        BTIF_TRACE_VERBOSE("btif_media_sink_enque_buf + ", p_msg->num_frames_to_be_processed);
-        GKI_enqueue(&(btif_media_cb.RxSbcQ), p_msg);
-        if(btif_media_cb.RxSbcQ.count == MAX_A2DP_DELAYED_START_FRAME_COUNT)
+        if(btif_media_cb.rx_flush == TRUE) /* Flush enabled, do not enque*/
+            return btif_media_cb.RxSbcQ.count;
+        if(btif_media_cb.RxSbcQ.count == MAX_OUTPUT_A2DP_FRAME_QUEUE_SZ)
         {
-            BTIF_TRACE_DEBUG(" Initiate Decoding ");
-            btif_media_task_start_decoding_req();
+            GKI_freebuf(GKI_dequeue(&(btif_media_cb.RxSbcQ)));
+        }
+        tBT_SBC_HDR *p_msg;
+
+        /* allocate and Queue this buffer */
+        if ((p_msg = (tBT_SBC_HDR *) GKI_getbuf(sizeof(tBT_SBC_HDR) +
+                            p_pkt->offset+ p_pkt->len)) != NULL)
+        {
+            memcpy(p_msg, p_pkt, (sizeof(BT_HDR) + p_pkt->offset + p_pkt->len));
+            p_msg->num_frames_to_be_processed = (*((UINT8*)(p_msg + 1) + p_msg->offset)) & 0x0f;
+            BTIF_TRACE_VERBOSE("btif_media_sink_enque_buf + ", p_msg->num_frames_to_be_processed);
+            GKI_enqueue(&(btif_media_cb.RxSbcQ), p_msg);
+            if(btif_media_cb.RxSbcQ.count == MAX_A2DP_DELAYED_START_FRAME_COUNT)
+            {
+                BTIF_TRACE_DEBUG(" Initiate Decoding ");
+                btif_media_task_start_decoding_req();
+                return btif_media_cb.RxSbcQ.count;
+            }
+        }
+        else
+        {
+            /* let caller deal with a failed allocation */
+            BTIF_TRACE_VERBOSE("btif_media_sink_enque_buf No Buffer left - ");
+        }
+    }
+    else if (btif_media_cb.codec_type == BTA_AV_CODEC_M24)
+    {
+        if(btif_media_cb.rx_flush == TRUE) /* Flush enabled, do not enque*/
+            return btif_media_cb.RxAaQ.count;
+        if(btif_media_cb.RxAaQ.count == MAX_OUTPUT_A2DP_FRAME_QUEUE_SZ)
+        {
+            GKI_freebuf(GKI_dequeue(&(btif_media_cb.RxAaQ)));
+        }
+        BT_HDR *p_msg;
+        /* allocate and Queue this buffer */
+        if ((p_msg = (BT_HDR *) GKI_getbuf(sizeof(BT_HDR) + p_pkt->len)) != NULL)
+        {
+            memcpy(p_msg + 1, (UINT8*)(p_pkt + 1) + p_pkt->offset, p_pkt->len);
+            p_msg->len = p_pkt->len;
+            p_msg->offset = 0;
+            BTIF_TRACE_VERBOSE("sink_enque_buf + ");
+            GKI_enqueue(&(btif_media_cb.RxAaQ), p_msg);
+            if (btif_media_cb.RxAaQ.count == MAX_A2DP_DELAYED_START_FRAME_COUNT)
+            {
+                btif_media_task_start_decoding_req();
+            }
+            return btif_media_cb.RxAaQ.count;
+        }
+        else
+        {
+            BTIF_TRACE_ERROR("sink_enque_buf: No buffers available");
         }
     }
     else
     {
-        /* let caller deal with a failed allocation */
-        BTIF_TRACE_VERBOSE("btif_media_sink_enque_buf No Buffer left - ");
+        BTIF_TRACE_ERROR("Unsupported codec type: Packet ignored");
     }
-    return btif_media_cb.RxSbcQ.count;
+    return 0;
 }
 
 /*******************************************************************************

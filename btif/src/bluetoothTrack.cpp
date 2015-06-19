@@ -29,6 +29,8 @@
 
 #include "bluetoothTrack.h"
 #include <media/AudioTrack.h>
+#include "gki.h"
+#include "bt_trace.h"
 
 //#define DUMP_PCM_DATA TRUE
 #if (defined(DUMP_PCM_DATA) && (DUMP_PCM_DATA == TRUE))
@@ -46,6 +48,7 @@ BluetoothTrack *track = NULL;
 
 int btCreateTrack(int trackFreq, int channelType)
 {
+    APPL_TRACE_DEBUG(" Track.cpp: btCreateTrack freq %d  channel %d ",trackFreq, channelType);
     int ret = -1;
     if (track == NULL)
         track = new BluetoothTrack;
@@ -76,6 +79,7 @@ void btStartTrack()
 {
     if ((track != NULL) && (track->mTrack.get() != NULL))
     {
+        APPL_TRACE_DEBUG(" Track.cpp: btStartTrack");
         track->mTrack->start();
     }
 }
@@ -85,6 +89,7 @@ void btDeleteTrack()
 {
     if ((track != NULL) && (track->mTrack.get() != NULL))
     {
+        APPL_TRACE_DEBUG(" Track.cpp: btDeleteTrack");
         track->mTrack.clear();
         delete track;
         track = NULL;
@@ -102,6 +107,7 @@ void btPauseTrack()
 {
     if ((track != NULL) && (track->mTrack.get() != NULL))
     {
+        APPL_TRACE_DEBUG(" Track.cpp: btPauseTrack");
         track->mTrack->pause();
         track->mTrack->flush();
     }
@@ -111,6 +117,7 @@ void btStopTrack()
 {
     if ((track != NULL) && (track->mTrack.get() != NULL))
     {
+        APPL_TRACE_DEBUG(" Track.cpp: btStopTrack");
         track->mTrack->stop();
     }
 }
@@ -127,6 +134,7 @@ int btWriteData(void *audioBuffer, int bufferlen)
         }
 #endif
         retval = track->mTrack->write(audioBuffer, (size_t)bufferlen);
+        APPL_TRACE_DEBUG(" Track.cpp: btWriteData len = %d ret = %d", bufferlen, retval);
     }
     return retval;
 }

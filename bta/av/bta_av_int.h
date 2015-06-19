@@ -29,6 +29,7 @@
 #include "bta_av_api.h"
 #include "avdt_api.h"
 #include "bta_av_co.h"
+#include "bta_avk_co.h"
 
 #define BTA_AV_DEBUG TRUE
 /*****************************************************************************
@@ -616,6 +617,7 @@ extern UINT16 *p_bta_av_rc_id_ac;
 
 extern const tBTA_AV_SACT bta_av_a2d_action[];
 extern const tBTA_AV_CO_FUNCTS bta_av_a2d_cos;
+extern const tBTA_AV_CO_FUNCTS bta_avk_a2d_cos;
 extern const tBTA_AV_SACT bta_av_vdp_action[];
 extern tAVDT_CTRL_CBACK * const bta_av_dt_cback[];
 extern void bta_av_stream_data_cback(UINT8 handle, BT_HDR *p_pkt, UINT32 time_stamp, UINT8 m_pt);

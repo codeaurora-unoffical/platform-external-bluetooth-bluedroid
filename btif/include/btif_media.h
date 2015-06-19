@@ -40,6 +40,8 @@
 /* Generic part */
 #define BTIF_SUCCESS                         0
 
+/* PCM sample size: 16 bit */
+#define PCM_SAMPLE_SIZE 2
 /**
  * AV (Audio Video source) Errors
  */
@@ -283,9 +285,16 @@ void btif_a2dp_set_rx_flush(BOOLEAN enable);
 void btif_media_check_iop_exceptions(UINT8 *peer_bda);
 void btif_reset_decoder(UINT8 *p_av);
 BOOLEAN btif_media_task_start_decoding_req(void);
+int btif_a2dp_get_sbc_track_frequency(UINT8 frequency);
+int btif_a2dp_get_sbc_track_channel_count(UINT8 channeltype);
+#if defined(AAC_DECODER_INCLUDED) && (AAC_DECODER_INCLUDED == TRUE)
+void btif_media_acc_close_decoder();
+void btif_media_aac_decoder_reset(BT_HDR *p_msg,UINT16 *sampling, UINT8 *channel_mode);
+void btif_media_aac_decode(BT_HDR *p_msg);
+int btif_a2dp_get_aac_track_frequency(UINT16 frequency);
+int btif_a2dp_get_aac_track_channel_count(UINT8 channeltype);
+#endif
 
-int btif_a2dp_get_track_frequency(UINT8 frequency);
-int btif_a2dp_get_track_channel_count(UINT8 channeltype);
 void btif_a2dp_set_peer_sep(UINT8 sep);
 #ifdef AVK_BACKPORT
 void btif_a2dp_set_audio_focus_state(btif_media_AudioFocus_state state);
