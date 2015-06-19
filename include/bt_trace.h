@@ -183,6 +183,7 @@ typedef struct {
 extern tBTTRC_FUNC_MAP bttrc_set_level_map[];
 extern const UINT16 bttrc_map_size;
 extern BT_API tBTTRC_LEVEL * BTA_SysSetTraceLevel( tBTTRC_LEVEL * p_levels );
+extern void BTA_setStackLog( const char* log_layer, int log_level);
 // btla-specific --
 
 

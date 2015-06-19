@@ -51,7 +51,7 @@
 #include "bt_utils.h"
 #include "l2cdefs.h"
 #include "l2c_api.h"
-
+#include <logging.h>
 #if TEST_APP_INTERFACE == TRUE
 #include <bt_testapp.h>
 #endif
@@ -141,6 +141,8 @@ extern btrc_interface_t *btif_rc_get_interface();
 /* avrc controller */
 extern wipower_interface_t *get_wipower_interface();
 extern btrc_interface_t *btif_rc_ctrl_get_interface();
+
+extern const btstacklog_interface_t *btif_stack_log_interface(void);
 
 #if TEST_APP_INTERFACE == TRUE
 extern const btl2cap_interface_t *btif_l2cap_get_interface(void);
@@ -435,6 +437,9 @@ static const void* get_profile_interface (const char *profile_id)
 
     if (is_profile(profile_id, BT_PROFILE_SOCKETS_ID))
         return btif_sock_get_interface();
+
+    if (is_profile(profile_id, "LOG_ID"))
+        return btif_stack_log_interface();
 
     if (is_profile(profile_id, BT_PROFILE_PAN_ID))
         return btif_pan_get_interface();

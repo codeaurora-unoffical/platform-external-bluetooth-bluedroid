@@ -786,6 +786,12 @@ void btm_read_hci_buf_size_complete (UINT8 *p, UINT16 evt_len)
 #else
         acl_buf_size = L2CAP_MTU_SIZE;
 #endif
+
+#ifdef QLOGKIT_USERDEBUG
+        /* Enable SOC Logging */
+        UINT8       param[5] = {0x10,0x03,0x00,0x00,0x01};
+        BTM_VendorSpecificCommand(HCI_VS_HOST_LOG_OPCODE,5,param,NULL);
+#endif
         /* Tell the controller what our buffer sizes are. ?? Need SCO info */
         btsnd_hcic_set_host_buf_size (acl_buf_size, BTM_SCO_HOST_BUF_SIZE, L2CAP_HOST_FC_ACL_BUFS, 10);
 
