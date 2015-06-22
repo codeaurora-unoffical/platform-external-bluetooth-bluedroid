@@ -236,6 +236,15 @@ void bthc_tx(HC_BT_HDR *buf) {
   pthread_mutex_unlock(&hc_cb.worker_thread_lock);
 }
 
+void bthc_tx_unlock(HC_BT_HDR *buf) {
+  if (hc_cb.worker_thread) {
+    if (buf)
+      utils_enqueue(&tx_q, buf);
+    thread_post(hc_cb.worker_thread, event_tx, NULL);
+  }
+}
+
+
 void bthc_idle_timeout(void) {
   pthread_mutex_lock(&hc_cb.worker_thread_lock);
 
@@ -258,9 +267,9 @@ static void epilog_wait_timeout(UNUSED_ATTR union sigval arg)
 {
     ALOGI("...epilog_wait_timeout...");
 
-    thread_free(hc_cb.worker_thread);
 
     pthread_mutex_lock(&hc_cb.worker_thread_lock);
+    thread_free(hc_cb.worker_thread);
     hc_cb.worker_thread = NULL;
     pthread_mutex_unlock(&hc_cb.worker_thread_lock);
 }
@@ -486,9 +495,9 @@ static void cleanup(void)
 
             thread_post(hc_cb.worker_thread, event_epilog, NULL);
         }
-        thread_free(hc_cb.worker_thread);
 
         pthread_mutex_lock(&hc_cb.worker_thread_lock);
+        thread_free(hc_cb.worker_thread);
         hc_cb.worker_thread = NULL;
         pthread_mutex_unlock(&hc_cb.worker_thread_lock);
 
