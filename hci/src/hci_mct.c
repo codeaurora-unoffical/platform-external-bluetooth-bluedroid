@@ -1162,7 +1162,7 @@ uint8_t hci_mct_send_int_cmd(uint16_t opcode, HC_BT_HDR *p_buf, \
     /* stamp signature to indicate an internal command */
     p_buf->layer_specific = opcode;
 
-    bthc_tx(p_buf);
+    bthc_tx_unlock(p_buf);
     return TRUE;
 }
 
