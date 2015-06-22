@@ -1618,6 +1618,18 @@ static UINT8 btif_av_idx_by_bdaddr(BD_ADDR bd_addr)
     return i;
 }
 
+BOOLEAN btif_av_is_current_device(BD_ADDR address)
+{
+    UINT8 index;
+
+    index = btif_av_idx_by_bdaddr(address);
+    if((index < btif_max_av_clients) && btif_av_cb[index].current_playing)
+    {
+        return TRUE;
+    }
+    return FALSE;
+}
+
 /*******************************************************************************
 **
 ** Function         btif_get_latest_device_idx_to_start
@@ -3030,6 +3042,31 @@ void btif_av_move_idle(bt_bdaddr_t bd_addr)
         btif_sm_change_state(btif_av_cb[index].sm_handle, BTIF_AV_STATE_IDLE);
         btif_queue_advance();
     }
+}
+
+/******************************************************************************
+**
+** Function        btif_av_get_num_playing_devices
+**
+** Description     Return number of A2dp playing devices
+**
+** Returns         int
+******************************************************************************/
+UINT16 btif_av_get_num_playing_devices(void)
+{
+    UINT16 i;
+    UINT16 playing_devices = 0;
+    for (i = 0; i < btif_max_av_clients; i++)
+    {
+        btif_av_cb[i].state = btif_sm_get_state(btif_av_cb[i].sm_handle);
+        if (btif_av_cb[i].state ==  BTIF_AV_STATE_STARTED)
+        {
+            playing_devices++;
+        }
+    }
+    BTIF_TRACE_DEBUG("AV devices playing: %d", playing_devices);
+
+    return playing_devices;
 }
 
 /******************************************************************************
