@@ -851,7 +851,8 @@ Description   Trigger SSR when Disable timeout occured
 void btif_ssr_cleanup(void)
 {
   ssr_triggered = TRUE;
-  bte_ssr_cleanup();
+  //Added parameter to distinguish from where ssr is triggered
+  bte_ssr_cleanup(0x11);
 }
 
 /*******************************************************************************

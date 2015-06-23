@@ -324,15 +324,19 @@ static void bte_hci_enable(void)
 ** Function         bte_ssr_cleanup
 **
 ** Description      sends PWR_OFF to vendor library so that harware would be
-**                  turned off as part of hardware subsystem crash
+**                  turned off is part of hardware subsystem crash. Receives
+**                  reason as paratmeter to distinguish the why ssr is
+**                  triggered.
+**                  -Enable/Disable Timeout from framewor = 0x11
+**                  -hci cmd timeout = 0x22, hw failure evt = 0x33
 **
 ** Returns          None
 **
 ******************************************************************************/
-void bte_ssr_cleanup(void)
+void bte_ssr_cleanup(int reason)
 {
     APPL_TRACE_ERROR("%s", __FUNCTION__);
-    bt_hc_if->ssr_cleanup();
+    bt_hc_if->ssr_cleanup(reason);
 }
 
 /******************************************************************************

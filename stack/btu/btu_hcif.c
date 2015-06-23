@@ -60,7 +60,8 @@ extern void btm_ble_test_command_complete(UINT8 *p);
 
 //Counter to track number of HCI command timeout
 static int num_hci_cmds_timed_out;
-
+#define CMD_TIMEOUT 0x22
+#define HW_FAIL_EVT 0x33
 /********************************************************************************/
 /*              L O C A L    F U N C T I O N     P R O T O T Y P E S            */
 /********************************************************************************/
@@ -1243,9 +1244,8 @@ static void btu_hcif_command_complete_evt (UINT8 controller_id, UINT8 *p, UINT16
                controller has responded with 0xffff*/
             if ( (opcode_dequeued != cc_opcode)
 #if (defined(BTM_READ_CTLR_CAP_INCLUDED) && BTM_READ_CTLR_CAP_INCLUDED == TRUE)
-                && !((opcode_dequeued == HCI_BLE_VENDOR_CAP_OCF) &&
-                   ((opcode_dequeued & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC) &&
-                   ((cc_opcode & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC))
+                && !( ((opcode_dequeued & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC) &&
+                      ((cc_opcode & HCI_GRP_VENDOR_SPECIFIC) == HCI_GRP_VENDOR_SPECIFIC) )
 #endif
             )
             {
@@ -1706,10 +1706,11 @@ void btu_hcif_cmd_timeout (UINT8 controller_id)
     {
         HCI_TRACE_ERROR("Num consecutive HCI Cmd tout =%d Restarting BT process",num_hci_cmds_timed_out);
 
-        bte_ssr_cleanup();
-        usleep(20000); /* 20 milliseconds */
+        bte_ssr_cleanup(CMD_TIMEOUT);
+        /* Commenting out kill the process. It will be handled in hw failure event */
+//        usleep(20000); /* 20milliseconds */
         /* Killing the process to force a restart as part of fault tolerance */
-        kill(getpid(), SIGKILL);
+//        kill(getpid(), SIGKILL);
     }
     else
     {
@@ -1744,7 +1745,7 @@ static void btu_hcif_hardware_error_evt (UINT8 *p)
     if((*p == 0x0f) || (*p == 0x0a))
      {
        HCI_TRACE_ERROR("Ctlr H/w error event - code:Tigger SSR");
-       bte_ssr_cleanup();
+       bte_ssr_cleanup(HW_FAIL_EVT);
        usleep(20000); /* 20 milliseconds */
         /* Killing the process to force a restart as part of fault tolerance */
        kill(getpid(), SIGKILL);

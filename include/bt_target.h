@@ -703,7 +703,7 @@ BT_API extern void bte_main_hci_send (BT_HDR *p_msg, UINT16 event);
 BT_API extern void bte_main_lpm_allow_bt_device_sleep(void);
 #endif
 
-BT_API extern void bte_ssr_cleanup(void);
+BT_API extern void bte_ssr_cleanup(int reason);
 
 #ifdef __cplusplus
 }
