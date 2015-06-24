@@ -1566,15 +1566,21 @@ void bta_av_sig_chg(tBTA_AV_DATA *p_data)
             {
                 APPL_TRACE_DEBUG("Already connected to LCBs: 0x%x", p_cb->conn_lcb);
             }
-            /* Check if busy processing incoming connection,
-             * if yes, Reject the new incoming connection.
-             * This is very rare case to happen as the timeout
-             * to start signalling procedure is just 2 sec.
+            /* Check if busy processing a connection, if yes, Reject the
+             * new incoming connection.
+             * This is very rare case to happen as the timeout to start
+             * signalling procedure is just 2 sec.
              * Also sink initiators will have retry machanism.
+             * Even though busy flag is set during outgoing connection to
+             * reject incoming connection at L2CAP connect request, there
+             * is a chance to get here if the incoming connection has passed
+             * the L2CAP connection stage.
              */
-            if((p_data->hdr.offset == AVDT_ACP) && (p_cb->acp_sig_tmr.p_cback != NULL))
+            if((p_data->hdr.offset == AVDT_ACP) &&
+                ((p_cb->acp_sig_tmr.p_cback != NULL) ||
+                (AVDT_GetServiceBusyState() == TRUE)))
             {
-                APPL_TRACE_ERROR("%s Another Incoming conn while processing one.. Reject",
+                APPL_TRACE_ERROR("%s Incoming conn while processing another.. Reject",
                     __FUNCTION__);
                 AVDT_DisconnectReq (p_data->str_msg.bd_addr, NULL);
                 return;
