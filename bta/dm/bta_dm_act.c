@@ -2693,15 +2693,14 @@ static void bta_dm_discover_device(BD_ADDR remote_bd_addr)
                                     bta_dm_search_cb.services_to_search
                                     );
             }
+            APPL_TRACE_DEBUG("%s, services to search=0x%x, transport=%d", __FUNCTION__, bta_dm_search_cb.services_to_search, transport);
             if (transport == BT_TRANSPORT_LE)            /*
             if ( bta_dm_search_cb.p_btm_inq_info != NULL &&
                  bta_dm_search_cb.p_btm_inq_info->results.device_type == BT_DEVICE_TYPE_BLE &&
                  (bta_dm_search_cb.services_to_search & BTA_BLE_SERVICE_MASK))*/
             {
-                 // check ACL is still up before  start gatt op
-                if (!BTM_IsAclConnectionUp(bta_dm_search_cb.peer_bdaddr, BT_TRANSPORT_LE))
-                    return;
-                if (bta_dm_search_cb.services_to_search & BTA_BLE_SERVICE_MASK)
+                if ((bta_dm_search_cb.services_to_search & BTA_BLE_SERVICE_MASK) &&
+                    (BTM_IsAclConnectionUp(bta_dm_search_cb.peer_bdaddr, BT_TRANSPORT_LE)))
                 {
                     //set the raw data buffer here
                     memset(g_disc_raw_data_buf, 0, sizeof(g_disc_raw_data_buf));
@@ -2725,7 +2724,7 @@ static void bta_dm_discover_device(BD_ADDR remote_bd_addr)
             }
         }
     }
-
+    APPL_TRACE_DEBUG("%s, sending DISC_RES_EVT", __FUNCTION__);
     /* name discovery and service discovery are done for this device */
     if ((p_msg = (tBTA_DM_MSG *) GKI_getbuf(sizeof(tBTA_DM_MSG))) != NULL)
     {

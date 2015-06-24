@@ -579,6 +579,8 @@ BOOLEAN l2c_link_hci_disc_comp (UINT16 handle, UINT8 reason)
                 transport = BT_TRANSPORT_LE;
             }
 #endif
+            if (p_lcb->transport == BT_TRANSPORT_BR_EDR)
+                btm_acl_removed(p_lcb->remote_bd_addr, BT_TRANSPORT_BR_EDR);
             if (l2cu_create_conn(p_lcb, transport))
                 lcb_is_free = FALSE; /* still using this lcb */
         }
