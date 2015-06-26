@@ -138,9 +138,7 @@ static BOOLEAN btif_av_state_opening_handler(btif_sm_event_t event, void *data);
 static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *data);
 static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *data);
 static BOOLEAN btif_av_state_closing_handler(btif_sm_event_t event, void *data);
-#ifdef AVK_BACKPORT
-void btif_av_request_audio_focus( BOOLEAN enable);
-#endif
+
 static const btif_sm_handler_t btif_av_state_handlers[] =
 {
     btif_av_state_idle_handler,
@@ -823,12 +821,10 @@ static BOOLEAN btif_av_state_opened_handler(btif_sm_event_t event, void *p_data)
             if (p_av->start.status != BTA_AV_SUCCESS)
                 return FALSE;
 
-#ifndef AVK_BACKPORT
             if (btif_av_cb.peer_sep == AVDT_TSEP_SRC)
             {
                 btif_a2dp_set_rx_flush(FALSE); /*  remove flush state, ready for streaming*/
             }
-#endif
 
             /* change state to started, send acknowledgement if start is pending */
             if (btif_av_cb.flags & BTIF_AV_FLAG_PENDING_START) {
@@ -934,12 +930,6 @@ static BOOLEAN btif_av_state_started_handler(btif_sm_event_t event, void *p_data
             /* increase the a2dp consumer task priority temporarily when start
             ** audio playing, to avoid overflow the audio packet queue. */
             adjust_priority_a2dp(TRUE);
-#ifdef AVK_BACKPORT
-            if (btif_av_cb.peer_sep == AVDT_TSEP_SRC)
-            {
-                btif_av_request_audio_focus(TRUE);
-            }
-#endif
             break;
 
         case BTIF_SM_EXIT_EVT:
@@ -1360,77 +1350,6 @@ static bt_status_t init_sink(btav_callbacks_t* callbacks)
     return status;
 }
 
-#ifdef AVK_BACKPORT
-/*******************************************************************************
-**
-** Function         suspend_sink
-**
-** Description      Suspends stream  in case of A2DP Sink
-**
-** Returns          None
-**
-*******************************************************************************/
-void suspend_sink()
-{
-    BTIF_TRACE_DEBUG(" suspend Stream Suspend called");
-    btif_dispatch_sm_event(BTIF_AV_SUSPEND_STREAM_REQ_EVT, NULL, 0);
-}
-
-
-/*******************************************************************************
-**
-** Function         resume_sink
-**
-** Description      Resumes stream  in case of A2DP Sink
-**
-** Returns          None
-**
-*******************************************************************************/
-void resume_sink()
-{
-    BTIF_TRACE_DEBUG(" resume Stream called");
-    btif_dispatch_sm_event(BTIF_AV_START_STREAM_REQ_EVT, NULL, 0);
-}
-
-/*******************************************************************************
-**
-** Function         audio_focus_status
-**
-** Description      Update Audio Focus State
-**
-** Returns          None
-**
-*******************************************************************************/
-static void audio_focus_status(int state)
-{
-    BTIF_TRACE_DEBUG(" Audio focus Granted  %d ",state);
-    btif_a2dp_set_audio_focus_state(state);
-}
-/*******************************************************************************
-**
-** Function         btif_av_request_audio_focus
-**
-** Description      Usend request to gain audio focus
-**
-** Returns          void
-**
-*******************************************************************************/
-void btif_av_request_audio_focus( BOOLEAN enable)
-{
-    /* If we are in started state, suspend shld not have been initiated */
-    if ((btif_av_cb.flags & BTIF_AV_FLAG_REMOTE_SUSPEND )||
-        (btif_av_cb.flags & BTIF_AV_FLAG_LOCAL_SUSPEND_PENDING))
-    {
-        return;
-    }
-    if (enable)
-    {
-        HAL_CBACK(bt_av_sink_callbacks, audio_focus_request_cb,
-          1, &(btif_av_cb.peer_bda));
-    }
-}
-#endif
-
 /*******************************************************************************
 **
 ** Function         connect
@@ -1598,30 +1517,17 @@ static const btav_interface_t bt_av_src_interface = {
     src_connect_sink,
     disconnect,
     cleanup_src,
-    allow_connection,
+    allow_connection
 };
 
-#ifdef AVK_BACKPORT
-static const btav_sink_interface_t bt_av_sink_interface = {
-    sizeof(btav_sink_interface_t),
-    init_sink,
-    sink_connect_src,
-    disconnect,
-    cleanup_sink,
-    suspend_sink,
-    resume_sink,
-    audio_focus_status,
-};
-#else
 static const btav_interface_t bt_av_sink_interface = {
-    sizeof(btav_sink_interface_t),
+    sizeof(btav_interface_t),
     init_sink,
     sink_connect_src,
     disconnect,
     cleanup_sink,
-    allow_connection,
+    NULL
 };
-#endif
 /*******************************************************************************
 **
 ** Function         btif_av_get_sm_handle
@@ -1828,7 +1734,7 @@ const btav_interface_t *btif_av_get_src_interface(void)
 ** Returns          btav_sink_interface_t
 **
 *******************************************************************************/
-const btav_sink_interface_t *btif_av_get_sink_interface(void)
+const btav_interface_t *btif_av_get_sink_interface(void)
 {
     BTIF_TRACE_EVENT("%s", __FUNCTION__);
     return &bt_av_sink_interface;

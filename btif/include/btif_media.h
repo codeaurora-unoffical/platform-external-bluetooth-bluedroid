@@ -98,14 +98,6 @@ typedef struct
         BT_HDR hdr;
         UINT8 codec_info[AVDT_CODEC_SIZE];
 } tBTIF_MEDIA_SINK_CFG_UPDATE;
-
-#ifdef AVK_BACKPORT
-typedef enum {
-    BTIF_MEDIA_AUDIOFOCUS_LOSS = 0,
-    BTIF_MEDIA_AUDIOFOCUS_GAIN,
-    BTIF_MEDIA_AUDIOFOCUS_LOSS_TRANSIENT
-} btif_media_AudioFocus_state;
-#endif
 #endif
 
 /*******************************************************************************
@@ -296,8 +288,4 @@ int btif_a2dp_get_aac_track_channel_count(UINT8 channeltype);
 #endif
 
 void btif_a2dp_set_peer_sep(UINT8 sep);
-#ifdef AVK_BACKPORT
-void btif_a2dp_set_audio_focus_state(btif_media_AudioFocus_state state);
-#endif
-
 #endif

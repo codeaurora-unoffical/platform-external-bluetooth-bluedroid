@@ -36,9 +36,6 @@
 static HANDLE_AACDECODER decoder = NULL;
 static CStreamInfo *streamInfo = NULL;
 
-#ifdef AVK_BACKPORT
-#include "bluetoothTrack.h"
-#endif
 #ifdef PCM_DUMP
 #include "btif_a2dp_pcm_dump.h"
 #endif
@@ -103,13 +100,7 @@ int btif_a2dp_get_aac_track_channel_count(UINT8 channeltype) {
             count = 1;
             break;
         case A2D_AAC_IE_CHANNELS_2:
-/* If we use AudioTrack for rendering data, we need to set */
-/* channel value as 3, for stereo */
-#ifdef AVK_BACKPORT
-            count = 3;
-#else
             count = 2;
-#endif
             break;
     }
     return count;
@@ -194,13 +185,6 @@ void btif_media_aac_decoder_reset(BT_HDR *p_msg,UINT16 *sampling, UINT8 *channel
         APPL_TRACE_ERROR("aac_decoder_reset: Error opening decoder instance");
         return;
     }
-#ifdef AVK_BACKPORT
-    APPL_TRACE_DEBUG("A2dpSink: aac Create Track");
-    if (btCreateTrack(btif_a2dp_get_aac_track_frequency(aac_cie.samp_freq), btif_a2dp_get_aac_track_channel_count(aac_cie.channels)) == -1) {
-        APPL_TRACE_ERROR("A2dpSink: Track creation fails!!!");
-        return;
-    }
-#endif
     return;
 }
 
@@ -271,11 +255,7 @@ void btif_media_aac_decode(BT_HDR *p_msg)
 #ifdef PCM_DUMP
     writeDumpFile((void*)output_buf, (streamInfo->numChannels * PCM_SAMPLE_SIZE * frame_size));
 #endif
-#ifdef AVK_BACKPORT
-    btWriteData((void*)output_buf, (streamInfo->numChannels * PCM_SAMPLE_SIZE * frame_size));
-#else
     UIPC_Send(UIPC_CH_ID_AV_AUDIO, 0, (UINT8 *)output_buf,
             streamInfo->numChannels * PCM_SAMPLE_SIZE * frame_size);
-#endif
 }
 

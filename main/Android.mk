@@ -40,7 +40,6 @@ LOCAL_SRC_FILES += \
 	../btif/src/btif_media_aac.c \
 	../btif/src/btif_pan.c \
 	../btif/src/btif_profile_queue.c \
-	../btif/src/bluetoothTrack.cpp \
 	../btif/src/btif_a2dp_pcm_dump.c \
 	../btif/src/btif_rc.c \
 	../btif/src/btif_sm.c \
