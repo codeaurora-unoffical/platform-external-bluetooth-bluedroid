@@ -919,7 +919,10 @@ BOOLEAN SDP_DeleteAttribute (UINT32 handle, UINT16 attr_id)
                     if (p_rec->free_pad_ptr + p_attr->len >= SDP_MAX_PAD_LEN)
                     {
                         SDP_TRACE_ERROR("Deleting attr_id 0x%04x len %d exceeds 600", attr_id, len);
-                        len = SDP_MAX_PAD_LEN;
+                        if (p_attr->type == TEXT_STR_DESC_TYPE)
+                        len = SDP_MAX_PAD_LEN - p_rec->free_pad_ptr;
+                        else
+                        len = 0;
                     }
                     if (len)
                     {
