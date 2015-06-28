@@ -287,7 +287,9 @@ extern BOOLEAN btif_av_is_device_connected(BD_ADDR address);
 extern void btif_av_trigger_dual_handoff(BOOLEAN handoff, BD_ADDR address);
 extern BOOLEAN btif_hf_is_call_idle();
 extern BOOLEAN btif_av_get_multicast_state();
-
+extern BOOLEAN btif_av_is_current_device(BD_ADDR address);
+extern UINT16 btif_av_get_num_connected_devices(void);
+extern UINT16 btif_av_get_num_playing_devices(void);
 /*****************************************************************************
 **  Functions
 ******************************************************************************/
@@ -3189,6 +3191,87 @@ static bt_status_t get_itemattr_rsp(uint8_t num_attr, btrc_element_attr_val_t *p
     return BT_STATUS_SUCCESS;
 }
 
+/**********************************************************************
+**
+** Function        is_device_active_in_handoff
+**
+** Description     Check if this is the active device during hand-off
+**                 If the multicast is disabled when connected to more
+**                 than one device and the active playing device is
+**                 different or device to start playback is different
+**                 then fail this condition.
+** Return          BT_STATUS_SUCCESS if active BT_STATUS_FAIL otherwise
+**
+*********************************************************************/
+static bt_status_t is_device_active_in_handoff(bt_bdaddr_t *bd_addr)
+{
+    BD_ADDR playing_device;
+    int rc_index;
+    UINT16 connected_devices, playing_devices;
+
+    rc_index = btif_rc_get_idx_by_addr(bd_addr->address);
+    if(rc_index >= btif_max_rc_clients)
+    {
+        return BT_STATUS_FAIL;
+    }
+    connected_devices = btif_av_get_num_connected_devices();
+    playing_devices = btif_av_get_num_playing_devices();
+
+    if((connected_devices < btif_max_rc_clients) || (playing_devices > 1))
+    {
+        return BT_STATUS_SUCCESS;
+    }
+
+    if((connected_devices > 1) && (playing_devices == 1))
+    {
+        /* One playing device, check the active device */
+        btif_get_latest_playing_device(playing_device);
+        if (bdcmp(bd_addr->address, playing_device) == 0)
+        {
+            return BT_STATUS_SUCCESS;
+        }
+        else
+        {
+            return BT_STATUS_FAIL;
+        }
+    }
+    else if (playing_devices == 0)
+    {
+        /* No Playing device, find the next playing device
+         * Play initiated from remote
+         */
+        if (btif_rc_cb[rc_index].rc_play_processed == TRUE)
+        {
+            return BT_STATUS_SUCCESS;
+        }
+        else if (btif_av_is_current_device(bd_addr->address) == TRUE)
+        {
+            /* Play initiated locally. check the current device and
+             * make sure play is not initiated from other remote
+             */
+            BD_ADDR rc_play_device = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+            btif_rc_get_playing_device(rc_play_device);
+            if(bdcmp(bd_addr->address, bd_addr_null) != 0)
+            {
+                /* some other playing device */
+                return BT_STATUS_FAIL;
+            }
+            return BT_STATUS_SUCCESS;
+        }
+        else
+        {
+            BTIF_TRACE_ERROR("%s no playing or current device ", __FUNCTION__);
+            return BT_STATUS_FAIL;
+        }
+    }
+    else
+    {
+        BTIF_TRACE_ERROR("%s unchecked state: connected devices: %d playing devices: %d",
+            __FUNCTION__, connected_devices, playing_devices);
+        return BT_STATUS_SUCCESS;
+    }
+}
+
 /***************************************************************************
 **
 ** Function         set_volume
@@ -3503,6 +3586,7 @@ static const btrc_interface_t bt_rc_interface = {
     changepath_rsp,
     playitem_rsp,
     get_itemattr_rsp,
+    is_device_active_in_handoff,
     cleanup,
 };
 
