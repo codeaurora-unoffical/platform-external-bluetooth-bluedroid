@@ -907,12 +907,12 @@ static void btif_hh_upstreams_evt(UINT16 event, char* p_param)
                 if (p_dev != NULL) {
                     if(p_dev->vup_timer_active)
                         btif_hh_stop_vup_timer(&(p_dev->bd_addr));
+                    p_dev->dev_status = BTHH_CONN_STATE_DISCONNECTED;
                     if (p_dev->fd >= 0) {
                         BTIF_TRACE_DEBUG("Closing uhid fd = %d", p_dev->fd);
                         bta_hh_co_destroy(p_dev->fd);
                         p_dev->fd = -1;
                     }
-                    p_dev->dev_status = BTHH_CONN_STATE_DISCONNECTED;
                 }
                 HAL_CBACK(bt_hh_callbacks, connection_state_cb, (bt_bdaddr_t*) &p_data->conn.bda,BTHH_CONN_STATE_DISCONNECTED);
                 btif_hh_cb.status = BTIF_HH_DEV_DISCONNECTED;
@@ -928,13 +928,13 @@ static void btif_hh_upstreams_evt(UINT16 event, char* p_param)
                 {
                     btif_hh_stop_vup_timer(&(p_dev->bd_addr));
                 }
+                btif_hh_cb.status = BTIF_HH_DEV_DISCONNECTED;
+                p_dev->dev_status = BTHH_CONN_STATE_DISCONNECTED;
                 if (p_dev->fd >= 0) {
                     BTIF_TRACE_DEBUG("Closing uhid fd = %d", p_dev->fd);
                     bta_hh_co_destroy(p_dev->fd);
                     p_dev->fd = -1;
                 }
-                btif_hh_cb.status = BTIF_HH_DEV_DISCONNECTED;
-                p_dev->dev_status = BTHH_CONN_STATE_DISCONNECTED;
                 HAL_CBACK(bt_hh_callbacks, connection_state_cb,&(p_dev->bd_addr), p_dev->dev_status);
             }
             else {
