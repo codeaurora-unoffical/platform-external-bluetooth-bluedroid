@@ -1625,6 +1625,7 @@ void bta_av_do_close (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
 *******************************************************************************/
 void bta_av_connect_req (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
 {
+    UINT16 result;
     UNUSED(p_data);
 
     p_scb->sdp_discovery_started = FALSE;
@@ -1637,7 +1638,17 @@ void bta_av_connect_req (tBTA_AV_SCB *p_scb, tBTA_AV_DATA *p_data)
         return;
     }
 
-    AVDT_ConnectReq(p_scb->peer_addr, p_scb->sec_mask, bta_av_dt_cback[p_scb->hdi]);
+    result = AVDT_ConnectReq(p_scb->peer_addr, p_scb->sec_mask, bta_av_dt_cback[p_scb->hdi]);
+    if(result != AVDT_SUCCESS)
+    {
+        /* AVDT connect failed because of resource issue
+         * trigger the SDP fail event to enable the cleanup
+         * and set the stream to proper state.
+         */
+        p_scb->open_status = BTA_AV_FAIL_RESOURCES;
+        APPL_TRACE_ERROR("bta_av_connect_req: AVDT_ConnectReq failed: %d", result);
+        bta_av_ssm_execute(p_scb, BTA_AV_SDP_DISC_FAIL_EVT, NULL);
+    }
 }
 
 /*******************************************************************************
