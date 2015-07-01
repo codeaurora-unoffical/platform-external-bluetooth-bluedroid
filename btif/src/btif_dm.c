@@ -2100,6 +2100,12 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
             btif_av_move_idle(bd_addr);
             HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
                       &bd_addr, BT_ACL_STATE_DISCONNECTED);
+
+            if (pairing_cb.state == BT_BOND_STATE_BONDING)
+            {
+                bdcpy(bd_addr.address, pairing_cb.bd_addr);
+                bond_state_changed(p_data->bond_cancel_cmpl.result, &bd_addr, BT_BOND_STATE_NONE);
+            }
             break;
 
         case BTA_DM_HW_ERROR_EVT:
