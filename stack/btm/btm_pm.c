@@ -123,6 +123,35 @@ const char * btm_pm_action_str[] =
 };
 #endif
 
+/* Black listed car kits/headsets for sniff */
+static const UINT8 btm_sniff_req_black_list_prefix[][3] = {{0xa4, 0xdb, 0x30}}; /* Jabra TAG v2.0.2 */
+
+/*******************************************************************************
+**
+** Function         btm_blacklistted_for_sniff_req
+**
+** Description      This function is called to find the blacklisted carkits
+**                  for sniff req.
+**
+** Returns          TRUE, if black listed
+**
+*******************************************************************************/
+BOOLEAN btm_blacklistted_for_sniff_req (BD_ADDR addr)
+{
+    int blacklistsize = 0;
+    int i =0;
+
+    blacklistsize = sizeof(btm_sniff_req_black_list_prefix)/sizeof(btm_sniff_req_black_list_prefix[0]);
+    for (i=0; i < blacklistsize; i++)
+    {
+        if (0 == memcmp(btm_sniff_req_black_list_prefix[i], addr, 3))
+        {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
 /*****************************************************************************/
 /*                     P U B L I C  F U N C T I O N S                        */
 /*****************************************************************************/
@@ -228,6 +257,11 @@ tBTM_STATUS BTM_SetPowerMode (UINT8 pm_id, BD_ADDR remote_bda, tBTM_PM_PWR_MD *p
             BTM_TRACE_DEBUG( "BTM_SetPowerMode: mode:0x%x interval %d max:%d, min:%d", p_mode->mode, p_cb->interval, p_mode->max, p_mode->min);
             return BTM_SUCCESS;
         }
+    }
+    if((mode == BTM_PM_MD_SNIFF)&&(btm_blacklistted_for_sniff_req(remote_bda)))
+    {
+        BTM_TRACE_DEBUG("BTM_SetPowerMode:Device blacklisted for sniff req");
+        return BTM_MODE_UNSUPPORTED;
     }
 
     temp_pm_id = pm_id;
