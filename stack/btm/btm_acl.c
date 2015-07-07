@@ -50,7 +50,8 @@ static void btm_process_remote_ext_features (tACL_CONN *p_acl_cb, UINT8 num_read
 
 /* Black listed car kits/headsets for role switch */
 static const UINT8 btm_role_switch_black_list_prefix[][3] = {{0x00, 0x0d, 0xfd}, /* MOT EQ5 */
-                                                             {0x00, 0x1b, 0xdc}  /* BSHSBE20 */
+                                                             {0x00, 0x1b, 0xdc}, /* BSHSBE20 */
+                                                             {0x00, 0x07, 0x04}  /* Infiniti G37 2011 */
                                                             };
 
 /*******************************************************************************
