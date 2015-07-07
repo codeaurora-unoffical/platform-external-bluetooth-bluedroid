@@ -2081,6 +2081,7 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
                     memcpy(pairing_cb.ble.penc_key.rand, p_data->ble_key.key_value.penc_key.rand,8);
                     pairing_cb.ble.penc_key.ediv = p_data->ble_key.key_value.penc_key.ediv;
                     pairing_cb.ble.penc_key.sec_level = p_data->ble_key.key_value.penc_key.sec_level;
+                    pairing_cb.ble.penc_key.key_size = p_data->ble_key.key_value.penc_key.key_size;
 
                     for (i=0; i<16; i++)
                     {
