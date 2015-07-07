@@ -1926,6 +1926,7 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
              btif_storage_load_bonded_devices();
 
              btif_storage_load_autopair_device_list();
+             load_iot_devlist(IOT_DEV_CONF_FILE);
 
              btif_enable_bluetooth_evt(p_data->enable.status, p_data->enable.bd_addr);
         }
@@ -1943,6 +1944,7 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
                     btif_in_execute_service_request(i, FALSE);
                 }
             }
+            unload_iot_devlist();
             btif_disable_bluetooth_evt();
             break;
 
