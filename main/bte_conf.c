@@ -52,7 +52,16 @@ void bte_load_conf(const char *path) {
   hci_ext_dump_enabled = config_get_bool(config, CONFIG_DEFAULT_SECTION, "BtSnoopExtDump", false);
   hci_save_log = config_get_bool(config, CONFIG_DEFAULT_SECTION, "BtSnoopSaveLog", false);
   trace_conf_enabled = config_get_bool(config, CONFIG_DEFAULT_SECTION, "TraceConf", false);
-
+  /* Enable snoop by default on userdebug build
+   * Don't modify configuration if overriden by user in config file to ensure that
+   * the default snoop option is supported without ext dump
+   */
+#if (BTSNOOP_DEFAULT == TRUE)
+    if (hci_logging_enabled != true) {
+        hci_logging_enabled = true;
+        hci_ext_dump_enabled = true;
+    }
+#endif
   bte_trace_conf_config(config);
   config_free(config);
 }

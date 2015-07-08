@@ -191,7 +191,15 @@ static void btif_initiate_open_SCO_tmr_hdlr(TIMER_LIST_ENT *tle)
     BTIF_TRACE_EVENT("%s", __FUNCTION__);
     if (!BTM_GetNumScoLinks())
     {
-        BTA_HfClientAudioOpen(btif_hf_client_cb.handle);
+        if (btif_hf_client_cb.peer_feat & BTA_HF_CLIENT_PEER_CODEC)
+        {
+            BTIF_TRACE_DEBUG("codec negotiation supported, sending AT+BCC");
+            BTA_HfClientSendAT(btif_hf_client_cb.handle, BTA_HF_CLIENT_AT_CMD_BCC, 0, 0, NULL);
+        }
+        else
+        {
+            BTA_HfClientAudioOpen(btif_hf_client_cb.handle);
+        }
     }
     else
     {
@@ -981,6 +989,12 @@ static void btif_hf_client_upstreams_evt(UINT16 event, char* p_param)
             break;
         case BTA_HF_CLIENT_RING_INDICATION:
             HAL_CBACK(bt_hf_client_callbacks, ring_indication_cb);
+            break;
+        case BTA_HF_CLIENT_CGMI_EVT:
+            HAL_CBACK(bt_hf_client_callbacks, cgmi_cb, p_data->cgmi.name);
+            break;
+        case BTA_HF_CLIENT_CGMM_EVT:
+            HAL_CBACK(bt_hf_client_callbacks, cgmm_cb, p_data->cgmm.model);
             break;
         default:
             BTIF_TRACE_WARNING("%s: Unhandled event: %d", __FUNCTION__, event);
