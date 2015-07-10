@@ -37,11 +37,16 @@ void bte_trace_conf_config(const config_t *config);
 // Reads the stack configuration file and populates global variables with
 // the contents of the file.
 void bte_load_conf(const char *path) {
+  config_t *config;
+#if (BTSNOOP_DEFAULT == TRUE)
+  BOOLEAN btsnoop_conf_from_file = FALSE;
+#endif
+
   assert(path != NULL);
 
   ALOGI("%s attempt to load stack conf from %s", __func__, path);
 
-  config_t *config = config_new(path);
+  config = config_new(path);
   if (!config) {
     ALOGI("%s file >%s< not found", __func__, path);
     return;
@@ -57,10 +62,11 @@ void bte_load_conf(const char *path) {
    * the default snoop option is supported without ext dump
    */
 #if (BTSNOOP_DEFAULT == TRUE)
-    if (hci_logging_enabled != true) {
-        hci_logging_enabled = true;
-        hci_ext_dump_enabled = true;
-    }
+  btsnoop_conf_from_file = config_get_bool(config, CONFIG_DEFAULT_SECTION, "BtSnoopConfigFromFile", false);
+  if (btsnoop_conf_from_file == false) {
+      hci_logging_enabled = true;
+      hci_ext_dump_enabled = true;
+  }
 #endif
   bte_trace_conf_config(config);
   config_free(config);
@@ -94,16 +100,21 @@ void bte_load_ble_conf(const char* path)
 // Parses the specified Device ID configuration file and registers the
 // Device ID records with SDP.
 void bte_load_did_conf(const char *p_path) {
+    config_t *config;
+    int i;
     assert(p_path != NULL);
 
-    config_t *config = config_new(p_path);
+    config = config_new(p_path);
     if (!config) {
         ALOGE("%s unable to load DID config '%s'.", __func__, p_path);
         return;
     }
 
-    for (int i = 1; i <= BTA_DI_NUM_MAX; ++i) {
+    for (i = 1; i <= BTA_DI_NUM_MAX; ++i) {
         char section_name[16] = { 0 };
+        tBTA_DI_RECORD record;
+        uint32_t record_handle;
+        tBTA_STATUS status;
         snprintf(section_name, sizeof(section_name), "DID%d", i);
 
         if (!config_has_section(config, section_name)) {
@@ -111,7 +122,6 @@ void bte_load_did_conf(const char *p_path) {
             break;
         }
 
-        tBTA_DI_RECORD record;
         record.vendor = config_get_int(config, section_name, "vendorId", LMP_COMPID_BROADCOM);
         record.vendor_id_source = config_get_int(config, section_name, "vendorIdSource", DI_VENDOR_ID_SOURCE_BTSIG);
         record.product = config_get_int(config, section_name, "productId", 0);
@@ -136,8 +146,7 @@ void bte_load_did_conf(const char *p_path) {
         ALOGD("  serviceDescription  = %s", record.service_description);
         ALOGD("  documentationURL    = %s", record.documentation_url);
 
-        uint32_t record_handle;
-        tBTA_STATUS status = BTA_DmSetLocalDiRecord(&record, &record_handle);
+        status = BTA_DmSetLocalDiRecord(&record, &record_handle);
         if (status != BTA_SUCCESS) {
             ALOGE("%s unable to set device ID record %d: error %d.", __func__, i, status);
         }
