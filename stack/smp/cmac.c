@@ -50,13 +50,14 @@ UINT8 salt[BLOCK_SIZE] = {
 
 static void smp_debug_print_nbyte_little_endian (UINT8 *p, const UINT8 *key_name, UINT8 len)
 {
-    int     i, x = 0;
+    int     i, x = 0, s = 0;
     UINT8   p_buf[300];
     memset(p_buf, 0, 300);
+    s = sizeof(p_buf);
 
     for (i = 0; i < len; i ++)
     {
-        x += sprintf ((char *)&p_buf[x], "%02x ", p[i]);
+        x += snprintf ((char *)&p_buf[x], s-x, "%02x ", p[i]);
     }
     AES_TRACE_DEBUG("%s(MSB ~ LSB) = %s\n", key_name, p_buf);
 }

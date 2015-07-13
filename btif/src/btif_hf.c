@@ -1717,7 +1717,7 @@ static bt_status_t bind_response(int anum, bthf_hf_indicator_status_t status,
 
         /* Format the response */
         BTIF_TRACE_EVENT("bind_response: anum : [%d] status %d ", anum, status);
-        xx = sprintf (ag_res.str, "%d,%d", anum, status);
+        xx = snprintf (ag_res.str, sizeof(ag_res.str), "%d,%d", anum, status);
 
         BTA_AgResult (btif_hf_cb[idx].handle, BTA_AG_BIND_RES, &ag_res);
 
@@ -1757,7 +1757,7 @@ static bt_status_t bind_string_response(const char* res,
         memset (&ag_res, 0, sizeof (ag_res));
 
         /* Format the response */
-        xx = sprintf (ag_res.str, res);
+        xx = snprintf (ag_res.str, sizeof(ag_res.str), res);
 
         BTA_AgResult (btif_hf_cb[idx].handle, BTA_AG_BIND_RES, &ag_res);
 
