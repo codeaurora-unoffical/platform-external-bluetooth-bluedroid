@@ -545,9 +545,20 @@ BOOLEAN l2c_link_hci_disc_comp (UINT16 handle, UINT8 reason)
             /* for LE link, always drop and re-open to ensure to get LE remote feature */
             if (p_lcb->transport == BT_TRANSPORT_LE)
             {
-                l2cu_release_lcb (p_lcb);
-                p_lcb->in_use = TRUE;
-                transport = BT_TRANSPORT_LE;
+                L2CAP_TRACE_DEBUG("l2c_link_hci_disc_comp: p_lcb->p_pending_ccb: %p",
+                        p_lcb->p_pending_ccb);
+
+                if (p_lcb->p_pending_ccb) {
+                    p_lcb->p_pending_ccb = NULL;
+                    l2cu_release_lcb (p_lcb);
+                    return status;
+                }
+                else
+                {
+                    l2cu_release_lcb (p_lcb);
+                    p_lcb->in_use = TRUE;
+                    transport = BT_TRANSPORT_LE;
+                }
             }
             else
 #endif
