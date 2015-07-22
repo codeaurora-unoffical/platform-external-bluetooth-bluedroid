@@ -57,6 +57,7 @@ LOCAL_SRC_FILES += \
         ../btif/src/btif_smp.c \
         ../btif/src/btif_sdp.c\
         ../btif/src/btif_rfcomm.c \
+        ../btif/src/btif_stack_log.c \
 
 # callouts
 LOCAL_SRC_FILES += \
