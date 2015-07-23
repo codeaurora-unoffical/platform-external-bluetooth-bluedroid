@@ -608,7 +608,7 @@ void smp_proc_pairing_cmpl(tSMP_CB *p_cb)
     SMP_TRACE_DEBUG ("send SMP_COMPLT_EVT reason=0x%0x sec_level=0x%0x",
                       evt_data.cmplt.reason,
                       evt_data.cmplt.sec_level );
-    if (p_cb->p_callback)
+    if (p_cb->p_callback && p_cb->cb_evt != SMP_DELAY_EVT)
         (*p_cb->p_callback) (SMP_COMPLT_EVT, p_cb->pairing_bda, &evt_data);
 
 #if 0 /* TESTING CODE : as a master, reencrypt using LTK */

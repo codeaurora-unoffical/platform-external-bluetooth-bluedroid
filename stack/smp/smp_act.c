@@ -674,10 +674,8 @@ void smp_proc_release_delay_tout(tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
     if(p_cb->cb_evt == SMP_DELAY_EVT) /*release delay state due to encryption change*/
     {
         p_cb->state = SMP_ST_IDLE;
-        memset(&p_cb->pairing_bda[0], 0xff, BD_ADDR_LEN);
     }
-    else
-        smp_proc_pairing_cmpl(p_cb);
+    smp_proc_pairing_cmpl(p_cb);
 }
 
 
@@ -959,7 +957,6 @@ void smp_delay_terminate(tSMP_CB *p_cb, tSMP_INT_DATA *p_data)
     {
         p_cb->state = SMP_ST_IDLE;
         memset(&p_cb->pairing_bda[0], 0xff, BD_ADDR_LEN);
-        return;
     }
 
     /* if remote user terminate connection, keep the previous status */
