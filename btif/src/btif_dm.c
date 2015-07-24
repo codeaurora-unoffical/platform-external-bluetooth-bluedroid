@@ -2102,7 +2102,9 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
             HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
                       &bd_addr, BT_ACL_STATE_DISCONNECTED);
 
-            if (pairing_cb.state == BT_BOND_STATE_BONDING)
+            if (pairing_cb.state == BT_BOND_STATE_BONDING &&
+                p_data->link_down.link_type == BT_TRANSPORT_LE &&
+                bdcmp (pairing_cb.bd_addr, p_data->link_down.bd_addr) == 0)
             {
                 bdcpy(bd_addr.address, pairing_cb.bd_addr);
                 bond_state_changed(p_data->bond_cancel_cmpl.result, &bd_addr, BT_BOND_STATE_NONE);
