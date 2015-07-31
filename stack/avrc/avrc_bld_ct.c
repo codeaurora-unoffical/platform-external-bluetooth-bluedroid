@@ -203,7 +203,7 @@ static tAVRC_STS avrc_bld_get_current_player_app_values_cmd(BT_HDR * p_pkt, UINT
     /* add length -*/
     UINT16_TO_BE_STREAM(p_data, param_len);
     UINT8_TO_BE_STREAM(p_data,num_attrib_id);
-    for(count = 0; count < num_attrib_id; count ++)
+    for(count = 0; count < num_attrib_id && count < AVRC_MAX_APP_ATTR_SIZE; count ++)
     {
         UINT8_TO_BE_STREAM(p_data,attrib_ids[count]);
     }
@@ -271,7 +271,7 @@ static tAVRC_STS avrc_bld_get_element_attr_cmd(BT_HDR * p_pkt, UINT8 num_attrib,
     UINT32_TO_BE_STREAM(p_data,0);
     UINT32_TO_BE_STREAM(p_data,0);
     UINT8_TO_BE_STREAM(p_data,num_attrib);
-    for(count = 0; count < num_attrib; count ++)
+    for(count = 0; count < num_attrib && count < AVRC_MAX_ELEM_ATTR_SIZE; count ++)
     {
         UINT32_TO_BE_STREAM(p_data,attrib_ids[count]);
     }

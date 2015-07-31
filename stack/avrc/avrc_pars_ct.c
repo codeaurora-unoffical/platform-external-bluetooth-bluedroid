@@ -163,14 +163,14 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(tAVRC_MSG_VENDOR *p_msg, tAVRC_RESPON
                                      ,p_result->get_caps.capability_id,p_result->get_caps.count);
         if (p_result->get_caps.capability_id == AVRC_CAP_COMPANY_ID)
         {
-            for(xx =0; ((xx<=p_result->get_caps.count) && (xx <=AVRC_CAP_MAX_NUM_COMP_ID)); xx++)
+            for(xx =0; ((xx<=p_result->get_caps.count) && (xx <AVRC_CAP_MAX_NUM_COMP_ID)); xx++)
             {
                 BE_STREAM_TO_UINT24(p_result->get_caps.param.company_id[xx],p);
             }
         }
         else if (p_result->get_caps.capability_id == AVRC_CAP_EVENTS_SUPPORTED)
         {
-            for(xx =0; ((xx<=p_result->get_caps.count) && (xx <=AVRC_CAP_MAX_NUM_EVT_ID)); xx++)
+            for(xx =0; ((xx<=p_result->get_caps.count) && (xx <AVRC_CAP_MAX_NUM_EVT_ID)); xx++)
             {
                 BE_STREAM_TO_UINT8(p_result->get_caps.param.event_id[xx],p);
             }
@@ -216,7 +216,7 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(tAVRC_MSG_VENDOR *p_msg, tAVRC_RESPON
             (tAVRC_APP_SETTING*)GKI_getbuf(p_result->get_cur_app_val.num_val*sizeof(tAVRC_APP_SETTING));
         AVRC_TRACE_DEBUG("AVRC_PDU_GET_CUR_PLAYER_APP_VALUE count = %d "
                                      ,p_result->get_cur_app_val.num_val);
-        for (xx = 0; xx < p_result->get_cur_app_val.num_val; xx++)
+        for (xx = 0; xx < p_result->get_cur_app_val.num_val && app_sett; xx++)
         {
             BE_STREAM_TO_UINT8(app_sett[xx].attr_id,p);
             BE_STREAM_TO_UINT8(app_sett[xx].attr_val,p);

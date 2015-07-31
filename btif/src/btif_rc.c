@@ -2024,7 +2024,11 @@ static void btif_rc_ctrl_upstreams_rsp_evt(UINT16 event, tAVRC_RESPONSE *pavrc_r
             int xx = 0;
             UINT32 *p_int_array = NULL;
             if (pavrc_resp->get_caps.count > 0)
+            {
                 p_int_array = (UINT32*)GKI_getbuf(4*pavrc_resp->get_caps.count);
+                if (p_int_array == NULL)
+                    return;
+            }
             for (xx = 0; xx < pavrc_resp->get_caps.count; xx++)
             {
                 if (pavrc_resp->get_caps.capability_id == AVRC_CAP_COMPANY_ID)
@@ -2047,7 +2051,11 @@ static void btif_rc_ctrl_upstreams_rsp_evt(UINT16 event, tAVRC_RESPONSE *pavrc_r
             int xx = 0;
             UINT8  *p_byte_array = NULL;
             if (pavrc_resp->list_app_attr.num_attr > 0)
+            {
                 p_byte_array = (UINT8*)GKI_getbuf(pavrc_resp->list_app_attr.num_attr);
+                if (p_byte_array == NULL)
+                    return;
+            }
             for (xx = 0; xx < pavrc_resp->list_app_attr.num_attr; xx++)
             {
                 p_byte_array[xx] = pavrc_resp->list_app_attr.attrs[xx];
@@ -2063,7 +2071,11 @@ static void btif_rc_ctrl_upstreams_rsp_evt(UINT16 event, tAVRC_RESPONSE *pavrc_r
             int xx = 0;
             UINT8  *p_byte_array = NULL;
             if (pavrc_resp->list_app_values.num_val > 0)
+            {
                 p_byte_array = (UINT8*)GKI_getbuf(pavrc_resp->list_app_values.num_val);
+                if (p_byte_array == NULL)
+                    return;
+            }
             for (xx = 0; xx < pavrc_resp->list_app_values.num_val; xx++)
             {
                 p_byte_array[xx] = pavrc_resp->list_app_values.vals[xx];
@@ -2084,7 +2096,15 @@ static void btif_rc_ctrl_upstreams_rsp_evt(UINT16 event, tAVRC_RESPONSE *pavrc_r
             }
             int xx = 0;
             UINT8  *p_supported_ids = (UINT8*)GKI_getbuf(pavrc_resp->get_cur_app_val.num_val);
+            if (p_supported_ids == NULL)
+                return;
             UINT8  *p_byte_array = (UINT8*)GKI_getbuf(pavrc_resp->get_cur_app_val.num_val);
+            if (p_byte_array == NULL)
+            {
+                if (p_supported_ids != NULL)
+                    GKI_freebuf(p_supported_ids);
+                return;
+            }
             for (xx = 0; xx < pavrc_resp->get_cur_app_val.num_val; xx++)
             {
                 p_supported_ids[xx] = pavrc_resp->get_cur_app_val.p_vals[xx].attr_id;
@@ -2111,6 +2131,8 @@ static void btif_rc_ctrl_upstreams_rsp_evt(UINT16 event, tAVRC_RESPONSE *pavrc_r
                 break;
             }
             UINT8  *p_byte_array = (UINT8*)GKI_getbuf(buf_len);
+            if (p_byte_array == NULL)
+                return;
             memcpy(p_byte_array,p_buf,buf_len);
             HAL_CBACK(bt_rc_ctrl_callbacks,notification_rsp_cb, &rc_addr,
                                     rsp_type,buf_len,p_byte_array);
@@ -2126,6 +2148,8 @@ static void btif_rc_ctrl_upstreams_rsp_evt(UINT16 event, tAVRC_RESPONSE *pavrc_r
                 break;
             }
             UINT8  *p_byte_array = (UINT8*)GKI_getbuf(buf_len);
+            if (p_byte_array == NULL)
+                return;
             memcpy(p_byte_array,p_buf,buf_len);
             HAL_CBACK(bt_rc_ctrl_callbacks,getelementattrib_rsp_cb, &rc_addr,
               pavrc_resp->get_elem_attrs.num_attr,buf_len,p_byte_array, rsp_type);
@@ -2141,6 +2165,8 @@ static void btif_rc_ctrl_upstreams_rsp_evt(UINT16 event, tAVRC_RESPONSE *pavrc_r
                 break;
             }
             UINT8  *p_byte_array = (UINT8*)GKI_getbuf(buf_len);
+            if (p_byte_array == NULL)
+                return;
             memcpy(p_byte_array,p_buf,buf_len);
             HAL_CBACK(bt_rc_ctrl_callbacks,getplaystatus_rsp_cb, &rc_addr,
                                     buf_len,p_byte_array, rsp_type);
@@ -3299,19 +3325,18 @@ static bt_status_t getcapabilities_cmd (uint8_t cap_id)
          UINT8* data_start = (UINT8*)(p_msg + 1) + p_msg->offset;
          BTIF_TRACE_DEBUG("%s msgreq being sent out with label %d",
                             __FUNCTION__,p_transaction->lbl);
-         BTA_AvVendorCmd(btif_rc_cb.rc_handle,p_transaction->lbl,AVRC_CMD_STATUS,
-                                                          data_start, p_msg->len);
          if (p_msg != NULL)
-             GKI_freebuf(p_msg);
+             BTA_AvVendorCmd(btif_rc_cb.rc_handle,p_transaction->lbl,AVRC_CMD_STATUS,
+                                                          data_start, p_msg->len);
          status =  BT_STATUS_SUCCESS;
      }
      else
      {
-         if(NULL!=p_msg)
-            GKI_freebuf(p_msg);
          BTIF_TRACE_ERROR("%s: failed to build command. status: 0x%02x",
                              __FUNCTION__, status);
      }
+     if (p_msg != NULL)
+         GKI_freebuf(p_msg);
 #else
     BTIF_TRACE_DEBUG("%s: feature not enabled", __FUNCTION__);
 #endif
@@ -3349,19 +3374,18 @@ static bt_status_t list_player_app_setting_attrib_cmd(void)
          UINT8* data_start = (UINT8*)(p_msg + 1) + p_msg->offset;
          BTIF_TRACE_DEBUG("%s msgreq being sent out with label %d",
                             __FUNCTION__,p_transaction->lbl);
-         BTA_AvVendorCmd(btif_rc_cb.rc_handle,p_transaction->lbl,AVRC_CMD_STATUS,
-                                                          data_start, p_msg->len);
          if (p_msg != NULL)
-             GKI_freebuf(p_msg);
+             BTA_AvVendorCmd(btif_rc_cb.rc_handle,p_transaction->lbl,AVRC_CMD_STATUS,
+                                                          data_start, p_msg->len);
          status =  BT_STATUS_SUCCESS;
      }
      else
      {
-         if(NULL!=p_msg)
-            GKI_freebuf(p_msg);
          BTIF_TRACE_ERROR("%s: failed to build command. status: 0x%02x",
                             __FUNCTION__, status);
      }
+     if (p_msg != NULL)
+         GKI_freebuf(p_msg);
 #else
     BTIF_TRACE_DEBUG("%s: feature not enabled", __FUNCTION__);
 #endif
@@ -3400,19 +3424,18 @@ static bt_status_t list_player_app_setting_value_cmd(uint8_t attrib_id)
          UINT8* data_start = (UINT8*)(p_msg + 1) + p_msg->offset;
          BTIF_TRACE_DEBUG("%s msgreq being sent out with label %d",
                             __FUNCTION__,p_transaction->lbl);
-         BTA_AvVendorCmd(btif_rc_cb.rc_handle,p_transaction->lbl,AVRC_CMD_STATUS,
-                               data_start, p_msg->len);
          if (p_msg != NULL)
-             GKI_freebuf(p_msg);
+             BTA_AvVendorCmd(btif_rc_cb.rc_handle,p_transaction->lbl,AVRC_CMD_STATUS,
+                               data_start, p_msg->len);
          status =  BT_STATUS_SUCCESS;
      }
      else
      {
-         if(NULL!=p_msg)
-            GKI_freebuf(p_msg);
          BTIF_TRACE_ERROR("%s: failed to build command. status: 0x%02x",
                             __FUNCTION__, status);
      }
+     if (p_msg != NULL)
+         GKI_freebuf(p_msg);
 #else
     BTIF_TRACE_DEBUG("%s: feature not enabled", __FUNCTION__);
 #endif
@@ -3457,19 +3480,18 @@ static bt_status_t get_player_app_setting_cmd(uint8_t num_attrib, uint8_t* attri
          UINT8* data_start = (UINT8*)(p_msg + 1) + p_msg->offset;
          BTIF_TRACE_DEBUG("%s msgreq being sent out with label %d",
                             __FUNCTION__,p_transaction->lbl);
-         BTA_AvVendorCmd(btif_rc_cb.rc_handle,p_transaction->lbl,AVRC_CMD_STATUS,
-                          data_start, p_msg->len);
          if (p_msg != NULL)
-             GKI_freebuf(p_msg);
+             BTA_AvVendorCmd(btif_rc_cb.rc_handle,p_transaction->lbl,AVRC_CMD_STATUS,
+                          data_start, p_msg->len);
          status =  BT_STATUS_SUCCESS;
      }
      else
      {
-         if(NULL!=p_msg)
-            GKI_freebuf(p_msg);
          BTIF_TRACE_ERROR("%s: failed to build command. status: 0x%02x",
                             __FUNCTION__, status);
      }
+     if (p_msg != NULL)
+         GKI_freebuf(p_msg);
 #else
     BTIF_TRACE_DEBUG("%s: feature not enabled", __FUNCTION__);
 #endif
@@ -3516,19 +3538,18 @@ static bt_status_t set_player_app_setting_cmd(uint8_t num_attrib, uint8_t* attri
          UINT8* data_start = (UINT8*)(p_msg + 1) + p_msg->offset;
          BTIF_TRACE_DEBUG("%s msgreq being sent out with label %d",
                             __FUNCTION__,p_transaction->lbl);
-         BTA_AvVendorCmd(btif_rc_cb.rc_handle,p_transaction->lbl,AVRC_CMD_CTRL,
-                              data_start, p_msg->len);
          if (p_msg != NULL)
-             GKI_freebuf(p_msg);
+             BTA_AvVendorCmd(btif_rc_cb.rc_handle,p_transaction->lbl,AVRC_CMD_CTRL,
+                              data_start, p_msg->len);
          status =  BT_STATUS_SUCCESS;
      }
      else
      {
-         if(NULL!=p_msg)
-            GKI_freebuf(p_msg);
          BTIF_TRACE_ERROR("%s: failed to build command. status: 0x%02x",
                             __FUNCTION__, status);
      }
+     if (p_msg != NULL)
+         GKI_freebuf(p_msg);
      GKI_freebuf(avrc_cmd.set_app_val.p_vals);
 #else
     BTIF_TRACE_DEBUG("%s: feature not enabled", __FUNCTION__);
@@ -3570,19 +3591,18 @@ static bt_status_t register_notification_cmd(uint8_t event_id, uint32_t event_va
          UINT8* data_start = (UINT8*)(p_msg + 1) + p_msg->offset;
          BTIF_TRACE_DEBUG("%s msgreq being sent out with label %d",
                             __FUNCTION__,p_transaction->lbl);
-         BTA_AvVendorCmd(btif_rc_cb.rc_handle,p_transaction->lbl,AVRC_CMD_NOTIF,
-                                 data_start, p_msg->len);
          if (p_msg != NULL)
-             GKI_freebuf(p_msg);
+             BTA_AvVendorCmd(btif_rc_cb.rc_handle,p_transaction->lbl,AVRC_CMD_NOTIF,
+                                 data_start, p_msg->len);
          status =  BT_STATUS_SUCCESS;
      }
      else
      {
-         if(NULL!=p_msg)
-            GKI_freebuf(p_msg);
          BTIF_TRACE_ERROR("%s: failed to build command. status: 0x%02x",
                             __FUNCTION__, status);
      }
+     if (p_msg != NULL)
+         GKI_freebuf(p_msg);
 #else
     BTIF_TRACE_DEBUG("%s: feature not enabled", __FUNCTION__);
 #endif
@@ -3624,19 +3644,18 @@ static bt_status_t get_element_attribute_cmd (uint8_t num_attribute, uint32_t at
          UINT8* data_start = (UINT8*)(p_msg + 1) + p_msg->offset;
          BTIF_TRACE_DEBUG("%s msgreq being sent out with label %d",
                             __FUNCTION__,p_transaction->lbl);
-         BTA_AvVendorCmd(btif_rc_cb.rc_handle,p_transaction->lbl,AVRC_CMD_STATUS,
-                                data_start, p_msg->len);
          if (p_msg != NULL)
-             GKI_freebuf(p_msg);
+             BTA_AvVendorCmd(btif_rc_cb.rc_handle,p_transaction->lbl,AVRC_CMD_STATUS,
+                                data_start, p_msg->len);
          status =  BT_STATUS_SUCCESS;
      }
      else
      {
-         if(NULL!=p_msg)
-            GKI_freebuf(p_msg);
          BTIF_TRACE_ERROR("%s: failed to build command. status: 0x%02x",
                             __FUNCTION__, status);
      }
+     if (p_msg != NULL)
+         GKI_freebuf(p_msg);
 #else
     BTIF_TRACE_DEBUG("%s: feature not enabled", __FUNCTION__);
 #endif
@@ -3674,19 +3693,18 @@ static bt_status_t get_play_status_cmd(void)
          UINT8* data_start = (UINT8*)(p_msg + 1) + p_msg->offset;
          BTIF_TRACE_DEBUG("%s msgreq being sent out with label %d",
                             __FUNCTION__,p_transaction->lbl);
-         BTA_AvVendorCmd(btif_rc_cb.rc_handle,p_transaction->lbl,AVRC_CMD_STATUS,
-                              data_start, p_msg->len);
          if (p_msg != NULL)
-             GKI_freebuf(p_msg);
+             BTA_AvVendorCmd(btif_rc_cb.rc_handle,p_transaction->lbl,AVRC_CMD_STATUS,
+                              data_start, p_msg->len);
          status =  BT_STATUS_SUCCESS;
      }
      else
      {
-         if(NULL!=p_msg)
-            GKI_freebuf(p_msg);
          BTIF_TRACE_ERROR("%s: failed to build command. status: 0x%02x",
                             __FUNCTION__, status);
      }
+     if (p_msg != NULL)
+         GKI_freebuf(p_msg);
 #else
     BTIF_TRACE_DEBUG("%s: feature not enabled", __FUNCTION__);
 #endif
@@ -3721,19 +3739,18 @@ static bt_status_t send_abs_vol_rsp(uint8_t abs_vol)
          UINT8* data_start = (UINT8*)(p_msg + 1) + p_msg->offset;
          BTIF_TRACE_DEBUG("%s msgreq being sent out with label %d",
                             __FUNCTION__,btif_rc_cb.rc_vol_label);
-         BTA_AvVendorRsp(btif_rc_cb.rc_handle,btif_rc_cb.rc_vol_label,BTA_AV_RSP_ACCEPT,
-                                  data_start,p_msg->len,0);
          if (p_msg != NULL)
-             GKI_freebuf(p_msg);
+             BTA_AvVendorRsp(btif_rc_cb.rc_handle,btif_rc_cb.rc_vol_label,BTA_AV_RSP_ACCEPT,
+                                  data_start,p_msg->len,0);
          status =  BT_STATUS_SUCCESS;
      }
      else
      {
-         if(NULL!=p_msg)
-            GKI_freebuf(p_msg);
          BTIF_TRACE_ERROR("%s: failed to build command. status: 0x%02x",
                             __FUNCTION__, status);
      }
+     if (p_msg != NULL)
+         GKI_freebuf(p_msg);
 #else
     BTIF_TRACE_DEBUG("%s: feature not enabled", __FUNCTION__);
 #endif
@@ -3775,18 +3792,17 @@ static bt_status_t send_register_abs_vol_rsp(uint8_t rsp_type, uint8_t abs_vol)
          BTIF_TRACE_DEBUG("%s msgreq being sent out with label %d",
                             __FUNCTION__,label);
          UINT8* data_start = (UINT8*)(p_msg + 1) + p_msg->offset;
-         BTA_AvVendorRsp(btif_rc_cb.rc_handle,label,rsp_type,data_start,p_msg->len,0);
          if (p_msg != NULL)
-             GKI_freebuf(p_msg);
+             BTA_AvVendorRsp(btif_rc_cb.rc_handle,label,rsp_type,data_start,p_msg->len,0);
          status =  BT_STATUS_SUCCESS;
      }
      else
      {
-         if(NULL!=p_msg)
-            GKI_freebuf(p_msg);
          BTIF_TRACE_ERROR("%s: failed to build command. status: 0x%02x",
                             __FUNCTION__, status);
      }
+     if (p_msg != NULL)
+         GKI_freebuf(p_msg);
 #else
     BTIF_TRACE_DEBUG("%s: feature not enabled", __FUNCTION__);
 #endif
