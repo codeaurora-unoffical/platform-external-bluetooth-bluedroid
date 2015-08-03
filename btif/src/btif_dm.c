@@ -2102,7 +2102,9 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
             HAL_CBACK(bt_hal_cbacks, acl_state_changed_cb, BT_STATUS_SUCCESS,
                       &bd_addr, BT_ACL_STATE_DISCONNECTED);
 
-            if (pairing_cb.state == BT_BOND_STATE_BONDING)
+            if (pairing_cb.state == BT_BOND_STATE_BONDING &&
+                p_data->link_down.link_type == BT_TRANSPORT_LE &&
+                bdcmp (pairing_cb.bd_addr, p_data->link_down.bd_addr) == 0)
             {
                 bdcpy(bd_addr.address, pairing_cb.bd_addr);
                 bond_state_changed(p_data->bond_cancel_cmpl.result, &bd_addr, BT_BOND_STATE_NONE);
@@ -3348,6 +3350,7 @@ BOOLEAN btif_dm_get_smp_config(UINT8 *auth, UINT8 *io_cap, UINT8 *i_key, UINT8 *
     char t[256];
     char *pch;
     char *endptr;
+    char *saveptr;
     BOOLEAN result = FALSE;
     fp = fopen(path, "r");
     if(fp == NULL)
@@ -3359,7 +3362,7 @@ BOOLEAN btif_dm_get_smp_config(UINT8 *auth, UINT8 *io_cap, UINT8 *i_key, UINT8 *
     if(fgets(line, 256, fp) != NULL)
     {
         /*auth req*/
-        pch = strtok(line, " ");
+        pch = strtok_r(line, " ", &saveptr);
         if(pch == NULL)
         {
             return result;
@@ -3369,7 +3372,7 @@ BOOLEAN btif_dm_get_smp_config(UINT8 *auth, UINT8 *io_cap, UINT8 *i_key, UINT8 *
             *auth = strtol(pch, &endptr, 16);
         }
 
-        pch = strtok(NULL, " ");
+        pch = strtok_r(NULL, " ", &saveptr);
         if(pch == NULL)
         {
             return result;
@@ -3379,7 +3382,7 @@ BOOLEAN btif_dm_get_smp_config(UINT8 *auth, UINT8 *io_cap, UINT8 *i_key, UINT8 *
             *io_cap = strtol(pch, &endptr, 16);
         }
 
-        pch = strtok(NULL, " ");
+        pch = strtok_r(NULL, " ", &saveptr);
         if(pch == NULL)
         {
             return result;
@@ -3389,7 +3392,7 @@ BOOLEAN btif_dm_get_smp_config(UINT8 *auth, UINT8 *io_cap, UINT8 *i_key, UINT8 *
             *i_key = strtol(pch, &endptr, 16);
         }
 
-        pch = strtok(NULL, " ");
+        pch = strtok_r(NULL, " ", &saveptr);
         if(pch == NULL)
         {
             return result;
@@ -3399,7 +3402,7 @@ BOOLEAN btif_dm_get_smp_config(UINT8 *auth, UINT8 *io_cap, UINT8 *i_key, UINT8 *
             *r_key = strtol(pch, &endptr, 16);
         }
 
-        pch = strtok(NULL, " ");
+        pch = strtok_r(NULL, " ", &saveptr);
         if(pch == NULL)
         {
             return result;
@@ -3409,7 +3412,7 @@ BOOLEAN btif_dm_get_smp_config(UINT8 *auth, UINT8 *io_cap, UINT8 *i_key, UINT8 *
             *size = strtol(pch, &endptr, 16);
         }
 
-        pch = strtok(NULL, " ");
+        pch = strtok_r(NULL, " ", &saveptr);
         if(pch == NULL)
         {
             return result;
@@ -3422,7 +3425,7 @@ BOOLEAN btif_dm_get_smp_config(UINT8 *auth, UINT8 *io_cap, UINT8 *i_key, UINT8 *
                 *oob = TRUE;
         }
     }
-    sprintf(t, "%02x, %02x, %02x, %02x, %02x, %02x",
+    snprintf(t, sizeof(t), "%02x, %02x, %02x, %02x, %02x, %02x",
              *auth, *io_cap, *i_key, *r_key, *size, *oob);
     BTIF_TRACE_DEBUG("%s: params:%s", __FUNCTION__, t);
     fclose(fp);
@@ -3438,6 +3441,7 @@ BOOLEAN btif_dm_ble_proc_rmt_oob(BD_ADDR bd_addr,  BT_OCTET16 p_c, BT_OCTET16 p_
     FILE *fp;
     char * pch;
     char *endptr;
+    char *saveptr;
     char t[128];
     char line[256];
     UINT8 count = 0;
@@ -3450,14 +3454,14 @@ BOOLEAN btif_dm_ble_proc_rmt_oob(BD_ADDR bd_addr,  BT_OCTET16 p_c, BT_OCTET16 p_
     }
     if(fgets(line, 256, fp) != NULL)
     {
-        pch = strtok(line, " ");
+        pch = strtok_r(line, " ", &saveptr);
         if(pch == NULL)
         {
             BTIF_TRACE_ERROR("%s, error reading line", __FUNCTION__);
             return result;
         }
         p_c[count++] = strtol(pch, &endptr, 16);
-        while((pch = strtok(NULL, " ")) != NULL && count < BT_OCTET16_LEN)
+        while((pch = strtok_r(NULL, " ", &saveptr)) != NULL && count < BT_OCTET16_LEN)
         {
             p_c[count++] = strtol(pch, &endptr, 16);
         }
@@ -3465,25 +3469,25 @@ BOOLEAN btif_dm_ble_proc_rmt_oob(BD_ADDR bd_addr,  BT_OCTET16 p_c, BT_OCTET16 p_
     count = 0;
     if(fgets(line, 256, fp) != NULL)
     {
-        pch = strtok(line, " ");
+        pch = strtok_r(line, " ", &saveptr);
         if(pch == NULL)
         {
             BTIF_TRACE_ERROR("%s, error reading line", __FUNCTION__);
             return result;
         }
         p_r[count++] = strtol(pch, &endptr, 16);
-        while((pch = strtok(NULL, " ")) != NULL && count < BT_OCTET16_LEN)
+        while((pch = strtok_r(NULL, " ", &saveptr)) != NULL && count < BT_OCTET16_LEN)
         {
             p_r[count++] = strtol(pch, &endptr, 16);
         }
     }
     result = TRUE;
-    sprintf(t, "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
+    snprintf(t, sizeof(t), "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
             p_c[0], p_c[1], p_c[2],  p_c[3],  p_c[4],  p_c[5],  p_c[6],  p_c[7],
             p_c[8], p_c[9], p_c[10], p_c[11], p_c[12], p_c[13], p_c[14], p_c[15]);
 
     BTIF_TRACE_DEBUG("%s:p_c=%s", __FUNCTION__, t);
-    sprintf(t, "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
+    snprintf(t, sizeof(t), "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
             p_r[0], p_r[1], p_r[2],  p_r[3],  p_r[4],  p_r[5],  p_r[6],  p_r[7],
             p_r[8], p_r[9], p_r[10], p_r[11], p_r[12], p_r[13], p_r[14], p_r[15]);
     BTIF_TRACE_DEBUG("%s:p_r=%s", __FUNCTION__, t);
@@ -3525,15 +3529,15 @@ BOOLEAN btif_dm_proc_rmt_oob(BD_ADDR bd_addr,  BT_OCTET16 p_c, BT_OCTET16 p_r)
             fclose(fp);
         }
         BTIF_TRACE_DEBUG("----btif_dm_proc_rmt_oob: TRUE");
-        sprintf(t, "%02x:%02x:%02x:%02x:%02x:%02x",
+        snprintf(t, sizeof(t), "%02x:%02x:%02x:%02x:%02x:%02x",
                 oob_cb.oob_bdaddr[0], oob_cb.oob_bdaddr[1], oob_cb.oob_bdaddr[2],
                 oob_cb.oob_bdaddr[3], oob_cb.oob_bdaddr[4], oob_cb.oob_bdaddr[5]);
         BTIF_TRACE_DEBUG("----btif_dm_proc_rmt_oob: peer_bdaddr = %s", t);
-        sprintf(t, "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
+        snprintf(t, sizeof(t), "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
                 p_c[0], p_c[1], p_c[2],  p_c[3],  p_c[4],  p_c[5],  p_c[6],  p_c[7],
                 p_c[8], p_c[9], p_c[10], p_c[11], p_c[12], p_c[13], p_c[14], p_c[15]);
         BTIF_TRACE_DEBUG("----btif_dm_proc_rmt_oob: c = %s",t);
-        sprintf(t, "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
+        snprintf(t, sizeof(t), "%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
                 p_r[0], p_r[1], p_r[2],  p_r[3],  p_r[4],  p_r[5],  p_r[6],  p_r[7],
                 p_r[8], p_r[9], p_r[10], p_r[11], p_r[12], p_r[13], p_r[14], p_r[15]);
         BTIF_TRACE_DEBUG("----btif_dm_proc_rmt_oob: r = %s",t);
