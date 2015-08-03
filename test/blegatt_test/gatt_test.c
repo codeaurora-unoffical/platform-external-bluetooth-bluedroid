@@ -1707,7 +1707,7 @@ void do_le_client_adv_enable(char *p)
     chnlMap      =  get_int(&p, -1);
     TxPower      =  get_int(&p, -1);
     timeout_s    =  get_int(&p, -1);
-    Ret = sGattIfaceScan->client->multi_adv_enable(adv_if,30,60,adv_type,chnlMap,TxPower, timeout_s);
+    Ret = sGattIfaceScan->client->multi_adv_enable(adv_if,min_interval,max_interval,adv_type,chnlMap,TxPower, timeout_s);
     printf("%s:: Ret=%d \n", __FUNCTION__, Ret);
 }
 
