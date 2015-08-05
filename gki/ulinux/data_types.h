@@ -51,6 +51,6 @@ typedef UINT32          TIME_STAMP;
 #endif
 
 #define BCM_STRCPY_S(x1,x2,x3)      strcpy((x1),(x3))
-#define BCM_STRNCPY_S(x1,x2,x3,x4)  strncpy((x1),(x3),(x4))
+#define BCM_STRNCPY_S(x1,x2,x3,x4)  strlcpy((x1),(x3),(x2))
 
 #endif

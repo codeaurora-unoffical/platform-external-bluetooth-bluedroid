@@ -708,6 +708,7 @@ bt_status_t btif_storage_get_adapter_property(bt_property_t *property)
         {
             property->len = bonded_devices.num_devices * sizeof(bt_bdaddr_t);
             memcpy(property->val, bonded_devices.devices, property->len);
+            ((char*)property->val)[property->len] = '\0';
         }
 
         /* if there are no bonded_devices, then length shall be 0 */
