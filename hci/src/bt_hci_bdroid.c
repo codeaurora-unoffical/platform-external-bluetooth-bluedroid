@@ -103,8 +103,14 @@ static BUFFER_Q tx_q;
 ******************************************************************************/
 
 static void event_preload(UNUSED_ATTR void *context) {
-  userial_open(USERIAL_PORT_1);
-  vendor_send_command(BT_VND_OP_FW_CFG, NULL);
+  int status = BT_VND_OP_RESULT_SUCCESS;
+  int result = userial_open(USERIAL_PORT_1);
+  if(result)
+     vendor_send_command(BT_VND_OP_FW_CFG, &status);
+  else {
+     status = BT_VND_OP_RESULT_FAIL;
+     vendor_send_command(BT_VND_OP_FW_CFG, &status);
+  }
 }
 
 static void event_postload(UNUSED_ATTR void *context) {
