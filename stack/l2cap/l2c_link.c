@@ -58,7 +58,8 @@ static const UINT8 hci_role_switch_black_list_prefix[][3] = {{0x00, 0x26, 0xb4},
                                                              {0x00, 0x18, 0x91}, /* WOOWI HERO */
                                                              {0x0c, 0xe0, 0xe4}, /* PLT_M70 */
                                                              {0x00, 0x07, 0x04}, /* Infiniti G37 2011 */
-                                                             {0x00, 0x23, 0x01}  /* Roman R9020 */
+                                                             {0x00, 0x23, 0x01}, /* Roman R9020 */
+                                                             {0xa4, 0x15, 0x66}  /* Motorola Boom */
                                                             };
 
 /*******************************************************************************
