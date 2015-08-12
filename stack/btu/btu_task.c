@@ -345,6 +345,7 @@ BTU_API UINT32 btu_task (UINT32 param)
                         if (!GKI_timer_queue_is_empty(&btu_cb.timer_queue_oneshot)) {
                             TIMER_LIST_ENT *tle = GKI_timer_getfirst(&btu_cb.timer_queue_oneshot);
                             // Start non-repeating timer.
+                            tle->timestamp = now_us();
                             GKI_start_timer(TIMER_3, tle->ticks, FALSE);
                         } else {
                             BTM_TRACE_WARNING("Oneshot timer queue empty when received start request");
@@ -585,8 +586,7 @@ BTU_API UINT32 btu_task (UINT32 param)
             BTM_TRACE_API("Received oneshot timer event complete");
             if (!GKI_timer_queue_is_empty(&btu_cb.timer_queue_oneshot)) {
                 TIMER_LIST_ENT *p_tle = GKI_timer_getfirst(&btu_cb.timer_queue_oneshot);
-                INT32 ticks_since_last_update = GKI_timer_ticks_getinitial(GKI_timer_getfirst(&btu_cb.timer_queue_oneshot));
-                GKI_update_timer_list(&btu_cb.timer_queue_oneshot, ticks_since_last_update);
+                GKI_update_timer_list(&btu_cb.timer_queue_oneshot, p_tle->ticks);
             }
 
             while (!GKI_timer_queue_is_empty(&btu_cb.timer_queue_oneshot)) {
@@ -622,7 +622,10 @@ BTU_API UINT32 btu_task (UINT32 param)
             if (!GKI_timer_queue_is_empty(&btu_cb.timer_queue_oneshot)) {
                 TIMER_LIST_ENT *p_tle = GKI_timer_getfirst(&btu_cb.timer_queue_oneshot);
                 if (p_tle->ticks > 0)
+                {
+                  p_tle->timestamp = now_us();
                   GKI_start_timer(TIMER_3, p_tle->ticks, FALSE);
+                }
             } else {
                 GKI_stop_timer(TIMER_3);
             }
@@ -860,9 +863,15 @@ void btu_start_timer_oneshot(TIMER_LIST_ENT *p_tle, UINT16 type, UINT32 timeout_
     INT32 timeout_in_ticks = GKI_SECS_TO_TICKS(timeout_in_secs);
     BTM_TRACE_DEBUG("Starting oneshot timer type:%d timeout:%ds", type, timeout_in_secs);
     pthread_mutex_lock(&gki_cb.os.gki_timerupdate_mutex);
+    UINT64 elapsed = 0;
 
     if (GKI_timer_queue_is_empty(&btu_cb.timer_queue_oneshot)) {
     }
+
+    TIMER_LIST_ENT* first = GKI_timer_getfirst(&btu_cb.timer_queue_oneshot);
+    if (first != NULL)
+        elapsed = GKI_MS_TO_TICKS( (now_us() - first->timestamp)/1000);
+    GKI_update_timer_list(&btu_cb.timer_queue_oneshot, elapsed);
 
     GKI_remove_from_timer_list(&btu_cb.timer_queue_oneshot, p_tle);
 
@@ -882,6 +891,7 @@ void btu_start_timer_oneshot(TIMER_LIST_ENT *p_tle, UINT16 type, UINT32 timeout_
         }
     } else {
         TIMER_LIST_ENT *tle = GKI_timer_getfirst(&btu_cb.timer_queue_oneshot);
+        tle->timestamp = now_us();
         GKI_start_timer(TIMER_3, tle->ticks, FALSE);
     }
     pthread_mutex_unlock(&gki_cb.os.gki_timerupdate_mutex);
