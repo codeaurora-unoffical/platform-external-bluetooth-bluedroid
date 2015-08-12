@@ -412,7 +412,10 @@ tBTA_STATUS BTA_DmVendorSpecificCommand (UINT16 opcode, UINT8 param_len,
 *******************************************************************************/
 BOOLEAN BTA_DmSearchIsActive(void)
 {
-    return (bta_dm_search_cb.wait_disc == FALSE);
+    APPL_TRACE_API("%s state %d wait_disc %d", __FUNCTION__, bta_dm_search_cb.state, bta_dm_search_cb.wait_disc);
+    return ((bta_dm_search_cb.state == BTA_DM_SEARCH_ACTIVE) ||
+            (bta_dm_search_cb.state == BTA_DM_DISCOVER_ACTIVE) ||
+            (bta_dm_search_cb.wait_disc == FALSE));
 }
 
 /*******************************************************************************
