@@ -188,6 +188,7 @@ void GKI_start_timer (UINT8 tnum, INT32 ticks, BOOLEAN is_continuous)
     INT32   orig_ticks;
     UINT8   task_id = GKI_get_taskid();
     BOOLEAN bad_timer = FALSE;
+    INT32   elapsed_ticks;
 
     if (ticks <= 0)
         ticks = 1;
@@ -202,6 +203,12 @@ void GKI_start_timer (UINT8 tnum, INT32 ticks, BOOLEAN is_continuous)
         reload = 0;
 
     pthread_mutex_lock(&gki_cb.os.gki_timerupdate_mutex);
+
+    elapsed_ticks = GKI_get_elapsed_ticks();
+
+    if (elapsed_ticks > 0)
+        GKI_timer_update(elapsed_ticks, elapsed_ticks,  FALSE);
+
     /* Add the time since the last task timer update.
     ** Note that this works when no timers are active since
     ** both OSNumOrigTicks and OSTicksTilExp are 0.
@@ -325,7 +332,7 @@ void GKI_stop_timer (UINT8 tnum)
 ** Returns          void
 **
 *******************************************************************************/
-void GKI_timer_update (INT32 ticks_since_last_update)
+void GKI_timer_update (INT32 ticks_since_last_update, INT32 ticks_to_update,  BOOLEAN reschedule)
 {
     UINT8   task_id;
     long    next_expiration;        /* Holds the next soonest expiration time after this update */
@@ -336,7 +343,7 @@ void GKI_timer_update (INT32 ticks_since_last_update)
     /* If any timers are running in any tasks, decrement the remaining time til
      * the timer updates need to take place (next expiration occurs)
      */
-    gki_cb.com.OSTicksTilExp -= ticks_since_last_update;
+    gki_cb.com.OSTicksTilExp -= ticks_to_update;
 
     /* Don't allow timer interrupt nesting */
     if (gki_cb.com.timer_nesting)
@@ -345,7 +352,7 @@ void GKI_timer_update (INT32 ticks_since_last_update)
     gki_cb.com.timer_nesting = 1;
 
     /* No need to update the ticks if no timeout has occurred */
-    if (gki_cb.com.OSTicksTilExp > 0)
+    if ((gki_cb.com.OSTicksTilExp > 0) || (reschedule == FALSE))
     {
         // When using alarms from AlarmService we should
         // always have work to be done here.

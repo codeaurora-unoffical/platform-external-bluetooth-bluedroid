@@ -94,6 +94,7 @@ static alarm_service_t alarm_service;
 
 static timer_t posix_timer;
 static bool timer_created;
+static bool alarm_started;
 
 
 /*****************************************************************************
@@ -106,7 +107,7 @@ extern bt_os_callouts_t *bt_os_callouts;
 **  Functions
 ******************************************************************************/
 
-static UINT64 now_us()
+UINT64 now_us()
 {
     struct timespec ts_now;
     clock_gettime(CLOCK_BOOTTIME, &ts_now);
@@ -123,6 +124,7 @@ static bool set_nonwake_alarm(UINT64 delay_millis)
 
     const UINT64 now = now_us();
     alarm_service.timer_started_us = now;
+    gki_cb.com.OSTicks = GKI_MS_TO_TICKS(now/1000);
 
     UINT64 prev_timer_delay = 0;
     if (alarm_service.timer_last_expired_us)
@@ -150,20 +152,25 @@ static bool set_nonwake_alarm(UINT64 delay_millis)
 static void bt_alarm_cb(void *data)
 {
     UINT32 ticks_taken = 0;
+    UINT32 ticks_till_next_exp;
 
+    pthread_mutex_lock(&gki_cb.os.gki_timerupdate_mutex);
+    alarm_started = false;
     alarm_service.timer_last_expired_us = now_us();
     if (alarm_service.timer_last_expired_us > alarm_service.timer_started_us)
     {
-        ticks_taken = GKI_MS_TO_TICKS((alarm_service.timer_last_expired_us
-                                       - alarm_service.timer_started_us) / 1000);
+        ticks_taken = ( GKI_MS_TO_TICKS (alarm_service.timer_last_expired_us/1000)
+                                        - gki_cb.com.OSTicks );
     } else {
         // this could happen on some platform
         ALOGE("%s now_us %lld less than %lld", __func__, alarm_service.timer_last_expired_us,
               alarm_service.timer_started_us);
     }
 
-    GKI_timer_update(ticks_taken > alarm_service.ticks_scheduled
-                   ? ticks_taken : alarm_service.ticks_scheduled);
+    ticks_till_next_exp = (UINT32)GKI_ready_to_sleep();
+    GKI_timer_update(ticks_taken,  (ticks_taken > ticks_till_next_exp) ?
+                ticks_taken : ticks_till_next_exp, TRUE);
+    pthread_mutex_unlock(&gki_cb.os.gki_timerupdate_mutex);
 }
 
 /** NOTE: This is only called on init and may be called without the GKI_disable()
@@ -233,14 +240,23 @@ void alarm_service_reschedule()
         {
             ALOGE("%s unable to set short alarm.", __func__);
         }
+        if(alarm_started)
+        {
+            ALOGE("%s stopping alarm", __func__);
+            bt_os_callouts->set_wake_alarm(0, true, bt_alarm_cb, &alarm_service);
+            alarm_started = false;
+        }
+
     } else {
         // The deadline is far away, set a wake alarm and release wakelock if we're holding it.
         alarm_service.timer_started_us = now_us();
+        gki_cb.com.OSTicks = GKI_MS_TO_TICKS(alarm_service.timer_started_us/1000);
         alarm_service.timer_last_expired_us = 0;
         if (!bt_os_callouts->set_wake_alarm(ticks_in_millis, true, bt_alarm_cb, &alarm_service))
         {
             ALOGE("%s unable to set long alarm, releasing wake lock anyway.", __func__);
         } else {
+            alarm_started = true;
             ALOGV("%s set long alarm (%lldms), releasing wake lock.", __func__, ticks_in_millis);
         }
         // check if it's already released
@@ -303,7 +319,7 @@ void GKI_init(void)
     gki_timers_init();
     alarm_service_init();
 
-    gki_cb.com.OSTicks = (UINT32) times(0);
+    gki_cb.com.OSTicks = GKI_MS_TO_TICKS(now_us()/1000);
 
     pthread_mutexattr_init(&attr);
 
@@ -325,7 +341,7 @@ void GKI_init(void)
     sigevent.sigev_notify = SIGEV_THREAD;
     sigevent.sigev_notify_function = (void (*)(union sigval))bt_alarm_cb;
     sigevent.sigev_value.sival_ptr = NULL;
-    if (timer_create(CLOCK_REALTIME, &sigevent, &posix_timer) == -1) {
+    if (timer_create(CLOCK_BOOTTIME, &sigevent, &posix_timer) == -1) {
         ALOGE("%s unable to create POSIX timer: %s", __func__, strerror(errno));
         timer_created = false;
     } else {
@@ -333,6 +349,25 @@ void GKI_init(void)
     }
 }
 
+
+/****************************************************************************
+**
+** Function        GKI_get_elapsed_ticks()
+**
+** Description     This function is called to get the time elapsed since the
+**                 present running timer has started.
+**
+** Returns         elapsed ticks since the start of the present running timer.
+**                 0 - if there is no timer running.
+**
+*****************************************************************************/
+extern INT32 GKI_get_elapsed_ticks()
+{
+    if (alarm_service.timer_started_us > 0)
+        return ( GKI_MS_TO_TICKS (now_us()/1000) - gki_cb.com.OSTicks );
+    else
+        return 0;
+}
 
 /*******************************************************************************
 **
@@ -913,7 +948,7 @@ void GKI_delay (UINT32 timeout)
 
 UINT8 GKI_send_event (UINT8 task_id, UINT16 event)
 {
-    ALOGI( "GKI_send_event %d %x", task_id, event);
+    GKI_TRACE( "GKI_send_event %d %x", task_id, event);
 
     if (task_id < GKI_MAX_TASKS)
     {
@@ -927,7 +962,7 @@ UINT8 GKI_send_event (UINT8 task_id, UINT16 event)
 
         pthread_mutex_unlock(&gki_cb.os.thread_evt_mutex[task_id]);
 
-        ALOGI ("GKI_send_event %d %x done", task_id, event);
+        GKI_TRACE ("GKI_send_event %d %x done", task_id, event);
         return ( GKI_SUCCESS );
     }
     GKI_TRACE("############## GKI_send_event FAILED!! ##################");
