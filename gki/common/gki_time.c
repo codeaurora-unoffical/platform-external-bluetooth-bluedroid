@@ -188,6 +188,7 @@ void GKI_start_timer (UINT8 tnum, INT32 ticks, BOOLEAN is_continuous)
     INT32   orig_ticks;
     UINT8   task_id = GKI_get_taskid();
     BOOLEAN bad_timer = FALSE;
+    INT32   elapsed_ticks = GKI_get_elapsed_ticks();
 
     if (ticks <= 0)
         ticks = 1;
@@ -212,6 +213,9 @@ void GKI_start_timer (UINT8 tnum, INT32 ticks, BOOLEAN is_continuous)
     }
     else
         ticks = INT32_MAX;
+
+    if (elapsed_ticks > 0)
+        GKI_timer_update(elapsed_ticks);
 
     switch (tnum)
     {
@@ -344,7 +348,7 @@ void GKI_timer_update (INT32 ticks_since_last_update)
 
     gki_cb.com.timer_nesting = 1;
 
-    /* No need to update the ticks if no timeout has occurred */
+    /* Ticks should be updated with the elapsed time
     if (gki_cb.com.OSTicksTilExp > 0)
     {
         // When using alarms from AlarmService we should
@@ -353,7 +357,7 @@ void GKI_timer_update (INT32 ticks_since_last_update)
         gki_cb.com.timer_nesting = 0;
         return;
     }
-
+    */
     next_expiration = GKI_NO_NEW_TMRS_STARTED;
 
     /* If here then gki_cb.com.OSTicksTilExp <= 0. If negative, then increase gki_cb.com.OSNumOrigTicks
