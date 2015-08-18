@@ -1541,6 +1541,7 @@ int btif_media_task(void *p)
         /* When we get this event we exit the task  - should only happen on GKI_shutdown  */
         if (event & BTIF_MEDIA_TASK_KILL)
         {
+            APPL_TRACE_DEBUG("Received event BTIF_MEDIA_TASK_KILL");
             /* make sure no channels are restarted while shutting down */
             media_task_running = MEDIA_TASK_STATE_SHUTTING_DOWN;
 
