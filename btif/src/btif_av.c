@@ -379,7 +379,11 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data)
             {
                  state = BTAV_CONNECTION_STATE_CONNECTED;
                  btif_av_cb.edr = p_bta_data->open.edr;
-
+                 if (p_bta_data->open.edr & BTA_AV_EDR_3MBPS)
+                 {
+                     BTIF_TRACE_DEBUG("remote supports 3 mbps");
+                     btif_av_cb.edr_3mbps = TRUE;
+                 }
                  btif_av_cb.peer_sep = p_bta_data->open.sep;
                  btif_a2dp_set_peer_sep(p_bta_data->open.sep);
                  bdcpy(btif_av_cb.peer_bda.address, ((tBTA_AV*)p_data)->open.bd_addr);
