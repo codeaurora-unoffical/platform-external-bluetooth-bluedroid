@@ -332,6 +332,26 @@ static void bta_dm_pm_cback(tBTA_SYS_CONN_STATUS status, UINT8 id, UINT8 app_id,
         }
     }
 
+    /* If HID connection open is received and SCO is already active.
+     disable snii link policy for some devices */
+    if ((status == BTA_SYS_CONN_OPEN) && (id == BTA_ID_HH) && bta_dm_pm_is_sco_active())
+    {
+        UINT16 manufacturer = 0;
+        UINT16  lmp_sub_version = 0;
+        UINT8 lmp_version = 0;
+        tBTA_DM_PEER_DEVICE *p_dev = NULL;
+        /* Disable sniff policy on the HID link  when sco is already enabled*/
+        if (BTM_ReadRemoteVersion(peer_addr, &lmp_version,
+            &manufacturer, &lmp_sub_version) == BTM_SUCCESS) {
+            p_dev = bta_dm_find_peer_device(peer_addr);
+            if ((p_dev) && (manufacturer ==  LMP_COMPID_APPLE))
+            {
+                APPL_TRACE_DEBUG("bta_dm_pm_cback: disable sniff for manufacturer:%d",
+                    manufacturer);
+                bta_dm_pm_set_sniff_policy(p_dev, true);
+            }
+        }
+    }
     /* If SCO up/down event is received, then enable/disable SSR on active HID link */
     if (btm_status == BTM_SUCCESS && (status == BTA_SYS_SCO_OPEN || status == BTA_SYS_SCO_CLOSE))
     {
@@ -1040,7 +1060,22 @@ static void bta_dm_pm_hid_check(BOOLEAN bScoActive)
         /* check if an entry already present */
         if(bta_dm_conn_srvcs.conn_srvc[j].id == BTA_ID_HH )
         {
+            UINT16 manufacturer = 0;
+            UINT16  lmp_sub_version = 0;
+            UINT8 lmp_version = 0;
+            tBTA_DM_PEER_DEVICE *p_rem_dev = NULL;
             bdcpy(peer_bdaddr, bta_dm_conn_srvcs.conn_srvc[j].peer_bdaddr);
+            if (BTM_ReadRemoteVersion(peer_bdaddr, &lmp_version,
+                &manufacturer, &lmp_sub_version) == BTM_SUCCESS) {
+                p_rem_dev = bta_dm_find_peer_device(peer_bdaddr);
+                /* Disable/Enable sniff policy on the HID link if sco Up/Down*/
+                if ((p_rem_dev) && (manufacturer ==  LMP_COMPID_APPLE))
+                {
+                    APPL_TRACE_DEBUG("bta_dm_pm_hid_check: %s sniff for manufacturer:%d",
+                        bScoActive ? "disable" : "enable", manufacturer);
+                    bta_dm_pm_set_sniff_policy(p_rem_dev, bScoActive);
+                }
+            }
 
             APPL_TRACE_WARNING("SCO status change(Active: %d), HID state: %d",
                 bScoActive, bta_dm_conn_srvcs.conn_srvc[j].state);
