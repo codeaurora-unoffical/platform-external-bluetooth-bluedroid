@@ -76,7 +76,8 @@ static const UINT8 sdp_black_list_prefix[][3] = {{0x00, 0x1D, 0xBA},  /* JVC car
                                                  {0xE0, 0x75, 0x0A},  /* VW GOLF*/
                                                  {0x00, 0x24, 0x33},  /* Toyota Corolla */
                                                  {0x18, 0x6d, 0x99},  /* SANTA Fe Sport */
-                                                 {0x88, 0x30, 0x8a}   /* Toyota camry*/ };
+                                                 {0x88, 0x30, 0x8a},   /* Toyota camry*/ 
+                                                 {0x0C, 0xD9, 0xC1}   /* Honda Accord */ };
 
 /* Few carkits supports AVRCP1.4 but not AVRCP1.5
 *  In that case fall back to 1.4 to support browsing
