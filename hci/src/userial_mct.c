@@ -163,7 +163,7 @@ static void *userial_read_thread(void *arg)
     prctl(PR_SET_NAME, (unsigned long)"bt_userial_mct", 0, 0, 0);
     raise_priority_a2dp(TASK_HIGH_USERIAL_READ);
 
-    while (userial_running)
+    while (userial_running && userial_close_pending == FALSE )
     {
         /* Initialize the input fd set */
         FD_ZERO(&input);
