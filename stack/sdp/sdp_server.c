@@ -39,7 +39,7 @@
 
 #include "sdp_api.h"
 #include "sdpint.h"
-
+#include "btm_api.h"
 
 #if SDP_SERVER_ENABLED == TRUE
 
@@ -58,29 +58,33 @@
  * than 1.3 and falls back to 1.0, we would like to blacklist
  * and send AVRCP versio as 1.3.
  */
-static const UINT8 sdp_black_list_prefix[][3] = {{0x00, 0x1D, 0xBA},  /* JVC carkit */
-                                                 {0x64, 0xD4, 0xBD},  /* Honda handsfree carkit */
-                                                 {0x00, 0x06, 0xF7},  /* Denso carkit */
-                                                 {0x00, 0x1E, 0xB2},  /* AVN 3.0 Hyundai*/
-                                                 {0x00, 0x0E, 0x9F},  /* Porshe car kit */
-                                                 {0x00, 0x13, 0x7B},  /* BYOM Opel*/
-                                                 {0x68, 0x84, 0x70},  /* KIA MOTOR*/
-                                                 {0x00, 0x21, 0xCC},  /* FORD FIESTA*/
-                                                 {0x9C, 0xDF, 0x03},  /* BMW 3 Series*/
-                                                 {0x30, 0x14, 0x4A},  /* Mini Cooper*/
-                                                 {0x38, 0xC0, 0x96},  /* Seat Leon*/
-                                                 {0x00, 0x54, 0xAF},  /* Chrysler*/
-                                                 {0x04, 0x88, 0xE2},  /* BeatsStudio Wireless*/
-                                                 {0xA0, 0x14, 0x3D},  /* VW Sharen*/
-                                                 {0x9C, 0xDF, 0x03},  /* BMW 62888*/
-                                                 {0xE0, 0x75, 0x0A},  /* VW GOLF*/
-                                                 {0x00, 0x24, 0x33},  /* Toyota Corolla */
-                                                 {0x0C, 0xD9, 0xC1}   /* Honda Accord */ };
+
+/*First 3 entries corressponds to first three octet of BT address
+ *Last 2 entries corresponds to LMP subversion*/
+static const UINT8 sdp_black_list_prefix[][5] = {{0x00, 0x1D, 0xBA, 0x00, 0x00},  /*JVC carkit*/
+                                                 {0x64, 0xD4, 0xBD, 0x00, 0x00},  /*Hondahandsfree*/
+                                                 {0x00, 0x06, 0xF7, 0x00, 0x00},  /*Denso carkit*/
+                                                 {0x00, 0x1E, 0xB2, 0x00, 0x00},  /*AVN3.0 Hyundai*/
+                                                 {0x00, 0x0E, 0x9F, 0x00, 0x00},  /*Porshe car ki */
+                                                 {0x00, 0x13, 0x7B, 0x00, 0x00},  /*BYOM Opel*/
+                                                 {0x68, 0x84, 0x70, 0x00, 0x00},  /*KIA MOTOR*/
+                                                 {0x00, 0x21, 0xCC, 0x00, 0x00},  /*FORD FIESTA*/
+                                                 {0x30, 0x14, 0x4A, 0x00, 0x00},  /*Mini Cooper*/
+                                                 {0x38, 0xC0, 0x96, 0x00, 0x00},  /*Seat Leon*/
+                                                 {0x00, 0x54, 0xAF, 0x00, 0x00},  /*Chrysler*/
+                                                 {0x04, 0x88, 0xE2, 0x00, 0x00},  /*BeatsStudio*/
+                                                 {0xA0, 0x14, 0x3D, 0x00, 0x00},  /*VW Sharen*/
+                                                 {0xE0, 0x75, 0x0A, 0x23, 0x77},  /*VW GOLF*/
+                                                 {0x94, 0x44, 0x44, 0x00, 0x00},  /*Santa Fe */
+                                                 {0x04, 0x98, 0xF3, 0x00, 0x00},  /*Nissan Altima*/
+                                                 {0x0C, 0xD9, 0xC1, 0x00, 0x00},  /*Honda Accord*/
+                                                 {0x00, 0x26, 0x7E, 0x00, 0x00}   /*VW Jetta */};
 
 /* Few carkits supports AVRCP1.4 but not AVRCP1.5
 *  In that case fall back to 1.4 to support browsing
 */
 static const UINT8 sdp_dev_support_avrcp_14[][3] = {{0x00, 0x02, 0x0C}, /*Clarion*/
+                                                    {0xFC, 0x62, 0xB9}, /*Subaru*/
                                                     {0x20, 0x02, 0xAF}  /*Corolla*/};
 
 static const UINT8 sdp_hfp_black_list_prefix[][3] = {{0x94, 0x44, 0x44},  /* DUSTER carkit */
@@ -154,12 +158,31 @@ BOOLEAN sdp_dev_blacklisted_for_avrcp15 (BD_ADDR addr)
 {
     int blacklistsize = 0;
     int i =0;
+    UINT16 manufacturer = 0;
+    UINT16  lmp_sub_version = 0;
+    UINT8 lmp_version = 0;
+    UINT16 stored_lmp_sub_version = 0;
 
     blacklistsize = sizeof(sdp_black_list_prefix)/sizeof(sdp_black_list_prefix[0]);
     for (i=0; i < blacklistsize; i++)
     {
         if (0 == memcmp(sdp_black_list_prefix[i], addr, 3))
         {
+            if (BTM_ReadRemoteVersion(addr, &lmp_version, &manufacturer,
+                                            &lmp_sub_version) == BTM_SUCCESS)
+            {
+                SDP_TRACE_ERROR("peer lmp_sub_version: %u", lmp_sub_version);
+                stored_lmp_sub_version = ((UINT16)(*(*(sdp_black_list_prefix + i) + 3)) << 8)
+                                                + (UINT16)(*(*(sdp_black_list_prefix + i) + 4));
+                SDP_TRACE_ERROR("stored lmp_sub_version: %u", stored_lmp_sub_version);
+                if ((stored_lmp_sub_version > 0) && (0 >= memcmp(&stored_lmp_sub_version,
+                                                                    &lmp_sub_version, 2)))
+                {
+                    SDP_TRACE_ERROR("Avrcp LMP Sub-Version greater than threshold,\
+                                                                 White list Device");
+                    return false;
+                }
+            }
             SDP_TRACE_ERROR("SDP Avrcp Version Black List Device");
             return TRUE;
         }
