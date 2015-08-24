@@ -106,7 +106,7 @@ extern bt_os_callouts_t *bt_os_callouts;
 **  Functions
 ******************************************************************************/
 
-static UINT64 now_us()
+UINT64 now_us()
 {
     struct timespec ts_now;
     clock_gettime(CLOCK_BOOTTIME, &ts_now);
@@ -334,6 +334,25 @@ void GKI_init(void)
 }
 
 
+/****************************************************************************
+**
+** Function        GKI_get_elapsed_ticks()
+**
+** Description     This function is called to get the time elapsed since the
+**                 present running timer has started.
+**
+** Returns         elapsed ticks since the start of the present running timer.
+**                 0 - if there is no timer running.
+**
+*****************************************************************************/
+extern INT32 GKI_get_elapsed_ticks()
+{
+    if (alarm_service.timer_started_us > 0)
+        return GKI_MS_TO_TICKS( (now_us() - alarm_service.timer_started_us)/1000);
+    else
+        return 0;
+}
+
 /*******************************************************************************
 **
 ** Function         GKI_get_os_tick_count
@@ -466,6 +485,7 @@ UINT8 GKI_create_task (TASKPTR task_entry, UINT8 task_id, INT8 *taskname, UINT16
 
 void GKI_destroy_task(UINT8 task_id)
 {
+    ALOGI( "GKI_destroy_task(): task [%s]\n", gki_cb.com.OSTName[task_id]);
 #if ( FALSE == GKI_PTHREAD_JOINABLE )
         int i = 0;
 #else
@@ -473,6 +493,7 @@ void GKI_destroy_task(UINT8 task_id)
 #endif
     if (gki_cb.com.OSRdyTbl[task_id] != TASK_DEAD)
     {
+        ALOGI( "GKI_destroy_task(): set TASK_DEAD for task [%s]\n", gki_cb.com.OSTName[task_id]);
         gki_cb.com.OSRdyTbl[task_id] = TASK_DEAD;
 
         /* paranoi settings, make sure that we do not execute any mailbox events */
@@ -498,7 +519,7 @@ void GKI_destroy_task(UINT8 task_id)
         gki_cb.com.OSTaskTmr3R[task_id] = 0;
         gki_cb.com.OSTaskTmr3 [task_id] = 0;
 #endif
-
+        ALOGI( "GKI_destroy_task(): send GKI_SHUTDOWN_EVT");
         GKI_send_event(task_id, EVENT_MASK(GKI_SHUTDOWN_EVT));
 
 #if ( FALSE == GKI_PTHREAD_JOINABLE )
@@ -507,6 +528,7 @@ void GKI_destroy_task(UINT8 task_id)
         while ((gki_cb.com.OSWaitEvt[task_id] != 0) && (++i < 10))
             usleep(100 * 1000);
 #else
+        ALOGI( "GKI_destroy_task(): pthread_join");
         result = pthread_join( gki_cb.os.thread_id[task_id], NULL );
         if ( result < 0 )
         {
@@ -910,7 +932,7 @@ void GKI_delay (UINT32 timeout)
 
 UINT8 GKI_send_event (UINT8 task_id, UINT16 event)
 {
-    GKI_TRACE("GKI_send_event %d %x", task_id, event);
+    ALOGI( "GKI_send_event %d %x", task_id, event);
 
     if (task_id < GKI_MAX_TASKS)
     {
@@ -924,7 +946,7 @@ UINT8 GKI_send_event (UINT8 task_id, UINT16 event)
 
         pthread_mutex_unlock(&gki_cb.os.thread_evt_mutex[task_id]);
 
-        GKI_TRACE("GKI_send_event %d %x done", task_id, event);
+        ALOGI ("GKI_send_event %d %x done", task_id, event);
         return ( GKI_SUCCESS );
     }
     GKI_TRACE("############## GKI_send_event FAILED!! ##################");
