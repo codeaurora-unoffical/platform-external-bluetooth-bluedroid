@@ -94,6 +94,7 @@ typedef struct
 {
     int sample_rate;
     int channel_count;
+    bt_bdaddr_t peer_bd;
 } btif_av_sink_config_req_t;
 
 /*****************************************************************************
@@ -389,6 +390,20 @@ static BOOLEAN btif_av_state_idle_handler(btif_sm_event_t event, void *p_data)
                 }
             }
             break;
+
+        case BTIF_AV_SINK_CONFIG_REQ_EVT:
+        {
+            btif_av_sink_config_req_t req;
+            // copy to avoid alignment problems
+            memcpy(&req, p_data, sizeof(req));
+
+            BTIF_TRACE_WARNING("BTIF_AV_SINK_CONFIG_REQ_EVT %d %d", req.sample_rate,
+                    req.channel_count);
+            if (bt_av_sink_callbacks != NULL) {
+                HAL_CBACK(bt_av_sink_callbacks, audio_config_cb, &(req.peer_bd),
+                        req.sample_rate, req.channel_count);
+            }
+        } break;
 
         case BTA_AV_OPEN_EVT:
         {
@@ -1226,18 +1241,20 @@ static void bte_av_media_callback(tBTA_AV_EVT event, tBTA_AV_MEDIA *p_data)
     }
 
     if (event == BTA_AV_MEDIA_SINK_CFG_EVT) {
-        UINT8* config = (UINT8*)p_data;
+        UINT8* config = (UINT8*)(p_data->avk_config.codec_info);
         UINT8 codec_type = config[2];
         /* send a command to BT Media Task */
-        btif_reset_decoder((UINT8*)p_data);
+        btif_reset_decoder((UINT8*)(p_data->avk_config.codec_info));
         switch(codec_type)
         {
         case BTIF_AV_CODEC_SBC:
-            a2d_status = A2D_ParsSbcInfo(&sbc_cie, (UINT8 *)p_data, FALSE);
+            a2d_status = A2D_ParsSbcInfo(&sbc_cie, (UINT8 *)(p_data->avk_config.codec_info), FALSE);
             if (a2d_status == A2D_SUCCESS) {
                 /* Switch to BTIF context */
                 config_req.sample_rate = btif_a2dp_get_sbc_track_frequency(sbc_cie.samp_freq);
                 config_req.channel_count = btif_a2dp_get_sbc_track_channel_count(sbc_cie.ch_mode);
+                memcpy(&config_req.peer_bd,(UINT8*)(p_data->avk_config.bd_addr),
+                                                                  sizeof(config_req.peer_bd));
                 btif_transfer_context(btif_av_handle_event, BTIF_AV_SINK_CONFIG_REQ_EVT,
                                      (char*)&config_req, sizeof(config_req), NULL);
             } else {
@@ -1245,11 +1262,13 @@ static void bte_av_media_callback(tBTA_AV_EVT event, tBTA_AV_MEDIA *p_data)
             }
             break;
         case BTA_AV_CODEC_M24:
-            a2d_status = A2D_ParsAacInfo(&aac_cie, (UINT8 *)p_data, FALSE);
+            a2d_status = A2D_ParsAacInfo(&aac_cie, (UINT8 *)(p_data->avk_config.codec_info), FALSE);
             if (a2d_status == A2D_SUCCESS) {
                 /* Switch to BTIF context */
                 config_req.sample_rate = btif_a2dp_get_aac_track_frequency(aac_cie.samp_freq);
                 config_req.channel_count = btif_a2dp_get_aac_track_channel_count(aac_cie.channels);
+                memcpy(&config_req.peer_bd,(UINT8*)(p_data->avk_config.bd_addr),
+                                                                  sizeof(config_req.peer_bd));
                 btif_transfer_context(btif_av_handle_event, BTIF_AV_SINK_CONFIG_REQ_EVT,
                                      (char*)&config_req, sizeof(config_req), NULL);
             } else {

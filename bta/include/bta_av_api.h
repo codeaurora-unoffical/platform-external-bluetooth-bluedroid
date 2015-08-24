@@ -467,11 +467,17 @@ typedef union
     tBTA_AV_RC_FEAT     rc_feat;
 } tBTA_AV;
 
+typedef struct
+{
+    UINT8      *codec_info;
+    BD_ADDR         bd_addr;;
+}tBTA_AVK_CONFIG;
+
 /* union of data associated with AV Media callback */
 typedef union
 {
     BT_HDR     *p_data;
-    UINT8      *codec_info;
+    tBTA_AVK_CONFIG avk_config;
 } tBTA_AV_MEDIA;
 
 

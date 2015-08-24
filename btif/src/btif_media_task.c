@@ -1215,7 +1215,6 @@ void btif_a2dp_on_stopped(tBTA_AV_SUSPEND *p_av)
         btif_media_cb.rx_flush = TRUE;
         btif_media_task_aa_rx_flush_req();
         btif_media_task_stop_decoding_req();
-        UIPC_Close(UIPC_CH_ID_AV_AUDIO);
         btif_media_cb.data_channel_open = FALSE;
         return;
     }
