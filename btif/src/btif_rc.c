@@ -777,6 +777,53 @@ void handle_rc_passthrough_rsp ( tBTA_AV_REMOTE_RSP *p_remote_rsp)
 #endif
 }
 
+/***************************************************************************
+ *  Function       handle_rc_vendorunique_rsp
+ *
+ *  - Argument:    tBTA_AV_REMOTE_RSP  command response
+ *
+ *  - Description: Remote control vendor unique response handler
+ *
+ ***************************************************************************/
+void handle_rc_vendorunique_rsp ( tBTA_AV_REMOTE_RSP *p_remote_rsp)
+{
+#if (AVRC_CTLR_INCLUDED == TRUE)
+    const char *status;
+    UINT8 vendor_id = 0;
+    if (btif_rc_cb.rc_features & BTA_AV_FEAT_RCTG)
+    {
+        int key_state;
+        if (p_remote_rsp->key_state == AVRC_STATE_RELEASE)
+        {
+            status = "released";
+            key_state = 1;
+        }
+        else
+        {
+            status = "pressed";
+            key_state = 0;
+        }
+
+        if(p_remote_rsp->len > 0)
+        {
+            if(p_remote_rsp->len >= AVRC_PASS_THRU_GROUP_LEN)
+                vendor_id = p_remote_rsp->p_data[AVRC_PASS_THRU_GROUP_LEN -1];
+            GKI_freebuf(p_remote_rsp->p_data);
+        }
+        BTIF_TRACE_DEBUG("%s: vendor_id=%d status=%s", __FUNCTION__, vendor_id, status);
+
+        release_transaction(p_remote_rsp->label);
+        HAL_CBACK(bt_rc_ctrl_callbacks, groupnavigation_rsp_cb, vendor_id, key_state);
+    }
+    else
+    {
+        BTIF_TRACE_ERROR("%s Remote does not support AVRCP TG role", __FUNCTION__);
+    }
+#else
+    BTIF_TRACE_ERROR("%s AVRCP controller role is not enabled", __FUNCTION__);
+#endif
+}
+
 void handle_uid_changed_notification(tBTA_AV_META_MSG *pmeta_msg, tAVRC_COMMAND *pavrc_command)
 {
     tAVRC_RESPONSE avrc_rsp = {0};
@@ -1220,7 +1267,14 @@ void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV *p_data)
         {
             BTIF_TRACE_DEBUG("RSP: rc_id:0x%x key_state:%d", p_data->remote_rsp.rc_id,
                                p_data->remote_rsp.key_state);
-            handle_rc_passthrough_rsp( (&p_data->remote_rsp) );
+            if(p_data->remote_rsp.rc_id == AVRC_ID_VENDOR)
+            {
+                handle_rc_vendorunique_rsp(&p_data->remote_rsp);
+            }
+            else
+            {
+                handle_rc_passthrough_rsp(&p_data->remote_rsp);
+            }
         }
         break;
 #endif
@@ -3811,6 +3865,59 @@ static bt_status_t send_register_abs_vol_rsp(uint8_t rsp_type, uint8_t abs_vol)
 
 /***************************************************************************
 **
+** Function         send_groupnavigation_cmd
+**
+** Description      Send Pass-Through command
+**
+** Returns          void
+**
+***************************************************************************/
+static bt_status_t send_groupnavigation_cmd(bt_bdaddr_t *bd_addr, uint8_t key_code,
+                                            uint8_t key_state)
+{
+    tAVRC_STS status = BT_STATUS_UNSUPPORTED;
+#if (AVRC_CTLR_INCLUDED == TRUE)
+    rc_transaction_t *p_transaction=NULL;
+    BTIF_TRACE_DEBUG("%s: key-code: %d, key-state: %d", __FUNCTION__,
+                                                    key_code, key_state);
+    CHECK_RC_CONNECTED
+    if (btif_rc_cb.rc_features & BTA_AV_FEAT_RCTG)
+    {
+        bt_status_t tran_status = get_transaction(&p_transaction);
+        if((BT_STATUS_SUCCESS == tran_status) && (NULL != p_transaction))
+        {
+             UINT8* p_buf = (UINT8*)GKI_getbuf(AVRC_PASS_THRU_GROUP_LEN);
+             if(p_buf != NULL)
+             {
+                 UINT8* start = p_buf;
+                 UINT24_TO_BE_STREAM(start, AVRC_CO_METADATA);
+                 *(start)++ = 0;
+                 UINT8_TO_BE_STREAM(start, key_code);
+                 BTA_AvRemoteVendorUniqueCmd(btif_rc_cb.rc_handle, p_transaction->lbl,
+                    (tBTA_AV_STATE)key_state, p_buf, AVRC_PASS_THRU_GROUP_LEN);
+                status =  BT_STATUS_SUCCESS;
+                BTIF_TRACE_DEBUG("%s: succesfully sent group_navigation command to BTA",
+                                                                          __FUNCTION__);
+             }
+        }
+        else
+        {
+            status =  BT_STATUS_FAIL;
+            BTIF_TRACE_DEBUG("%s: error in fetching transaction", __FUNCTION__);
+        }
+    }
+    else
+    {
+        status =  BT_STATUS_FAIL;
+        BTIF_TRACE_DEBUG("%s: feature not supported", __FUNCTION__);
+    }
+#else
+    BTIF_TRACE_DEBUG("%s: feature not enabled", __FUNCTION__);
+#endif
+    return status;
+}
+/***************************************************************************
+**
 ** Function         send_passthrough_cmd
 **
 ** Description      Send Pass-Through command
@@ -3880,6 +3987,7 @@ static const btrc_ctrl_interface_t bt_rc_ctrl_interface = {
     sizeof(bt_rc_ctrl_interface),
     init_ctrl,
     send_passthrough_cmd,
+    send_groupnavigation_cmd,
     getcapabilities_cmd,
     list_player_app_setting_attrib_cmd,
     list_player_app_setting_value_cmd,

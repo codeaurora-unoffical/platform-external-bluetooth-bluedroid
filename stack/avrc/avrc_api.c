@@ -861,6 +861,10 @@ static BT_HDR  * avrc_pass_msg(tAVRC_MSG_PASS *p_msg)
             {
                 memcpy(p_data, p_msg->p_pass_data, p_msg->pass_len);
                 p_data += p_msg->pass_len;
+                /*
+                 * Free buffer allocated for vendor unique data.
+                 */
+                GKI_freebuf(p_msg->p_pass_data);
             }
         }
         else /* set msg len to 0 for other op_id */

@@ -725,6 +725,19 @@ BTA_API void BTA_AvRemoteCmd(UINT8 rc_handle, UINT8 label, tBTA_AV_RC rc_id,
 
 /*******************************************************************************
 **
+** Function         BTA_AvRemoteVendorUniqueCmd
+**
+** Description      Send a remote control command with Vendor Unique rc_id.
+**                  This function can only be used if AV is enabled with
+**                  feature BTA_AV_FEAT_RCCT.
+**
+** Returns          void
+**
+*******************************************************************************/
+BTA_API void BTA_AvRemoteVendorUniqueCmd(UINT8 rc_handle, UINT8 label, tBTA_AV_STATE key_state,
+                                         UINT8* p_msg, UINT8 buf_len);
+/*******************************************************************************
+**
 ** Function         BTA_AvVendorCmd
 **
 ** Description      Send a vendor dependent remote control command.  This
