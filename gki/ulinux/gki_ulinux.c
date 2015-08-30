@@ -106,7 +106,7 @@ extern bt_os_callouts_t *bt_os_callouts;
 **  Functions
 ******************************************************************************/
 
-UINT64 now_us()
+static UINT64 now_us()
 {
     struct timespec ts_now;
     clock_gettime(CLOCK_BOOTTIME, &ts_now);
@@ -333,25 +333,6 @@ void GKI_init(void)
     }
 }
 
-
-/****************************************************************************
-**
-** Function        GKI_get_elapsed_ticks()
-**
-** Description     This function is called to get the time elapsed since the
-**                 present running timer has started.
-**
-** Returns         elapsed ticks since the start of the present running timer.
-**                 0 - if there is no timer running.
-**
-*****************************************************************************/
-extern INT32 GKI_get_elapsed_ticks()
-{
-    if (alarm_service.timer_started_us > 0)
-        return GKI_MS_TO_TICKS( (now_us() - alarm_service.timer_started_us)/1000);
-    else
-        return 0;
-}
 
 /*******************************************************************************
 **
