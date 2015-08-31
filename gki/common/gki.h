@@ -121,7 +121,6 @@ typedef struct _tle
     TIMER_CBACK  *p_cback;
     INT32         ticks;
     INT32         ticks_initial;
-    UINT64        timestamp;
     TIMER_PARAM_TYPE   param;
     TIMER_PARAM_TYPE   data;
     UINT16        event;
@@ -213,7 +212,6 @@ GKI_API extern UINT16  GKI_get_pool_bufsize (UINT8);
 
 /* Timer management
 */
-GKI_API extern UINT64  now_us(void);
 GKI_API extern void    GKI_add_to_timer_list (TIMER_LIST_Q *, TIMER_LIST_ENT  *);
 GKI_API extern void    GKI_delay(UINT32);
 GKI_API extern UINT32  GKI_get_tick_count(void);
@@ -225,7 +223,6 @@ GKI_API extern void    GKI_stop_timer (UINT8);
 GKI_API extern void    GKI_timer_update(INT32);
 GKI_API extern UINT16  GKI_update_timer_list (TIMER_LIST_Q *, INT32);
 GKI_API extern UINT32  GKI_get_remaining_ticks (TIMER_LIST_Q *, TIMER_LIST_ENT  *);
-GKI_API extern INT32   GKI_get_elapsed_ticks(void);
 GKI_API extern UINT16  GKI_wait(UINT16, UINT32);
 GKI_API extern BOOLEAN GKI_timer_queue_is_empty(const TIMER_LIST_Q *timer_q);
 GKI_API extern TIMER_LIST_ENT *GKI_timer_getfirst(const TIMER_LIST_Q *timer_q);
