@@ -502,6 +502,11 @@ void gap_ble_cl_op_cmpl(tGAP_CLCB *p_clcb, BOOLEAN status, UINT16 len, UINT8 *p_
 
     GAP_TRACE_EVENT("gap_ble_cl_op_cmpl status: %d", status);
 
+    if (status == TRUE)
+    {
+        GATT_Disconnect(gap_cb.gatt_if);
+    }
+
     p_clcb->cl_op_uuid = 0;
     p_clcb->p_cback=NULL;
 
