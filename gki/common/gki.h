@@ -222,7 +222,7 @@ GKI_API extern INT32   GKI_ready_to_sleep (void);
 GKI_API extern BOOLEAN GKI_remove_from_timer_list (TIMER_LIST_Q *, TIMER_LIST_ENT  *);
 GKI_API extern void    GKI_start_timer(UINT8, INT32, BOOLEAN);
 GKI_API extern void    GKI_stop_timer (UINT8);
-GKI_API extern void    GKI_timer_update(INT32);
+GKI_API extern void    GKI_timer_update(INT32, INT32, BOOLEAN);
 GKI_API extern UINT16  GKI_update_timer_list (TIMER_LIST_Q *, INT32);
 GKI_API extern UINT32  GKI_get_remaining_ticks (TIMER_LIST_Q *, TIMER_LIST_ENT  *);
 GKI_API extern INT32   GKI_get_elapsed_ticks(void);
