@@ -1113,7 +1113,7 @@ static char *bta_hf_client_parse_clcc(char *buffer)
 
         if (res2 < 2)
         {
-            return NULL;
+            goto skip_extra_fields;
         }
 
         res += res2;
@@ -1126,6 +1126,7 @@ static char *bta_hf_client_parse_clcc(char *buffer)
         buffer += offset;
     }
 
+skip_extra_fields:
     /* Skip any remaing param,as they are not defined by BT HFP spec */
     AT_SKIP_REST(buffer);
     AT_CHECK_RN(buffer);
