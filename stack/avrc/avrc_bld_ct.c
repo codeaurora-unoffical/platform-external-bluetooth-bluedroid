@@ -183,6 +183,67 @@ static tAVRC_STS avrc_bld_list_player_app_values_cmd(BT_HDR * p_pkt, UINT8 attri
 }
 /*******************************************************************************
 **
+** Function         avrc_bld_get_player_app_attr_value_text_cmd
+**
+** Description      This function builds the player app setting attr values text command.
+**
+** Returns          AVRC_STS_NO_ERROR, if the command is built successfully
+**                  Otherwise, the error code.
+**
+*******************************************************************************/
+static tAVRC_STS avrc_bld_get_player_app_attr_value_text_cmd(BT_HDR * p_pkt, UINT8 attrib_id,
+          UINT8 num_attrib_val, UINT8* attrib_val_ids)
+{
+    UINT8   *p_data, *p_start;
+    UINT8 param_len = 0, count = 0;
+
+    AVRC_TRACE_API("avrc_bld_get_player_app_attr_value_text_cmd");
+    p_start = (UINT8 *)(p_pkt + 1) + p_pkt->offset;
+    p_data = p_start + 2; /* pdu + rsvd */
+    param_len = num_attrib_val + 2; //to hold num attributes + attrib_id feild
+    /* add length -*/
+    UINT16_TO_BE_STREAM(p_data, param_len);
+    UINT8_TO_BE_STREAM(p_data, attrib_id);
+    UINT8_TO_BE_STREAM(p_data, num_attrib_val);
+    for(count = 0; count < num_attrib_val && count < AVRC_MAX_APP_ATTR_SIZE; count++)
+    {
+        UINT8_TO_BE_STREAM(p_data, attrib_val_ids[count]);
+    }
+    p_pkt->len = (p_data - p_start);
+    return AVRC_STS_NO_ERROR;
+}
+/*******************************************************************************
+**
+** Function         avrc_bld_get_player_app_attr_text_cmd
+**
+** Description      This function builds the player app setting attr text command.
+**
+** Returns          AVRC_STS_NO_ERROR, if the command is built successfully
+**                  Otherwise, the error code.
+**
+*******************************************************************************/
+static tAVRC_STS avrc_bld_get_player_app_attr_text_cmd(BT_HDR * p_pkt, UINT8 num_attrib_id,
+                                               UINT8* attrib_ids)
+{
+    UINT8   *p_data, *p_start;
+    UINT8 param_len = 0, count = 0;
+
+    AVRC_TRACE_API("avrc_bld_get_player_app_attr_text_cmd");
+    p_start = (UINT8 *)(p_pkt + 1) + p_pkt->offset;
+    p_data = p_start + 2; /* pdu + rsvd */
+    param_len = num_attrib_id + 1; // 1 additional to hold num attributes feild
+    /* add length -*/
+    UINT16_TO_BE_STREAM(p_data, param_len);
+    UINT8_TO_BE_STREAM(p_data,num_attrib_id);
+    for(count = 0; count < num_attrib_id && count < AVRC_MAX_APP_ATTR_SIZE; count ++)
+    {
+        UINT8_TO_BE_STREAM(p_data,attrib_ids[count]);
+    }
+    p_pkt->len = (p_data - p_start);
+    return AVRC_STS_NO_ERROR;
+}
+/*******************************************************************************
+**
 ** Function         avrc_bld_get_current_player_app_values_cmd
 **
 ** Description      This function builds the get current player app setting values command.
@@ -428,6 +489,14 @@ tAVRC_STS AVRC_BldCommand( tAVRC_COMMAND *p_cmd, BT_HDR **pp_pkt)
         break;
     case AVRC_PDU_LIST_PLAYER_APP_VALUES:
         status = avrc_bld_list_player_app_values_cmd(p_pkt,p_cmd->list_app_values.attr_id);
+        break;
+    case AVRC_PDU_GET_PLAYER_APP_ATTR_TEXT:
+        status = avrc_bld_get_player_app_attr_text_cmd(p_pkt,
+                p_cmd->get_app_attr_txt.num_attr,p_cmd->get_app_attr_txt.attrs);
+        break;
+    case AVRC_PDU_GET_PLAYER_APP_VALUE_TEXT:
+        status = avrc_bld_get_player_app_attr_value_text_cmd(p_pkt,p_cmd->get_app_val_txt.attr_id,
+                p_cmd->get_app_val_txt.num_val,p_cmd->get_app_val_txt.vals);
         break;
     case AVRC_PDU_GET_CUR_PLAYER_APP_VALUE:
         status = avrc_bld_get_current_player_app_values_cmd(p_pkt,

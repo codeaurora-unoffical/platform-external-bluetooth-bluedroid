@@ -2176,6 +2176,42 @@ static void btif_rc_ctrl_upstreams_rsp_evt(UINT16 event, tAVRC_RESPONSE *pavrc_r
             HAL_CBACK(bt_rc_ctrl_callbacks,setplayerappsetting_rsp_cb, &rc_addr, rsp_type);
         }
             break;
+        case AVRC_PDU_GET_PLAYER_APP_ATTR_TEXT:
+        {
+            UINT8  *p_byte_array = NULL;
+            if(buf_len <= 0)
+            {
+                HAL_CBACK(bt_rc_ctrl_callbacks,playerappsettingtext_rsp_cb, &rc_addr, NULL,
+                         0, rsp_type);
+                break;
+            }
+            p_byte_array = (UINT8*)GKI_getbuf(buf_len);
+            if (p_byte_array == NULL)
+                return;
+            memcpy(p_byte_array,p_buf,buf_len);
+            HAL_CBACK(bt_rc_ctrl_callbacks,playerappsettingtext_rsp_cb, &rc_addr,
+                     p_byte_array, buf_len, rsp_type);
+            GKI_freebuf(p_byte_array);
+        }
+            break;
+        case AVRC_PDU_GET_PLAYER_APP_VALUE_TEXT:
+        {
+            UINT8  *p_byte_array = NULL;
+            if(buf_len <= 0)
+            {
+                HAL_CBACK(bt_rc_ctrl_callbacks,playerappsettingvaluetext_rsp_cb, &rc_addr, NULL,
+                          0, rsp_type);
+                break;
+            }
+            p_byte_array = (UINT8*)GKI_getbuf(buf_len);
+            if (p_byte_array == NULL)
+                return;
+            memcpy(p_byte_array,p_buf,buf_len);
+            HAL_CBACK(bt_rc_ctrl_callbacks,playerappsettingvaluetext_rsp_cb, &rc_addr,
+                            p_byte_array,buf_len,rsp_type);
+            GKI_freebuf(p_byte_array);
+        }
+            break;
         case AVRC_PDU_REGISTER_NOTIFICATION:
         {
             if(buf_len <= 0)
@@ -3498,6 +3534,120 @@ static bt_status_t list_player_app_setting_value_cmd(uint8_t attrib_id)
 
 /***************************************************************************
 **
+** Function         list_player_app_setting_attr_text_cmd
+**
+** Description      Get values of supported Player Attributes Text
+**
+** Returns          void
+**
+***************************************************************************/
+static bt_status_t list_player_app_setting_attr_text_cmd(uint8_t num_attrib, uint8_t* attrib_ids)
+{
+    tAVRC_STS status = BT_STATUS_UNSUPPORTED;
+    rc_transaction_t *p_transaction=NULL;
+    BT_HDR *p_msg = NULL;
+    int count  = 0;
+#if (AVRC_CTLR_INCLUDED == TRUE)
+    BTIF_TRACE_DEBUG("%s: num attrib_id %d", __FUNCTION__, num_attrib);
+    CHECK_RC_CONNECTED
+    bt_status_t tran_status=get_transaction(&p_transaction);
+    if(BT_STATUS_SUCCESS != tran_status || NULL == p_transaction)
+        return BT_STATUS_FAIL;
+
+     tAVRC_COMMAND avrc_cmd = {0};
+     avrc_cmd.get_app_attr_txt.opcode = AVRC_OP_VENDOR;
+     avrc_cmd.get_app_attr_txt.status = AVRC_STS_NO_ERROR;
+     avrc_cmd.get_app_attr_txt.num_attr = num_attrib;
+     avrc_cmd.get_app_attr_txt.pdu = AVRC_PDU_GET_PLAYER_APP_ATTR_TEXT;
+
+     for (count = 0; count < num_attrib; count++)
+     {
+         avrc_cmd.get_app_attr_txt.attrs[count] = attrib_ids[count];
+     }
+     status = AVRC_BldCommand(&avrc_cmd, &p_msg);
+     if (status == AVRC_STS_NO_ERROR)
+     {
+         UINT8* data_start = (UINT8*)(p_msg + 1) + p_msg->offset;
+         BTIF_TRACE_DEBUG("%s msgreq being sent out with label %d",
+                            __FUNCTION__,p_transaction->lbl);
+         if (p_msg != NULL)
+             BTA_AvVendorCmd(btif_rc_cb.rc_handle,p_transaction->lbl,AVRC_CMD_STATUS,
+                          data_start, p_msg->len);
+         status =  BT_STATUS_SUCCESS;
+     }
+     else
+     {
+         BTIF_TRACE_ERROR("%s: failed to build command. status: 0x%02x",
+                            __FUNCTION__, status);
+     }
+     if (p_msg != NULL)
+         GKI_freebuf(p_msg);
+#else
+    BTIF_TRACE_DEBUG("%s: feature not enabled", __FUNCTION__);
+#endif
+    return status;
+}
+
+/***************************************************************************
+**
+** Function         list_player_app_setting_attr_val_text_cmd
+**
+** Description      Get values of supported Player Attributes Text
+**
+** Returns          void
+**
+***************************************************************************/
+static bt_status_t list_player_app_setting_attr_val_text_cmd(uint8_t attrib_id,
+                                       uint8_t num_attrib_val ,uint8_t* attrib_val_ids)
+{
+    tAVRC_STS status = BT_STATUS_UNSUPPORTED;
+    rc_transaction_t *p_transaction=NULL;
+    tAVRC_COMMAND avrc_cmd = {0};
+    BT_HDR *p_msg = NULL;
+    int count  = 0;
+#if (AVRC_CTLR_INCLUDED == TRUE)
+    BTIF_TRACE_DEBUG("%s: num attrib_id %d", __FUNCTION__, num_attrib_val);
+    CHECK_RC_CONNECTED
+    bt_status_t tran_status=get_transaction(&p_transaction);
+    if(BT_STATUS_SUCCESS != tran_status || NULL==p_transaction)
+        return BT_STATUS_FAIL;
+
+     avrc_cmd.get_app_val_txt.opcode = AVRC_OP_VENDOR;
+     avrc_cmd.get_app_val_txt.status = AVRC_STS_NO_ERROR;
+     avrc_cmd.get_app_val_txt.num_val = num_attrib_val;
+     avrc_cmd.get_app_val_txt.attr_id = attrib_id;
+     avrc_cmd.get_app_val_txt.pdu = AVRC_PDU_GET_PLAYER_APP_VALUE_TEXT;
+
+     for (count = 0; count < num_attrib_val; count++)
+     {
+         avrc_cmd.get_app_val_txt.vals[count] = attrib_val_ids[count];
+     }
+     status = AVRC_BldCommand(&avrc_cmd, &p_msg);
+     if (status == AVRC_STS_NO_ERROR)
+     {
+         UINT8* data_start = (UINT8*)(p_msg + 1) + p_msg->offset;
+         BTIF_TRACE_DEBUG("%s msgreq being sent out with label %d",
+                            __FUNCTION__,p_transaction->lbl);
+         if (p_msg != NULL)
+             BTA_AvVendorCmd(btif_rc_cb.rc_handle,p_transaction->lbl,AVRC_CMD_STATUS,
+                          data_start, p_msg->len);
+         status =  BT_STATUS_SUCCESS;
+     }
+     else
+     {
+         BTIF_TRACE_ERROR("%s: failed to build command. status: 0x%02x",
+                            __FUNCTION__, status);
+     }
+     if (p_msg != NULL)
+         GKI_freebuf(p_msg);
+#else
+    BTIF_TRACE_DEBUG("%s: feature not enabled", __FUNCTION__);
+#endif
+    return status;
+}
+
+/***************************************************************************
+**
 ** Function         get_player_app_setting_cmd
 **
 ** Description      Get current values of Player Attributes
@@ -3991,6 +4141,8 @@ static const btrc_ctrl_interface_t bt_rc_ctrl_interface = {
     getcapabilities_cmd,
     list_player_app_setting_attrib_cmd,
     list_player_app_setting_value_cmd,
+    list_player_app_setting_attr_text_cmd,
+    list_player_app_setting_attr_val_text_cmd,
     get_player_app_setting_cmd,
     set_player_app_setting_cmd,
     register_notification_cmd,

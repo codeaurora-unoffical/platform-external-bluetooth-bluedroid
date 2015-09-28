@@ -139,7 +139,8 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(tAVRC_MSG_VENDOR *p_msg, tAVRC_RESPON
     {
     /* case AVRC_PDU_REQUEST_CONTINUATION_RSP: 0x40 */
     /* case AVRC_PDU_ABORT_CONTINUATION_RSP:   0x41 */
-
+     case AVRC_PDU_GET_PLAYER_APP_ATTR_TEXT:
+     case AVRC_PDU_GET_PLAYER_APP_VALUE_TEXT:
      case AVRC_PDU_REGISTER_NOTIFICATION:    /* 0x31 */
         if (len <= 0)
         {
@@ -246,7 +247,6 @@ static tAVRC_STS avrc_ctrl_pars_vendor_rsp(tAVRC_MSG_VENDOR *p_msg, tAVRC_RESPON
         memcpy(p_buf,p,len);
         *buf_len = len;
         break;
-
     default:
         status = AVRC_STS_BAD_CMD;
         break;
