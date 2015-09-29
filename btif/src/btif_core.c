@@ -585,6 +585,11 @@ void btif_enable_bluetooth_evt(tBTA_STATUS status, BD_ADDR local_bd)
     bdcpy(bd_addr.address, local_bd);
     BTIF_TRACE_DEBUG("%s: status %d, local bd [%s]", __FUNCTION__, status,
                                                      bd2str(&bd_addr, &bdstr));
+    if(btif_core_state != BTIF_CORE_STATE_ENABLING)
+    {
+       BTIF_TRACE_DEBUG("%s:core is not in enabling state ", __FUNCTION__);
+       return;
+    }
 
     if (bdcmp(btif_local_bd_addr.address,local_bd))
     {
@@ -847,6 +852,7 @@ Description   Trigger SSR when Disable timeout occured
 *******************************************************************************/
 void btif_ssr_cleanup(void)
 {
+  btif_core_state = BTIF_CORE_STATE_DISABLED;
   bte_ssr_cleanup();
 }
 
