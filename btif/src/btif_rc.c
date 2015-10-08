@@ -690,10 +690,17 @@ void handle_rc_connect (tBTA_AV_RC_OPEN *p_rc_open)
         btif_rc_cb[index].rc_connected = TRUE;
         btif_rc_cb[index].rc_handle = p_rc_open->rc_handle;
 
-        result = uinput_driver_check();
-        if(result == BT_STATUS_SUCCESS)
+        if (bt_rc_callbacks)
         {
-            init_uinput();
+            result = uinput_driver_check();
+            if(result == BT_STATUS_SUCCESS)
+            {
+                init_uinput();
+            }
+        }
+        else
+        {
+            BTIF_TRACE_WARNING("Avrcp TG role not enabled, not initializing UInput");
         }
         bdcpy(rc_addr.address, btif_rc_cb[index].rc_addr);
         if (btif_rc_cb[index].rc_features & BTA_AV_FEAT_RCCT)
