@@ -238,6 +238,7 @@ void btsnoop_open(const char *p_path, const bool save_existing) {
 
   if (hci_btsnoop_fd == -1) {
     ALOGE("%s unable to open '%s': %s", __func__, p_path, strerror(errno));
+    btsnoop_close();
     return;
   }
 
