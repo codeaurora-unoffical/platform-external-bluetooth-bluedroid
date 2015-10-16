@@ -1246,7 +1246,8 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
 
     if (audio_sample_log_enabled) {
         ALOGV("close file output");
-        fclose (outputpcmsamplefile);
+        if (outputpcmsamplefile)
+            fclose (outputpcmsamplefile);
     }
 
     skt_disconnect(out->common.ctrl_fd);
