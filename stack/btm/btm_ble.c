@@ -39,6 +39,7 @@
 #include "bt_utils.h"
 
 #include "vendor_ble.h"
+#include <cutils/properties.h>
 
 #if SMP_INCLUDED == TRUE
 extern BOOLEAN AES_CMAC ( BT_OCTET16 key, UINT8 *input, UINT16 length, UINT16 tlen, UINT8 *p_signature);
@@ -46,6 +47,9 @@ extern void smp_link_encrypted(BD_ADDR bda, UINT8 encr_enable);
 extern BOOLEAN smp_proc_ltk_request(BD_ADDR bda);
 #endif
 extern void gatt_notify_enc_cmpl(BD_ADDR bd_addr);
+
+static tBTM_SEC_DEV_REC *btm_find_oldest_dev (void);
+
 /*******************************************************************************/
 /* External Function to be called by other modules                             */
 /*******************************************************************************/
@@ -71,9 +75,16 @@ BOOLEAN BTM_SecAddBleDevice (BD_ADDR bd_addr, BD_NAME bd_name, tBT_DEVICE_TYPE d
     tBTM_SEC_DEV_REC  *p_dev_rec;
     UINT8               i = 0;
     tBTM_INQ_INFO      *p_info=NULL;
+    char value[PROPERTY_VALUE_MAX];
+    UINT8               isQm8626 = 0;
 
     BTM_TRACE_DEBUG ("BTM_SecAddBleDevice dev_type=0x%x", dev_type);
     p_dev_rec = btm_find_dev (bd_addr);
+
+    /* Find out if this the QM8626 */ 
+    property_get("ro.qm8626.hwid", value, "0");
+    if (strncmp( value,"QM8626",6)== 0)
+        isQm8626 = 1;
 
     if (!p_dev_rec)
     {
@@ -107,7 +118,29 @@ BOOLEAN BTM_SecAddBleDevice (BD_ADDR bd_addr, BD_NAME bd_name, tBT_DEVICE_TYPE d
         }
 
         if (!p_dev_rec)
-            return(FALSE);
+        {
+            /* If QM8626 we allocate the oldest entry and dont return error */
+            if (isQm8626)
+            {
+                p_dev_rec = btm_find_oldest_dev();
+                /* Mark this record as in use and initialize */
+                memset (p_dev_rec, 0, sizeof (tBTM_SEC_DEV_REC));
+                p_dev_rec->sec_flags = BTM_SEC_IN_USE;
+                memcpy (p_dev_rec->bd_addr, bd_addr, BD_ADDR_LEN);
+                p_dev_rec->hci_handle = BTM_GetHCIConnHandle (bd_addr, BT_TRANSPORT_BR_EDR);
+                p_dev_rec->ble_hci_handle = BTM_GetHCIConnHandle (bd_addr, BT_TRANSPORT_LE);
+                /* update conn params, use default value for background connection params */
+                p_dev_rec->conn_params.min_conn_int     =
+                p_dev_rec->conn_params.max_conn_int     =
+                p_dev_rec->conn_params.supervision_tout =
+                p_dev_rec->conn_params.slave_latency    = BTM_BLE_CONN_PARAM_UNDEF;
+                BTM_TRACE_DEBUG ("allocating an existing device");
+            }
+            else
+            {
+                return(FALSE);
+            }
+        }
     }
     else
     {
@@ -773,6 +806,66 @@ void btm_ble_rand_enc_complete (UINT8 *p, UINT16 op_code, tBTM_RAND_ENC_CB *p_en
         if (p_enc_cplt_cback)
             (*p_enc_cplt_cback)(&params);  /* Call the Encryption complete callback function */
     }
+}
+
+/*******************************************************************************
+**
+** Function     btm_find_oldest_dev
+**
+** Description         Locates the oldest device in use. It first looks for
+**                         the oldest non-paired device.  If all devices are paired it
+**                         looks for the oldest paired device.
+**
+** Returns               Pointer to the record or NULL
+**
+*******************************************************************************/
+tBTM_SEC_DEV_REC *btm_find_oldest_dev (void)
+{
+    tBTM_SEC_DEV_REC *p_dev_rec = &btm_cb.sec_dev_rec[0];
+    tBTM_SEC_DEV_REC *p_oldest = p_dev_rec;
+    UINT32            ot = 0xFFFFFFFF;
+    int i;
+    int oldest_i = 0;
+
+    /* First look for the non-paired devices for the oldest entry */
+    for (i = 0; i < BTM_SEC_MAX_DEVICE_RECORDS; i++, p_dev_rec++)
+    {
+        if (((p_dev_rec->sec_flags & BTM_SEC_IN_USE) == 0)
+               || ((p_dev_rec->sec_flags & (BTM_SEC_LINK_KEY_KNOWN |BTM_SEC_LE_LINK_KEY_KNOWN)) != 0))
+            continue; /* Device is paired so skip it */
+
+        if (p_dev_rec->timestamp < ot)
+        {
+            p_oldest = p_dev_rec;
+            ot = p_dev_rec->timestamp;
+            oldest_i = i;
+        }
+    }
+
+    if (ot != 0xFFFFFFFF)
+    {
+        BTM_TRACE_DEBUG ("Oldest Non-paired device found: %d",oldest_i);
+        return(p_oldest);
+    }
+
+    /* All devices are paired; find the oldest */
+    p_dev_rec = &btm_cb.sec_dev_rec[0];
+    for (i = 0; i < BTM_SEC_MAX_DEVICE_RECORDS; i++, p_dev_rec++)
+    {
+        if ((p_dev_rec->sec_flags & BTM_SEC_IN_USE) == 0)
+            continue;
+
+        if (p_dev_rec->timestamp < ot)
+        {
+            p_oldest = p_dev_rec;
+            ot = p_dev_rec->timestamp;
+            oldest_i = i;
+        }
+    }
+
+    BTM_TRACE_DEBUG ("Oldest Paired device found: %d",oldest_i);
+    return(p_oldest);
+
 }
 
 
