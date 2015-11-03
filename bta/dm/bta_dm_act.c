@@ -44,6 +44,8 @@
 #if (GAP_INCLUDED == TRUE)
 #include "gap_api.h"
 #endif
+#include <cutils/properties.h>
+#include <stdlib.h>
 
 static void bta_dm_inq_results_cb (tBTM_INQ_RESULTS *p_inq, UINT8 *p_eir);
 static void bta_dm_inq_cmpl_cb (void * p_result);
@@ -322,7 +324,16 @@ static void bta_dm_sys_hw_cback( tBTA_SYS_HW_EVT status )
     tBTA_BLE_LOCAL_ID_KEYS  id_key;
     tBT_UUID                app_uuid = {LEN_UUID_128,{0}};
 #endif
+    UINT16                  qm8626_page_timeout = 0;
+    char                    value[PROPERTY_VALUE_MAX];
     APPL_TRACE_DEBUG(" bta_dm_sys_hw_cback with event: %i" , status );
+
+    /* Find out if this the QM8626 */
+    property_get("ro.qm8626.hwid", value, "0");
+    if (strncmp( value,"QM8626",6)== 0) {
+        property_get("persist.qm8626.btm.page.timeout", value, "0");
+        qm8626_page_timeout = atoi(value);
+    }
 
     /* On H/W error evt, report to the registered DM application callback */
     if (status == BTA_SYS_HW_ERROR_EVT) {
@@ -385,7 +396,12 @@ static void bta_dm_sys_hw_cback( tBTA_SYS_HW_EVT status )
 
         BTM_SecRegister((tBTM_APPL_INFO*)&bta_security);
         BTM_SetDefaultLinkSuperTout(bta_dm_cfg.link_timeout);
-        BTM_WritePageTimeout(bta_dm_cfg.page_timeout);
+
+        if (qm8626_page_timeout)
+            BTM_WritePageTimeout(qm8626_page_timeout);
+        else
+            BTM_WritePageTimeout(bta_dm_cfg.page_timeout);
+
         bta_dm_cb.cur_policy = bta_dm_cfg.policy_settings;
         BTM_SetDefaultLinkPolicy(bta_dm_cb.cur_policy);
 #if (defined(BTM_BUSY_LEVEL_CHANGE_INCLUDED) && BTM_BUSY_LEVEL_CHANGE_INCLUDED == TRUE)
