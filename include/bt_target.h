@@ -653,6 +653,10 @@
 #define GATT_BUF_POOL_ID                HCI_ACL_POOL_ID
 #endif
 
+#ifndef BLE_HH_CERT_TEST
+#define BLE_HH_CERT_TEST         FALSE
+#endif
+
 /******************************************************************************
 **
 ** Lower Layer Interface

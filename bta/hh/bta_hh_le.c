@@ -2623,10 +2623,14 @@ void bta_hh_le_write_rpt(tBTA_HH_DEV_CB *p_cb, UINT8 srvc_inst,
     p_value = (UINT8 *)(p_buf + 1) + p_buf->offset;
     STREAM_TO_UINT8(rpt_id, p_value);
     p_buf->len -= 1;
-    p_rpt= bta_hh_le_find_report_entry(p_cb,
+
+    p_rpt = bta_hh_le_find_rpt_by_idtype(p_cb->hid_srvc[srvc_inst].report, p_cb->mode, r_type, rpt_id);
+    #if (defined BLE_HH_CERT_TEST && BLE_HH_CERT_TEST == TRUE)
+       p_rpt= bta_hh_le_find_report_entry(p_cb,
                                        srvc_inst,
                                        GATT_UUID_HID_REPORT,
                                        0);
+    #endif
     if (p_rpt == NULL)
     {
         APPL_TRACE_ERROR("bta_hh_le_write_rpt: no matching report");
@@ -2718,7 +2722,10 @@ void bta_hh_le_write_dev_act(tBTA_HH_DEV_CB *p_cb, tBTA_HH_DATA *p_data)
             break;
 
         case HID_TRANS_SET_REPORT:
-            srvc_inst=p_data->api_sndcmd.param-1;
+            srvc_inst = 0;
+            #if (defined BLE_HH_CERT_TEST && BLE_HH_CERT_TEST == TRUE)
+             srvc_inst=p_data->api_sndcmd.param-1;
+           #endif
             APPL_TRACE_DEBUG("write service inst:%d", srvc_inst);
             bta_hh_le_write_rpt(p_cb,
                                 srvc_inst,
