@@ -73,6 +73,7 @@
 ************************************************************************************/
 
 static BOOLEAN bt_disabled = FALSE;
+static BOOLEAN ssr_cleanup = FALSE;
 pthread_mutex_t mutex_bt_disable;
 
 /* These type definitions are used when passing data from the HAL to BTIF context
@@ -585,9 +586,10 @@ void btif_enable_bluetooth_evt(tBTA_STATUS status, BD_ADDR local_bd)
     bdcpy(bd_addr.address, local_bd);
     BTIF_TRACE_DEBUG("%s: status %d, local bd [%s]", __FUNCTION__, status,
                                                      bd2str(&bd_addr, &bdstr));
-    if(btif_core_state != BTIF_CORE_STATE_ENABLING)
+    if(btif_core_state != BTIF_CORE_STATE_ENABLING || ssr_cleanup)
     {
-       BTIF_TRACE_DEBUG("%s:core is not in enabling state ", __FUNCTION__);
+       BTIF_TRACE_DEBUG("%s:core is not in enabling state or enable timeout happend", __FUNCTION__);
+       ssr_cleanup = FALSE;
        return;
     }
 
@@ -852,7 +854,7 @@ Description   Trigger SSR when Disable timeout occured
 *******************************************************************************/
 void btif_ssr_cleanup(void)
 {
-  btif_core_state = BTIF_CORE_STATE_DISABLED;
+  ssr_cleanup = TRUE;
   bte_ssr_cleanup();
 }
 
