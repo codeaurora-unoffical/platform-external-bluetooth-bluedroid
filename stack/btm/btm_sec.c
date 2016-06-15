@@ -2997,10 +2997,18 @@ tBTM_STATUS btm_sec_mx_access_request (BD_ADDR bd_addr, UINT16 psm, BOOLEAN is_o
         if (rc == BTM_CMD_STARTED)
         {
             btm_sec_queue_mx_request (bd_addr, psm,  is_originator, mx_proto_id, mx_chan_id, p_callback, p_ref_data);
-            return rc;
         }
+        else
+        {
+            if (p_callback)
+            {
+                (*p_callback) (bd_addr, transport, p_ref_data, (UINT8)rc);
+            }
+        }
+        BTM_TRACE_EVENT("%s: return with rc = 0x%02x in delayed state %s", __FUNCTION__, rc,
+                            btm_pair_state_descr(btm_cb.pairing_state));
+        return rc;
     }
-
     p_dev_rec->p_cur_service     = p_serv_rec;
     p_dev_rec->security_required = p_serv_rec->security_flags;
 
