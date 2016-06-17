@@ -826,7 +826,7 @@ static int send_data_to_app(int fd, BT_HDR *p_buf)
 {
     if(p_buf->len == 0)
         return SENT_ALL;
-    int sent = send(fd, (UINT8 *)(p_buf + 1) + p_buf->offset,  p_buf->len, MSG_DONTWAIT);
+    int sent = TEMP_FAILURE_RETRY(send(fd, (UINT8 *)(p_buf + 1) + p_buf->offset,  p_buf->len, MSG_DONTWAIT));
     if(sent == p_buf->len)
         return SENT_ALL;
 
@@ -898,7 +898,7 @@ void btsock_l2c_signaled(int fd, int flags, uint32_t user_id)
                 {
                     int size = 0;
                     //make sure there's data pending in case the peer closed the socket
-                    if((ioctl(ls->fd, FIONREAD, &size) == 0 && size) || !(flags & SOCK_THREAD_FD_EXCEPTION))
+                    if((TEMP_FAILURE_RETRY(ioctl(ls->fd, FIONREAD, &size)) == 0 && size) || !(flags & SOCK_THREAD_FD_EXCEPTION))
                     {
                         if(ls->put_size_set == TRUE)
                         {
@@ -939,7 +939,7 @@ void btsock_l2c_signaled(int fd, int flags, uint32_t user_id)
         if(need_close || (flags & SOCK_THREAD_FD_EXCEPTION))
         {
             int size = 0;
-            if(need_close || ioctl(ls->fd, FIONREAD, &size) != 0 || size == 0 )
+            if(need_close || TEMP_FAILURE_RETRY(ioctl(ls->fd, FIONREAD, &size)) != 0 || size == 0 )
             {
                 //cleanup when no data pending
                 APPL_TRACE_DEBUG("SOCK_THREAD_FD_EXCEPTION, cleanup, flags:%x, need_close:%d, pending size:%d",
@@ -1003,7 +1003,7 @@ int bta_co_l2c_data_outgoing_size(void *user_data, int *size)
     l2c_slot_t* ls = find_l2c_slot_by_id(id);
     if(ls)
     {
-        if(ioctl(ls->fd, FIONREAD, size) == 0)
+        if(TEMP_FAILURE_RETRY(ioctl(ls->fd, FIONREAD, size)) == 0)
         {
             APPL_TRACE_DEBUG("ioctl read avaiable size:%d, fd:%d", *size, ls->fd);
             ret = TRUE;
