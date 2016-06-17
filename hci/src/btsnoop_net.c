@@ -101,7 +101,7 @@ void btsnoop_net_write(const void *data, size_t length) {
   pthread_mutex_lock(&client_socket_lock_);
   if (client_socket_btsnoop != -1) {
     do {
-      if ((ret = send(client_socket_btsnoop, data, length, 0)) == -1 && errno == ECONNRESET) {
+      if ((ret = TEMP_FAILURE_RETRY(send(client_socket_btsnoop, data, length, 0))) == -1 && errno == ECONNRESET) {
         safe_close_(&client_socket_btsnoop);
         ALOGI("%s conn closed", __func__);
       }
@@ -175,7 +175,7 @@ static void *listen_fn_(UNUSED_ATTR void *context) {
     }
 
     if (FD_ISSET(listen_socket_, &sock_fds)) {
-      client_socket = accept(listen_socket_, NULL, NULL);
+      client_socket = TEMP_FAILURE_RETRY(accept(listen_socket_, NULL, NULL));
       if (client_socket == -1) {
         if (errno == EINVAL || errno == EBADF) {
           ALOGW("%s error accepting TCP socket: %s", __func__, strerror(errno));
@@ -205,7 +205,7 @@ static void *listen_fn_(UNUSED_ATTR void *context) {
     pthread_mutex_lock(&client_socket_lock_);
     safe_close_(&client_socket_btsnoop);
     client_socket_btsnoop = client_socket;
-    ret = send(client_socket_btsnoop, "btsnoop\0\0\0\0\1\0\0\x3\xea", 16, 0);
+    ret = TEMP_FAILURE_RETRY(send(client_socket_btsnoop, "btsnoop\0\0\0\0\1\0\0\x3\xea", 16, 0));
     pthread_mutex_unlock(&client_socket_lock_);
 
     FD_ZERO(&sock_fds);
