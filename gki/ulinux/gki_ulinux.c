@@ -733,6 +733,20 @@ static void gki_set_timer_scheduling( void )
     }
 }
 
+/*****************************************************************************
+**
+** Function        gki_get_ticks_scheduling
+**
+** Description     helper function to get ticks scheduling value
+**
+** Returns         UINT32
+**
+*******************************************************************************/
+
+INT32 gki_get_ticks_scheduling( void )
+{
+    return (alarm_service.ticks_scheduled > INT32_MAX) ? INT32_MAX:(INT32)alarm_service.ticks_scheduled;
+}
 
 /*****************************************************************************
 **

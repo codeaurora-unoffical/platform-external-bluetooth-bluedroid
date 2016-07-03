@@ -30,6 +30,7 @@
 
 // Used for controlling alarms from AlarmService.
 extern void alarm_service_reschedule(void);
+extern INT32 gki_get_ticks_scheduling(void);
 
 /*******************************************************************************
 **
@@ -206,7 +207,7 @@ void GKI_start_timer (UINT8 tnum, INT32 ticks, BOOLEAN is_continuous)
 
     elapsed_ticks = GKI_get_elapsed_ticks();
 
-    if (elapsed_ticks > 0)
+    if (elapsed_ticks > 0 && (gki_cb.com.OSTicksTilExp > elapsed_ticks || gki_get_ticks_scheduling() < ticks))
         GKI_timer_update(elapsed_ticks, elapsed_ticks,  FALSE);
 
     /* Add the time since the last task timer update.
