@@ -79,7 +79,7 @@ TEST(ReactorTest, reactor_start_wait_stop) {
   reactor_t *reactor = reactor_new();
 
   spawn_reactor_thread(reactor);
-  TEMP_FAILURE_RETRY(usleep(50 * 1000));
+  usleep(50 * 1000);
   EXPECT_TRUE(thread_running);
 
   reactor_stop(reactor);

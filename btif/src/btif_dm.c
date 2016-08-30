@@ -2115,7 +2115,7 @@ static void btif_dm_upstreams_evt(UINT16 event, char* p_param)
             BTIF_TRACE_ERROR("Received H/W Error. ");
             /* Flush storage data */
             btif_config_flush();
-            TEMP_FAILURE_RETRY(usleep(100000)); /* 100milliseconds */
+            usleep(100000); /* 100milliseconds */
             /* Killing the process to force a restart as part of fault tolerance */
             kill(getpid(), SIGKILL);
             break;
