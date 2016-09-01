@@ -101,7 +101,7 @@ void btsnoop_net_write(const void *data, size_t length) {
   pthread_mutex_lock(&client_socket_lock_);
   if (client_socket_btsnoop != -1) {
     do {
-      if ((ret = TEMP_FAILURE_RETRY(send(client_socket_btsnoop, data, length, 0)) == -1 && errno == ECONNRESET)) {
+      if ((ret = TEMP_FAILURE_RETRY(send(client_socket_btsnoop, data, length, 0))) == -1 && errno == ECONNRESET) {
         safe_close_(&client_socket_btsnoop);
         ALOGI("%s conn closed", __func__);
       }
