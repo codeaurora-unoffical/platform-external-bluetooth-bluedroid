@@ -27,6 +27,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#include <log/log.h>
+
 #include "gki.h"
 #include "hcimsgs.h"
 #include "l2cdefs.h"
@@ -188,6 +190,14 @@ void l2c_rcv_acl_data (BT_HDR *p_msg)
         btu_hcif_send_host_rdy_for_data();
 #endif
 
+    if (hci_len < L2CAP_PKT_OVERHEAD) {
+        /* Must receive at least the L2CAP length and CID */
+        L2CAP_TRACE_WARNING0 ("L2CAP - got incorrect hci header");
+        android_errorWriteWithInfoLog(0x534e4554, "34946955", -1, NULL, 0);
+        GKI_freebuf (p_msg);
+        return;
+    }
+
     /* Extract the length and CID */
     STREAM_TO_UINT16 (l2cap_len, p);
     STREAM_TO_UINT16 (rcv_cid, p);
@@ -203,17 +213,8 @@ void l2c_rcv_acl_data (BT_HDR *p_msg)
         }
     }
 
-    if (hci_len >= L2CAP_PKT_OVERHEAD)  /* Must receive at least the L2CAP length and CID.*/
-    {
-        p_msg->len    = hci_len - L2CAP_PKT_OVERHEAD;
-        p_msg->offset += L2CAP_PKT_OVERHEAD;
-    }
-    else
-    {
-        L2CAP_TRACE_WARNING0 ("L2CAP - got incorrect hci header" );
-        GKI_freebuf (p_msg);
-        return;
-    }
+    p_msg->len    = hci_len - L2CAP_PKT_OVERHEAD;
+    p_msg->offset += L2CAP_PKT_OVERHEAD;
 
     if (l2cap_len != p_msg->len)
     {
