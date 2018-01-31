@@ -810,7 +810,8 @@ UINT8 *bnep_process_control_packet (tBNEP_CONN *p_bcb, UINT8 *p, UINT16 *rem_len
     control_type = *p++;
     *rem_len = *rem_len - 1;
 
-    BNEP_TRACE_EVENT3 ("BNEP processing control packet rem_len %d, is_ext %d, ctrl_type %d", *rem_len, is_ext, control_type);
+    BNEP_TRACE_EVENT4("%s: BNEP processing control packet rem_len %d, is_ext %d, ctrl_type %d",
+                       __func__, *rem_len, is_ext, control_type);
 
     switch (control_type)
     {
@@ -821,7 +822,9 @@ UINT8 *bnep_process_control_packet (tBNEP_CONN *p_bcb, UINT8 *p, UINT16 *rem_len
                 __func__);
             goto bad_packet_length;
         }
-        BNEP_TRACE_ERROR1 ("BNEP Received Cmd not understood for ctl pkt type: %d", *p);
+        BNEP_TRACE_ERROR2(
+          "%s: Received BNEP_CONTROL_COMMAND_NOT_UNDERSTOOD for pkt type: %d",
+           __func__, *p);
         p++;
         *rem_len = *rem_len - 1;
         break;
